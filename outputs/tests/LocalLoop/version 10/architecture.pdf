@@ -1,0 +1,112 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 3613 >>
+stream
+BT /F2 20 Tf 28 576 Td (Architecture Diagram - LocalLoop) Tj ET
+BT /F1 10 Tf 28 554 Td (Macro architecture derived from the Tech output) Tj ET
+0 0 0 RG 1 w 24 324 200 228 re S
+BT /F2 11 Tf 34 534 Td (External Actors / Systems) Tj ET
+BT /F1 9 Tf 34 516 Td (- Urban residents) Tj ET
+BT /F1 9 Tf 34 502 Td (- Young professionals) Tj ET
+BT /F1 9 Tf 34 488 Td (- Families) Tj ET
+BT /F1 9 Tf 34 474 Td (- Tourists) Tj ET
+0 0 0 RG 1 w 576 324 192 228 re S
+BT /F2 11 Tf 586 534 Td (Admin / Ops Control Points) Tj ET
+BT /F1 9 Tf 586 516 Td (- **Admin Dashboard**:) Tj ET
+BT /F1 9 Tf 586 504 Td (- Develop an internal tool) Tj ET
+BT /F1 9 Tf 586 492 Td (- to manage business) Tj ET
+BT /F1 9 Tf 586 480 Td (- profiles and oversee user) Tj ET
+BT /F1 9 Tf 586 468 Td (- feedback effectively.) Tj ET
+BT /F1 9 Tf 586 454 Td (- **Data Audit Trail**:) Tj ET
+BT /F1 9 Tf 586 442 Td (- Maintain logs of changes) Tj ET
+BT /F1 9 Tf 586 430 Td (- made to business profiles) Tj ET
+BT /F1 9 Tf 586 418 Td (- and user interactions for) Tj ET
+BT /F1 9 Tf 586 406 Td (- compliance purposes.) Tj ET
+0 0 0 RG 1 w 24 24 744 136 re S
+BT /F2 11 Tf 34 142 Td (Major Flows) Tj ET
+BT /F1 8.5 Tf 34 124 Td (1. User Profile Creation: Must ensure users can create and update their profiles) Tj ET
+BT /F1 8.5 Tf 34 113 Td (1. securely.) Tj ET
+BT /F1 8.5 Tf 34 100 Td (2. Business Onboarding: A reliable process for local businesses to register and) Tj ET
+BT /F1 8.5 Tf 34 89 Td (2. update their offerings.) Tj ET
+BT /F1 8.5 Tf 34 76 Td (3. Recommendation Fulfillment: Must return relevant businesses with consistent) Tj ET
+BT /F1 8.5 Tf 34 65 Td (3. data accuracy.) Tj ET
+BT /F1 8.5 Tf 34 52 Td (4. **Backend API Development**: Create REST APIs that facilitate user) Tj ET
+BT /F1 8.5 Tf 34 41 Td (4. registration, fetching business recommendations, and submitting reviews. This) Tj ET
+BT /F1 8.5 Tf 34 30 Td (4. tier will handle business logic and user interactions.) Tj ET
+BT /F1 8.5 Tf 34 17 Td (5. **Frontend Mobile Application**: Develop a mobile application using a) Tj ET
+BT /F1 8.5 Tf 34 6 Td (5. cross-platform framework \(such as React Native\) to implement user-facing) Tj ET
+BT /F1 8.5 Tf 34 0 Td (5. features, such as sign-up, viewing recommendations, and interaction with) Tj ET
+BT /F1 8.5 Tf 34 0 Td (5. promotions.) Tj ET
+0 0 0 RG 1 w 244 186 308 366 re S
+BT /F2 11 Tf 254 534 Td (Main System Blocks) Tj ET
+0 0 0 RG 1 w 262 460 272 52 re S
+BT /F1 9.5 Tf 272 490 Td (User Module: Profile management,) Tj ET
+BT /F1 9.5 Tf 272 479 Td (preferences, and reviews.) Tj ET
+0 0 0 RG 1 w 262 398 272 52 re S
+BT /F1 9.5 Tf 272 428 Td (Business Module: Profile) Tj ET
+BT /F1 9.5 Tf 272 417 Td (management, promotions, and) Tj ET
+0 0 0 RG 1 w 262 336 272 52 re S
+BT /F1 9.5 Tf 272 366 Td (Recommendation Engine: Logic to) Tj ET
+BT /F1 9.5 Tf 272 355 Td (match users with businesses based) Tj ET
+0 0 0 RG 1 w 262 274 272 52 re S
+BT /F1 9.5 Tf 272 304 Td (Geolocation Service: API) Tj ET
+BT /F1 9.5 Tf 272 293 Td (integration to detect user) Tj ET
+0 0 0 RG 1 w 262 212 272 52 re S
+BT /F1 9.5 Tf 272 242 Td (**User Registration Module**: To) Tj ET
+BT /F1 9.5 Tf 272 231 Td (enable users to sign up and create) Tj ET
+0 0 0 RG
+1 w
+398 460 m 398 450 l S
+398 450 m 390 454.0 l 390 446.0 l h f
+0 0 0 RG
+1 w
+398 398 m 398 388 l S
+398 388 m 390 392.0 l 390 384.0 l h f
+0 0 0 RG
+1 w
+398 336 m 398 326 l S
+398 326 m 390 330.0 l 390 322.0 l h f
+0 0 0 RG
+1 w
+398 274 m 398 264 l S
+398 264 m 390 268.0 l 390 260.0 l h f
+0 0 0 RG
+1 w
+224 438 m 244 438 l S
+244 438 m 236 442.0 l 236 434.0 l h f
+0 0 0 RG
+1 w
+552 250 m 576 250 l S
+576 250 m 568 254.0 l 568 246.0 l h f
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000327 00000 n 
+0000000402 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+4067
+%%EOF

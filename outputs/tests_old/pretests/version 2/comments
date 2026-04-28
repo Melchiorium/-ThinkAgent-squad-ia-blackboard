@@ -1,0 +1,33 @@
+Commentaire Codex sur résultat :
+Oui, on comprend mieux qu’avant, mais la qualité reste moyenne.
+
+Ce qui marche mieux :
+
+outputs/blackboard.md est plus lisible pour un humain qu’un dump brut.
+La séquence des agents est visible : Initial PRD → Tech Input → Growth Input → Final Revised PRD dans blackboard.md.
+Le brief utilisé est clair et traçable via project-brief.md.
+Le log d’activité confirme bien le pipeline dans activity_log.txt.
+Ce qui reste faible :
+
+On voit les contributions, mais pas vraiment les “échanges” ni les arguments. On a surtout 3 gros blocs successifs, pas une synthèse de ce que Tech et Growth ont demandé au Product.
+La révision finale reste peu explicite : on comprend mal précisément ce qui a changé entre le PRD initial et le PRD final.
+Le système dérive vite à partir d’un brief très court. Ici, “soirées entre amis” est devenu assez arbitrairement “social dinner organizer app” dans prd.md, donc le cadrage produit est discutable.
+La sortie Tech sur-spécifie beaucoup trop : React/Angular, Node, MongoDB, Firebase, OAuth, etc. dans architecture.md, alors que le brief ne justifie pas ce niveau d’engagement technique.
+Le PRD final intègre même des morceaux GTM à la fin, ce qui montre que les frontières entre agents ne sont pas encore très propres.
+Sur Questions, Risks, Decisions, Conflicts vides : oui, c’est normal avec l’implémentation actuelle, mais ce n’est pas satisfaisant.
+Aujourd’hui, ces champs existent dans le blackboard, mais les agents ne les alimentent pas réellement. Les risques apparaissent dans les textes de prd.md, architecture.md et gtm.md, mais ils ne sont pas extraits dans les champs structurés du blackboard. Donc “normal” techniquement, mais c’est bien un manque fonctionnel.
+
+Mon avis synthétique :
+
+lisibilité humaine : meilleure qu’avant
+qualité de collaboration inter-agents : encore faible
+qualité de cadrage produit : correcte mais trop spéculative
+qualité de structuration du blackboard : incomplète
+Le prochain vrai gain serait de demander à chaque agent de produire explicitement :
+
+open_questions
+risks
+decisions
+conflicts
+requested_changes
+C’est ça qui ferait passer le système d’une juxtaposition de textes à une vraie collaboration compréhensible.

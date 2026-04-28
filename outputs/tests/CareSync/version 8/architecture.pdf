@@ -1,0 +1,113 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 792 612] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+6 0 obj
+<< /Length 3717 >>
+stream
+BT /F2 20 Tf 28 576 Td (Architecture Diagram - CareSync) Tj ET
+BT /F1 10 Tf 28 554 Td (Macro architecture derived from the Tech output) Tj ET
+0 0 0 RG 1 w 24 324 200 228 re S
+BT /F2 11 Tf 34 534 Td (External Actors / Systems) Tj ET
+BT /F1 9 Tf 34 516 Td (- Adults managing care for) Tj ET
+BT /F1 9 Tf 34 504 Td (- elderly parents) Tj ET
+BT /F1 9 Tf 34 490 Td (- Family members living in) Tj ET
+BT /F1 9 Tf 34 478 Td (- different cities) Tj ET
+BT /F1 9 Tf 34 464 Td (- Professional caregivers) Tj ET
+BT /F1 9 Tf 34 450 Td (- Home nurses) Tj ET
+0 0 0 RG 1 w 576 324 192 228 re S
+BT /F2 11 Tf 586 534 Td (Admin / Ops Control Points) Tj ET
+BT /F1 9 Tf 586 516 Td (- **Admin Dashboard**: To) Tj ET
+BT /F1 9 Tf 586 504 Td (- manage user roles, oversee) Tj ET
+BT /F1 9 Tf 586 492 Td (- permission settings, and) Tj ET
+BT /F1 9 Tf 586 480 Td (- monitor system logs for) Tj ET
+BT /F1 9 Tf 586 468 Td (- compliance.) Tj ET
+BT /F1 9 Tf 586 454 Td (- **Help) Tj ET
+BT /F1 9 Tf 586 442 Td (- Documentation/Support) Tj ET
+BT /F1 9 Tf 586 430 Td (- Tools**: Provide resources) Tj ET
+BT /F1 9 Tf 586 418 Td (- to educate users about if) Tj ET
+BT /F1 9 Tf 586 406 Td (- they experience trouble) Tj ET
+BT /F1 9 Tf 586 394 Td (- with the platform.) Tj ET
+0 0 0 RG 1 w 24 24 744 136 re S
+BT /F2 11 Tf 34 142 Td (Major Flows) Tj ET
+BT /F1 8.5 Tf 34 124 Td (1. **User Profile State**: Secure handling of user profiles, ensuring privacy) Tj ET
+BT /F1 8.5 Tf 34 113 Td (1. settings are clearly defined and user permissions are managed effectively.) Tj ET
+BT /F1 8.5 Tf 34 100 Td (2. **Appointment State**: Reliable handling of scheduled appointments with) Tj ET
+BT /F1 8.5 Tf 34 89 Td (2. notifications for upcoming events.) Tj ET
+BT /F1 8.5 Tf 34 76 Td (3. **Task Allocation State**: Ensure that task states reflect current assignments) Tj ET
+BT /F1 8.5 Tf 34 65 Td (3. accurately among users.) Tj ET
+BT /F1 8.5 Tf 34 52 Td (4. **Focus on MVP Core Functions**: Prioritize building the shared calendar,) Tj ET
+BT /F1 8.5 Tf 34 41 Td (4. medication reminders, and task management features, with essential user) Tj ET
+BT /F1 8.5 Tf 34 30 Td (4. authentication and data security controls.) Tj ET
+BT /F1 8.5 Tf 34 17 Td (5. **Simplicity First**: Start with a manual onboarding process to validate the) Tj ET
+BT /F1 8.5 Tf 34 6 Td (5. critical features before expanding into more automated systems.) Tj ET
+0 0 0 RG 1 w 244 186 308 366 re S
+BT /F2 11 Tf 254 534 Td (Main System Blocks) Tj ET
+0 0 0 RG 1 w 262 460 272 52 re S
+BT /F1 9.5 Tf 272 490 Td (**User Authentication Module**:) Tj ET
+BT /F1 9.5 Tf 272 479 Td (Handles user registration, login,) Tj ET
+0 0 0 RG 1 w 262 398 272 52 re S
+BT /F1 9.5 Tf 272 428 Td (**Calendar Management Module**:) Tj ET
+BT /F1 9.5 Tf 272 417 Td (Facilitates appointment scheduling) Tj ET
+0 0 0 RG 1 w 262 336 272 52 re S
+BT /F1 9.5 Tf 272 366 Td (**Task Management Module**: Allows) Tj ET
+BT /F1 9.5 Tf 272 355 Td (families to manage caregiving) Tj ET
+0 0 0 RG 1 w 262 274 272 52 re S
+BT /F1 9.5 Tf 272 304 Td (**Notification Module**: For) Tj ET
+BT /F1 9.5 Tf 272 293 Td (medication reminders and urgent) Tj ET
+0 0 0 RG 1 w 262 212 272 52 re S
+BT /F1 9.5 Tf 272 242 Td (**Centralized calendar module**:) Tj ET
+BT /F1 9.5 Tf 272 231 Td (This will handle scheduling of) Tj ET
+0 0 0 RG
+1 w
+398 460 m 398 450 l S
+398 450 m 390 454.0 l 390 446.0 l h f
+0 0 0 RG
+1 w
+398 398 m 398 388 l S
+398 388 m 390 392.0 l 390 384.0 l h f
+0 0 0 RG
+1 w
+398 336 m 398 326 l S
+398 326 m 390 330.0 l 390 322.0 l h f
+0 0 0 RG
+1 w
+398 274 m 398 264 l S
+398 264 m 390 268.0 l 390 260.0 l h f
+0 0 0 RG
+1 w
+224 438 m 244 438 l S
+244 438 m 236 442.0 l 236 434.0 l h f
+0 0 0 RG
+1 w
+552 250 m 576 250 l S
+576 250 m 568 254.0 l 568 246.0 l h f
+endstream
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000257 00000 n 
+0000000327 00000 n 
+0000000402 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+4171
+%%EOF

@@ -1,0 +1,56 @@
+product_agent | prd_draft_generated | app/agents/product_agent.py
+tech_agent | architecture_notes_generated | app/agents/tech_agent.py
+growth_agent | gtm_notes_generated | app/agents/growth_agent.py
+product_agent | prd_draft_revised | app/agents/product_agent.py
+
+// De mon côté, voilà mes premières impressions :
+- le tech et le growth ne font que des suggestions alors qu'ils doivent conseiller des solutions concrètes. 
+- architecture.md et gtm.md sont pauvres : il faut une vraie proposition technique et de GTM, pas juste des question / risque / demande de changements (même si garder des questions ouvertes reste pertinent)
+- J'ai l'impression que certains éléments du blackboard (eg : technologie choisie) n'apparaissent pas dans le prd.md final, ou de manière très partielle.
+
+Ce que je vois sur les derniers résultats :
+
+architecture.md reste trop léger et trop prudent : il commente plus qu’il ne tranche.
+gtm.md reste trop générique : on a encore du conseil, pas assez de plan d’attaque.
+prd.md final est plus propre qu’avant, mais il n’absorbe pas encore assez les décisions structurantes venues de Tech et Growth.
+Le principal goulot est maintenant clairement dans les prompts, pas dans le pipeline.
+
+Le point clé, c’est que les agents ne doivent pas seulement “reviewer” un draft, mais réellement collaborer pour produire un cadrage final complet. Donc les prompts doivent être orientés :
+
+rôle fort et distinct
+capacité à challenger
+obligation de proposer, arbitrer et enrichir
+sortie exploitable pour les livrables finaux
+Ce que ça change par agent :
+
+Product
+
+ne doit pas seulement écrire un PRD
+doit porter la vision produit, arbitrer le scope, formuler roadmap/hypothèses/décisions
+doit intégrer les retours Tech et Growth dans un cadrage produit final
+Tech
+
+ne doit pas seulement faire des “requested changes”
+doit proposer une architecture cible, des choix techniques, des compromis, une faisabilité, des risques
+doit challenger le PRD sur complexité, dépendances, MVP réaliste
+son output doit préparer un vrai livrable architecture, idéalement structurable pour schémas
+Growth
+
+ne doit pas seulement faire des suggestions marketing
+doit proposer un vrai plan GTM initial : cible prioritaire, positionnement, canal d’acquisition principal, activation, métriques
+doit challenger le produit sur distribution, adoption et différenciation
+Donc oui, je ferais évoluer les prompts dans ce sens :
+
+moins “review notes”
+plus “position paper + recommandations concrètes”
+plus de challenge explicite
+plus d’obligation de produire des décisions exploitables
+Et il y a aussi une conséquence côté outputs :
+
+le PRD final doit être une synthèse enrichie de la collaboration
+architecture.md doit devenir une vraie proposition d’architecture, pas une note de revue
+gtm.md doit devenir un vrai plan GTM MVP
+Pour les schémas :
+
+ça ne change pas forcément le prompt de l’agent Tech tout de suite
+mais son output doit contenir une structure assez claire pour générer ensuite un diagramme d’architecture en PNG/JPG

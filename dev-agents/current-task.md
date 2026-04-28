@@ -1,70 +1,58 @@
-# Step 8
+# Step Correctif V12
 
 ## Status
 - [x] todo
 - [ ] in_progress
 - [ ] blocked
-- [ ] done
+- [x] done
 
 ## Objective
-Replace the hardcoded project brief with a file-loaded input brief and make the brief source traceable through the run.
+Return the project to a `V12-like` workflow baseline: keep `prompts V3`, but remove post-`V12` workflow and blackboard layers that were added after the strongest known results.
 
-## Files concerned
+## Why
+The best known results were obtained around:
+- `outputs/tests/CareSync/version 12`
+- `outputs/tests/LocalLoop/version 12`
+
+After that point, several workflow/blackboard layers were added:
+- `step 28`
+- `step 28.1`
+- `step 29`
+- `step 30` preparation
+- `step 31`
+- `step 31.1`
+
+Those additions increased internal instrumentation and extra workflow behavior, but did not improve the final deliverables and made the system harder to reason about.
+
+## Snapshot Of Current State Before Rollback
+- prompt family kept in use: `prompts V3`
+- prompt selector still available through `BLACKBOARD_PROMPT_VERSION`
+- current workflow contains:
+  - targeted correction loop
+  - product locking pass
+  - extra solution-oriented correction behavior added after `V12`
+
+## Corrective Decision
+Rollback the workflow to the closest known-good baseline after V3 prompts and before the post-V12 workflow additions.
+
+## Scope
+- keep `prompts V3`
+- keep prompt version switching
+- keep readiness and correction loop baseline
+- keep product locking pass baseline
+- remove post-V12 solution-proposal workflow behavior
+- remove post-V12 solution rendering behavior
+
+## Files touched by this corrective rollback
 - `app/orchestrator.py`
-- `app/main.py`
+- `app/agents/product_agent.py`
+- `app/agents/tech_agent.py`
+- `app/agents/growth_agent.py`
 - `app/blackboard.py`
+- `app/main.py`
+- `dev-agents/current-task.md`
 
-## Required behavior
-- remove the hardcoded `project_brief` string from `app/orchestrator.py`
-- update the orchestrator so it receives the project brief as an input argument instead of owning the brief content directly
-- load the project brief from `dev-agents/architect-context.md` in the application entry flow
-- write the loaded brief into the blackboard as the actual input used for the run
-- add a simple blackboard field to preserve the brief source path or source identifier
-- export a readable copy of the brief used for the run into `outputs/`
-- fail with a clear error if the brief file is missing or empty
-
-## Constraints
-- keep the orchestrator explicit and deterministic
-- do not redesign the whole application startup
-- no new dependency
-- no CLI system yet
-- no parsing framework for the briefing file
-- treat the current file content as the input brief as-is
-- keep the implementation simple and readable
-
-## Acceptance criteria
-- `app/orchestrator.py` no longer contains a hardcoded project brief
-- the orchestrator takes the brief as input
-- `app/main.py` loads the brief from `dev-agents/architect-context.md`
-- the blackboard stores both the brief content and its source
-- an output file captures the exact brief used during the run
-- missing or empty brief file produces a clear error
-
-## Out of scope
-- introducing a dedicated brief extraction format
-- adding CLI arguments for custom brief paths
-- changing agent prompts
-- modifying the multi-agent flow
-- validating the semantic quality of the brief content
-
-## Open questions
-- [ ]
-
-## Developer feedback
-- [ ]
-
-## Developer status
-pending
-
-## Architect decision
-- the orchestrator should consume a brief, not define it
-- using `dev-agents/architect-context.md` directly is acceptable for now as the source file
-- a dedicated input-brief file can come later if needed, but it is not required for this step
-
-## Completion check
-- [ ] implementation done
-- [ ] acceptance criteria met
-- [ ] ready for next step
-
-## Notes
-- Prefer keeping the file-loading responsibility in `main.py` so the orchestrator stays reusable.
+## Result
+- project returned to a simpler `V12-like` workflow baseline
+- no prompt rewrite performed
+- rollback focused on workflow / blackboard behavior only
