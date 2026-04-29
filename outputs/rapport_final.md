@@ -4,18 +4,16 @@
 
 Ce document raconte la construction du projet `squad-ia-blackboard` : un prototype de système multi-agents capable de transformer un brief projet en dossier de cadrage startup.
 
-L'objectif n'était pas seulement de "passer l'exercice". L'objectif personnel était plus ambitieux :
-- faire le maximum en moins de 48h
+L'objectif n'était pas seulement de "passer l'exercice". L'objectif personnel était :
+- faire le maximum dans un temp limité (48h, devenu 36)
 - construire un POC réellement exécutable
-- tester, comparer, explorer
+- tester, comparer, *explorer*
 - comprendre ce qui améliore vraiment la qualité d'un système agentique
 
 Le projet a été développé sous contraintes :
 - temps limité
 - tokens limités
 - travail fragmenté
-- nombreux essais successifs
-- changements fréquents de prompts, modèles et workflow
 
 Un avertissement de traçabilité est nécessaire : une grande partie des anciennes instances de test a été perdue lors d'un nettoyage d'historique. Les grandes étapes de développement et le workflow ont été conservés et documentés, mais certaines comparaisons anciennes ne sont plus vérifiables fichier par fichier. L'incident est détaillé en annexe.
 
@@ -63,6 +61,12 @@ Le risque était de tomber dans un design guidé par le framework plutôt que pa
 ### Option Python custom + blackboard
 
 L'option retenue a donc été une architecture Python custom, très simple, centrée sur un `blackboard`.
+
+Ce choix répondait aussi à une intention de fond : construire un système capable de converger vers une solution faisable.
+
+Je ne voulais pas seulement produire trois critiques séparées d'un projet. Je voulais que les agents challengent l'idée, mais qu'ils soient ensuite forcés de ramener leurs critiques vers un cadrage actionnable : un MVP, une architecture, un GTM, des risques identifiés et des arbitrages explicites.
+
+Autrement dit, le système avait volontairement une tendance "solutionniste". Il devait aider à faire exister une proposition crédible, pas seulement démonter l'idée. C'est précisément pour cela que l'orchestration et le blackboard étaient importants : ils permettaient de transformer les objections des agents en handoffs puis en décisions.
 
 Ce choix avait plusieurs avantages :
 - architecture explicable
@@ -791,6 +795,14 @@ Ce regard est plus dur que l'évaluateur qualité, mais complémentaire. Il peut
 ## Conclusion
 
 Le projet montre qu'un système multi-agents peut améliorer un travail de cadrage, mais seulement s'il reste discipliné.
+
+L'objectif initial était aussi de pousser le système vers une solution faisable : ne pas seulement critiquer une idée, mais aider Product, Growth et Tech à converger vers un cadrage MVP crédible, réaliste et actionnable.
+
+Cette ambition reste importante. Mais l'expérience a montré une nuance : les éléments les plus percutants pour prendre du recul sur un projet viennent souvent des évaluateurs externes.
+
+Les agents de la squad cherchent naturellement à faire fonctionner le projet. Ils challengent, corrigent, arbitrent, puis convergent vers une proposition possible. L'évaluateur, lui, remet cette proposition à distance. Il demande si les livrables sont vraiment solides, ou si le projet mérite réellement un investissement.
+
+C'est ce contrepoint qui rend le système plus utile : la squad construit une solution faisable, puis l'évaluation force à regarder ce que cette solution ne prouve pas encore.
 
 Les gains ne viennent pas seulement :
 - du nombre d'agents
