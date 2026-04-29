@@ -18,10 +18,10 @@ def run_v0_flow(project_brief: str, project_brief_source: str) -> dict:
     blackboard = create_blackboard(project_brief, project_brief_source)
     # Product establishes the initial framing.
     blackboard = run_product_agent(blackboard)
-    # Tech challenges the framing through feasibility and architecture.
-    blackboard = run_tech_agent(blackboard)
     # Growth challenges the framing through adoption and GTM.
     blackboard = run_growth_agent(blackboard)
+    # Tech challenges the framing through feasibility and architecture.
+    blackboard = run_tech_agent(blackboard)
     # Product arbitrates the expert input and produces the final PRD.
     blackboard = run_product_revision(blackboard)
     blackboard = _finalize_readiness(blackboard)
@@ -60,8 +60,8 @@ def run_v2_flow(version_dir: Path, evaluation_text: str) -> dict:
     blackboard["revision_trace"]["initial_prd_draft"] = source_prd
 
     blackboard = run_product_second_pass_initial(blackboard)
-    blackboard = run_tech_agent(blackboard)
     blackboard = run_growth_agent(blackboard)
+    blackboard = run_tech_agent(blackboard)
     blackboard = run_product_revision(blackboard)
     blackboard = _finalize_readiness(blackboard)
     blackboard = _run_targeted_correction_loop(blackboard)

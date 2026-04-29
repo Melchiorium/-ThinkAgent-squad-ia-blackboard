@@ -1,35 +1,48 @@
-# Evaluation qualite - SkillBridge - Version 1
-
-Sources lues: `prd.md`, `architecture.md`, `architecture.pdf`, `gtm.md`, `blackboard.md`.
+# Evaluation Quality - SkillBridge V1
 
 ## Scores
-- Product: 7/10
-- Tech: 6/10
-- Growth: 6/10
-- Collaboration: 3/10
-- Qualite des livrables: 5/10
+- Product: 7.2/10
+- Tech: 7.4/10
+- Growth: 6.5/10
+- Collaboration: 6.4/10
+- Deliverable quality: 7.2/10
 
-Note finale: 5.4/10
+## Final grade
+**7.0/10**
 
-Verdict final: WEAK
+## Final verdict
+**ACCEPTABLE**
 
-## Evaluation
+## Strengths
+- Wedge produit bien pense: Paris only, startups only, une seule famille de missions, preuve-of-work au coeur.
+- Bonne protection contre la derive marketplace grace a la moderation dure, la taxonomie fixe et le proof issuance gate.
+- Architecture assez mature pour une V1: state machine, roles, moderation queue, structured rejection reasons, audit trail.
+- Le produit comprend bien que la vraie valeur est la credibilite du travail borne, pas le volume.
+- Les livrables sont clairs et donnent une vision d'ensemble assez solide.
 
-Le probleme est bien formule: jeunes diplomes sans experience et petites organisations ayant besoin d'aide projet. Le workflow MVP est clair et les alternatives sont bien identifiees. Le point faible produit est le risque d'exploitation, reconnu mais pas assez transforme en exigences strictes.
+## Weaknesses
+- Le plus gros risque reste tres ouvert: cadrage legal France autour de missions courtes proches du travail ou du stage.
+- Le GTM glisse un peu: la croissance mentionne startups, petites entreprises et associations, alors que le PRD verrouille plutot startups only.
+- La credibilite reelle du proof-of-work aupres de recruteurs/hiring managers n'est pas encore validee.
+- La question ethique et economique reste delicate: faible remuneration, travail gratuit percu, ou missions floues.
+- La collaboration resserre bien le scope, mais n'absorbe pas encore completement les contradictions de segment et de legal framing.
 
-L'architecture web centralisee est adaptee. Les modules essentiels sont presents: users, projects, applications, matching, feedback. Les controles admin et l'audit sont pertinents. Cependant, la conformite legal/employment et la verification des projets restent beaucoup trop generales pour un produit qui touche au travail, a la remuneration et a la classification.
+## Detailed assessment
 
-La GTM choisit correctement le cote offre: petites organisations d'abord. L'outreach de 50 entreprises avec 5 projets postes est raisonnable. Mais le messaging de valeur, la qualite des projets et la protection des candidats manquent de precision.
+### Product quality
+Le PRD est bon. Il sait ce qu'il ne veut pas devenir et ferme bien les derives typiques: freelance board, open marketplace, internship substitute, broad taxonomy. Le coeur du produit se tient. Ce qui l'empeche de monter plus haut, c'est que le cadre legal et la valeur du proof artifact restent determinants et encore peu prouves.
 
-La collaboration est faible: aucune decision retenue, recommandations importantes rejetees ou en tension, notamment vetting, feedback, roles, onboarding et communication. C'est particulierement problematique sur un sujet a risque legal.
+### Technical quality
+L'architecture est probablement la plus structuree apres LocalLoop. Le workflow et les etats sont precis, les controles sont bien places, et la logique de preuve apres feedback est saine. Le diagramme Mermaid est utile et cohérent. Le principal probleme n'est pas la structure logicielle mais la qualite des regles metier qu'elle devra faire respecter.
 
-## Angles morts majeurs
-- Cadre legal et anti-exploitation insuffisant.
-- Qualite minimale des projets non definie.
-- Feedback/reputation pas assez robuste.
-- Candidat et organisation traites comme symetriques alors que les risques different.
-- Arbitrages interfonctionnels non resolus.
+### Growth quality
+Le GTM a de bonnes intuitions: founder-led, supply trust first, petit pilote, missions bornees. Mais il est moins net que le PRD sur le segment de depart, et il ne ferme pas assez la valeur percue du proof-of-work cote hiring. C'est la partie la moins mature du dossier.
 
-## Conclusion
+### Cross-functional collaboration
+La collaboration a bien protege le projet contre la derive marketplace et a pousse les bons garde-fous de moderation. En revanche, elle laisse encore trop de zones grises sur les sujets qui comptent le plus ici: legal framing, type exact d'organisation, compensation/ethique, et valeur externe de l'artefact.
 
-Concept et MVP solides sur le papier, mais livrables faibles en qualite de decision car les controles de confiance et de conformite ne sont pas arbitres.
+### Deliverable quality
+Les livrables sont serieux, lisibles, et deja relativement decision-oriented. Ils montrent une vraie intention de pilotage. Ils ne sont pas encore completement decision-ready parce que les hypotheses critiques ne sont pas assez de-risquees.
+
+## Bottom line
+Bonne V1, avec une vraie colonne vertebrale produit/tech. La limite principale n'est pas la qualite des livrables, mais le fait que les questions legal/trust/proof credibility restent encore trop ouvertes pour rendre le lancement evidemment safe.

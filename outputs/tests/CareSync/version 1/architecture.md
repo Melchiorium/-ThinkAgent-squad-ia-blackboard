@@ -1,119 +1,188 @@
 ## Architecture Notes
+The main technical constraint is **sensitive care-data handling under French/EU privacy expectations**: this is not a generic task app, because you are storing health-adjacent information, documents, permissions, and notifications for multiple participants. The MVP should therefore be a **single-tenant-per-care-space, invitation-based web app** with a minimal backend, strict access checks, and an audit trail sufficient for trust and support.
 
-### Macro Architecture Choice
-The architecture will be a centralized web-based platform to facilitate family coordination for elderly care, highlighting the need for secure data management, user authentication, and permission management.
+### Macro architecture choice
+Use a **modular monolith** behind a single API, with one web client and a small set of internal jobs. Avoid microservices, real-time collaboration complexity, and any deep medical integrations. The simplest viable shape is:
+- authenticated web app
+- care-space domain model
+- role-based permissions
+- background notification jobs
+- object storage for documents
+- admin/support console for manual operations
 
-### Main Technical Dependency or Constraint
-The primary technical dependency is establishing a **robust data privacy and compliance framework** to protect sensitive medical information to comply with legal requirements (e.g., HIPAA in the U.S., GDPR in Europe). This must be addressed before product launch to ensure trust and legal viability.
+### Main technical dependency or constraint first
+The biggest dependency is **consent, access control, and data retention design**:
+- every item must belong to exactly one care space
+- every user’s access must be explicit by invite and role
+- document storage must be private by default
+- reminders/notifications must not leak sensitive content
+- the product must support account removal and data deletion flows
 
-### Recommended Implementation Approach
-Build a Minimum Viable Product (MVP) that consists of essential features focused on:
-- Shared family dashboard
-- Calendar coordination for medical appointments
-- Secure document storage and sharing
-- Medication reminders
-To demonstrate feasibility, a manual or semi-manual workflow can be implemented with basic role definitions and permission management integrated later.
+If this is not designed up front, the MVP is not safe to run with real families.
 
-### What Must Be Built Now
-- **Shared Family Dashboard**: An intuitive interface to display appointments, medication schedules, and key documents.
-- **Calendar Integration**: A basic calendar to manage and share medical appointments.
-- **Medication Reminder System**: A simple notification system for medication alerts.
-- **Document Storage**: Secure repository for sharing and storing medical documents, compliant with data protection regulations.
-- **User Permission Management**: Initial definitions of roles for family members and caregivers to moderate access to information.
+### Structural technical decisions that shape the MVP
+1. **Care-space as the security boundary**  
+   One relative, one care space, one closed participant list. No cross-space sharing in MVP.
 
-### What Can Be Handled Manually or Operationally First
-- **User Testing & Feedback**: Conduct manual processes for initial user research and feedback gathering, using low-fidelity prototypes.
-- **Medication Management**: Use basic calendar tools (e.g., Google Calendar) for reminders until the system is fully developed.
-- **Document Sharing**: Utilize existing secure file-sharing platforms as a temporary measure to validate document storage needs.
+2. **Role-based access with minimal granularity**  
+   Start with a small set of roles such as:
+   - coordinator
+   - family member
+   - caregiver
+   - viewer  
+   Keep permissions coarse; do not build configurable ACLs now.
 
-### Main Modules or Components
-1. **User Management**: Handles user registration, authentication, permissions, and user roles.
-2. **Dashboard Module**: Displays shared information among users including appointments and tasks.
-3. **Calendar Module**: Manages scheduling of medical appointments with alerts and sharing capabilities.
-4. **Notification Module**: Sends reminders for medications and appointments to designated users.
-5. **Document Storage Module**: Facilitates secure uploading, storage, and sharing of medical documents.
+3. **Asynchronous reminders, not collaborative messaging**  
+   Use notifications and status updates, but do not build a full chat system. Notes can exist as structured updates on tasks/items.
 
-### Critical Data or Workflow States
-- **User Authentication**: Secure login mechanism to verify user identity.
-- **Shared Dashboard Updates**: Real-time updates for changes in appointment times or medication schedules.
-- **Document Sharing Lifecycle**: States including upload, access request, and view/change permissions.
+### One recommended implementation approach
+Build the MVP as:
+- **Frontend:** mobile-friendly web app, responsive first, no native app initially
+- **Backend:** REST or simple GraphQL API in a single monolith
+- **Auth:** email-based invite login or passwordless magic links
+- **Database:** relational DB for users, care spaces, items, permissions, reminders, audit events
+- **Documents:** encrypted object storage with signed access URLs
+- **Jobs:** scheduled worker for reminder delivery and recurring item generation
+- **Admin:** internal support UI for invite recovery, permission fixes, and deletion requests
 
-### Minimum Reliability, Data, Permission, or Control Requirements
-- **Compliance**: All data handling must align with legal requirements for sensitive information.
-- **User Control**: Users must have clear visibility and control over who accesses their information.
-- **Reliability**: 99% uptime for delivering notifications and access to key documents to prevent missed appointments or medication errors.
+### What must be built now
+- user authentication and invite acceptance
+- care-space creation for one relative
+- role assignment and permission enforcement
+- appointments, tasks, recurring reminders, emergency contacts
+- limited document upload/download
+- structured notes or updates on items
+- notification delivery
+- simple timeline/dashboard view
+- internal admin/support tooling for manual correction
+- basic audit logging for access and changes
 
-### Control Points, Internal Tools, or Support Needs
-- **Audit Trails**: Maintain logs for document access and sharing to ensure accountability.
-- **Customer Support Dashboard**: Internal tool for monitoring user interactions and addressing concerns.
-- **Data Encryption**: Implement robust security measures for data at rest and in transit.
+### What can be handled manually or operationally first
+- onboarding and first care-space setup
+- importing the first appointments/tasks/documents
+- explaining privacy and consent boundaries
+- support for permission mistakes
+- moderation of invite issues and user recovery
+- manual nudges if reminders fail during pilot
+- any caregiver enrollment assistance
 
-#### Diagram Blueprint
-- **Main System Blocks**:
-  - User Management
-  - Dashboard Module
-  - Calendar Module
-  - Notification Module
-  - Document Storage Module
+### Main modules or components
+- **Identity & Invite Service**: user login, invite acceptance, session management
+- **Care Space Module**: relative profile, participant list, role assignment
+- **Coordination Module**: appointments, tasks, recurring items, responsibility ownership
+- **Reminder Module**: scheduled notification generation and delivery tracking
+- **Document Module**: restricted file upload, storage, retrieval
+- **Activity/Audit Module**: immutable log of key actions for support and trust
+- **Admin Console**: user support, access correction, deletion handling
+- **Notification Adapter**: email first, push only if needed and reliably supported
 
-- **Main Flows Between Blocks**: 
-  - User Authentication → Dashboard Module
-  - Dashboard Module ↔ Calendar Module (shared event sync)
-  - Notification Module ↔ User Management (notification settings)
-  - Document Storage Module ↔ Dashboard Module (document access)
+### Critical data or workflow states
+- care space created
+- invite sent
+- invite accepted
+- role assigned
+- item created
+- item assigned
+- reminder scheduled
+- reminder delivered / failed
+- item completed
+- document uploaded
+- document accessed
+- participant removed
+- access revoked
+- care space archived / deleted
 
-- **External Actors or Systems**: 
-  - Family Members
-  - Professional Caregivers
+### Minimum reliability, data, permission, or control requirements
+- strict tenant isolation by care space
+- server-side authorization on every read/write
+- signed URLs for document access with short expiry
+- notification idempotency to avoid duplicate reminders
+- retry and dead-letter handling for failed notifications
+- audit trail for invitations, role changes, document access, deletions
+- basic rate limiting and abuse prevention on invites/login
+- data export/delete capability for GDPR readiness
 
-- **Admin or Operations Control Points**: 
-  - Access control dashboards
-  - Usage monitoring and reporting tools 
+### Control points, internal tools, or support needs
+- internal admin panel to resend invites, revoke access, and fix participant states
+- support view of care-space membership and recent actions
+- manual deletion workflow for GDPR requests
+- notification delivery monitoring
+- basic error logging and alerting for failed jobs
+- back-office checklist for onboarding and trust explanation
+
+### Mermaid Diagram
+```mermaid
+flowchart LR
+  A[Coordinator / Family Member] --> UI[Web App]
+  B[Caregiver / Invited Participant] --> UI
+
+  UI --> API[API / Modular Monolith]
+  API --> AUTH[Auth & Invite Module]
+  API --> SPACE[Care Space & Permissions]
+  API --> COORD[Appointments / Tasks / Recurrence]
+  API --> DOC[Document Storage Access]
+  API --> AUDIT[Activity & Audit Log]
+  API --> ADMIN[Internal Admin Console]
+
+  COORD --> DB[(Relational Database)]
+  SPACE --> DB
+  AUTH --> DB
+  AUDIT --> DB
+
+  DOC --> OBJ[(Encrypted Object Storage)]
+
+  COORD --> JOBS[Background Jobs / Scheduler]
+  JOBS --> NOTIF[Notification Service]
+  NOTIF --> EMAIL[Email Provider]
+  NOTIF --> PUSH[Push Provider]
+
+  ADMIN --> DB
+  ADMIN --> OBJ
+```
 
 ## Review Summary
-The feasibility challenge revolves around establishing robust legal and compliance frameworks for handling sensitive medical data, which poses a significant risk to trust and platform viability. A focus on building a secure, centralized platform with basic features for a pilot phase will allow for validation of core workflows before proceeding with full development.
+The key feasibility issue is not feature breadth but **safe coordination of sensitive care information in a closed family-and-caregiver space**. The MVP should stay narrow: one relative, one care space, invitation-only access, structured tasks/appointments, limited documents, and email-first reminders, with manual onboarding and support to compensate for the lack of automation.
 
 ## Critical Assumptions
-1. The platform will operate within legal boundaries for sensitive medical information.
-2. Users will understand and accept the role definitions and permissions set in the system.
-3. Family members can easily manage their caregiving responsibilities through the dashboard.
-4. Basic features can demonstrate value quickly to validate market need.
-5. Users will trust the platform with their elderly relatives' sensitive information if adequately secured.
+- The MVP can remain within a single care space per relative without needing household or multi-relative support.
+- Families will accept invitation-based access and email-first notifications for the pilot.
+- The product can avoid full messaging and still prove coordination value through structured updates and reminders.
+- Basic role separation between coordinator, family member, and caregiver is sufficient for trust in the first release.
+- GDPR-compliant account deletion, access restriction, and audit logging are enough for the pilot without deeper enterprise controls.
 
 ## Requested Changes
-1. Finalize the legal compliance framework regarding data handling for sensitive information.
-2. Clarify the permission model for family vs. caregiver roles.
-3. Ensure proper secure storage practices for medical documents are established.
-4. Develop clear plans for user onboarding and education to enhance digital literacy.
-5. Integrate a feedback mechanism to monitor user satisfaction during pilot testing.
+- Define one explicit care-space security boundary per relative and prohibit cross-space sharing in MVP [scope]
+- Replace “secure messaging system” with structured notes/updates on tasks and appointments [scope]
+- Specify an email-first notification policy and make push optional, not required for launch [onboarding]
+- Add a minimum audit trail for invites, permission changes, document access, and deletions [privacy_trust]
+- Clarify the exact role model and what each role can read, edit, and share [privacy_trust]
 
 ## Risks
-1. Potential user resistance due to mistrust related to data privacy.
-2. Complexities in legal compliance across different jurisdictions may delay launch.
-3. Elderly users may struggle with digital engagement, impacting usability.
-4. Failure to execute effective communication around security protocols could lead to adoption challenges.
-5. Manual workflows may cause inconsistent user experiences, affecting trust in the system.
+- Health-adjacent data may trigger privacy expectations that the MVP cannot safely meet if controls are weak [privacy_trust]
+- Reminder delivery failures or duplicate notifications could quickly destroy trust [operational_reliability]
+- Overlapping permissions between family and caregivers may create accidental disclosure [access_control]
+- A document vault can become a liability if access and deletion are not rigorous [data_governance]
+- Building chat-like features too early will increase complexity without proving the core coordination loop [scope]
 
 ## Open Questions
-1. What specific legal frameworks must be addressed based on target launch regions?
-2. How can we best educate users and facilitate their understanding of the platform?
-3. What mechanisms will ensure secure document access and sharing align with compliance?
-4. How will roles and permissions evolve based on user feedback and actual use cases?
-5. What metrics will track user adoption and satisfaction effectively during the pilot phase?
+- Which data elements are considered mandatory versus optional in the first release, especially around medication and documents?
+- Should caregivers have write access to tasks and notes, or read-only access initially?
+- Is email sufficient for all reminder flows during pilot, or must push be supported from day one?
+- What deletion/export guarantee is required for French deployment of this sensitive data?
+- Do documents need sharing links between participants, or only in-app authenticated access?
 
 ## Why This Could Fail Even With Good Execution
-Even with competent execution, the project could fail if assumptions around user trust in digital platforms, especially regarding sensitive data handling, prove incorrect. If users do not feel sufficiently safeguarded, they may resist adopting the platform, undermining its potential.
+Even if the implementation is solid, the product can still fail if families perceive the trust burden as too high for the value delivered. If sharing care information feels risky or cumbersome, they will stay on WhatsApp, paper, and phone calls, and the coordination benefit will not overcome that friction.
 
 ## Technical Readiness
-
 Status: LIMITED
 
 Blocking Gaps:
-- Validation of regulations regarding privacy and sensitive data.
-- User understanding of roles and permissions needs further exploration.
-- Clear communication on security must be established.
+- The privacy, consent, and access-control model for sensitive care data in France is not fully specified [privacy_trust]
+- The reminder and notification delivery model is not yet pinned to a reliable first channel and failure policy [operational_reliability]
+- The document handling model is too vague for safe implementation without deletion, access, and audit rules [data_governance]
 
 Required Improvements:
-- Conduct thorough legal reviews and finalize compliance strategies.
-- Build user onboarding plans and education materials.
-- Test document sharing workflows in preliminary user groups to refine usability.
+- Define the minimum French privacy posture, role permissions, and consent flow before build [privacy_trust]
+- Choose the first notification transport and define retry/failure handling [operational_reliability]
+- Specify document storage, access expiry, audit logging, and deletion behavior [data_governance]

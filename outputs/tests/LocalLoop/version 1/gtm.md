@@ -1,55 +1,123 @@
 ## Go-To-Market Notes
-- **Main Market Bottleneck:** Convincing local independent businesses to join the platform and pay for profiles is the hardest constraint.
-- **Side of the Market to Secure First:** Local independent businesses need to be secured first to ensure a variety of offers and promotions are available for users.
-- **Initial Target Audience:** Young urban professionals aged 25-35 living in the target city who desire unique local experiences.
-- **Positioning:** LocalLoop positions itself as a curated platform specifically for independent businesses, providing users with personalized recommendations and exclusive offers that are not found on larger platforms.
-- **First Acquisition Motion:** Direct outreach to local businesses to onboard them as initial partners, paired with grassroots marketing in the target neighborhood (like community events or local social media groups).
-- **Operating Assumptions for the First Acquisition Motion:** Aim to onboard at least 10 local businesses within the first month, leading to a 70% engagement from users who find value in recommendations. Expect direct outreach to yield 5% interest conversion from the list of contacted businesses.
-- **Switching Trigger:** Users may switch to LocalLoop if they find it offers a more tailored experience and better deals than Yelp or Google Maps, particularly focused on independent stores.
-- **First Activation Loop:** Users sign up, create a profile, receive personalized recommendations and redemption offers from businesses. If they engage (e.g., use a promoted deal), incrementally increase recommendations and perks based on usage.
-- **What Must Exist Before Public Launch:** At least 10 local businesses must be onboarded successfully, offering promotional content, and the user sign-up process must be fully functional with working geolocation recommendations.
+- **Main market bottleneck:** not consumer demand first; it is **having enough high-quality, active local supply in one Paris micro-market** so the app does not feel empty or generic. Without a dense, curated cluster, users will fall back to Google Maps/Instagram immediately.
+- **Side of the market to secure first:** **merchant supply first**, but only in one tightly bounded neighborhood cluster and one repeatable use case. Secure the merchants before broad user acquisition.
+- **Structural GTM decisions:**
+  1. **Pick one Paris micro-market and one use case:** a single neighborhood cluster with high foot traffic and lunch/coffee frequency, not citywide Paris.
+  2. **Lead with frequent-visit behavior, not broad discovery:** focus on coffee + lunch decision-making, because it creates repeat use and fast feedback.
+  3. **Run a curated concierge pilot, not a scalable self-serve launch:** manual merchant onboarding, manual approval, and manual curation are acceptable until proof exists.
+- **Initial target audience:**  
+  - **Primary:** frequent local coffee/lunch decision-makers in the chosen Paris cluster, especially young professionals working or living there.  
+  - **Secondary:** independent coffee shops and lunch spots in the same cluster with enough daily traffic to benefit from incremental visits.
+- **Positioning:**  
+  - “A curated local-only recommendation feed for people in this Paris neighborhood who want a good independent coffee or lunch spot right now, with a simple reason to choose it.”
+  - Avoid positioning as a broad local discovery app or coupon directory.
+- **First acquisition motion:**  
+  - **Founder-led merchant sourcing + localized user recruitment.**
+  - Acquire merchants through direct outreach, then recruit users through neighborhood-based channels, partner communities, and in-person distribution around the same cluster.
+- **Operating assumptions for the first acquisition motion:**
+  - Merchants will agree to a simple offer if onboarding is fast and they see nearby foot traffic.
+  - Users will try the app if listings are visibly local, active, and limited to a trusted cluster.
+  - One offer plus lightweight loyalty is enough to create a first visit and a second visit.
+  - Manual curation is acceptable if it preserves quality.
+- **Switching trigger:**  
+  - The user switches when they want a **better nearby option than generic maps**, and the merchant has a **clear immediate incentive**: a local offer, verified activity, and a reason to visit now.
+- **First activation loop:**  
+  1. User opens app for “what should I go to nearby right now?”
+  2. Sees a small curated set of active independent spots.
+  3. Visits one merchant and redeems a simple in-store token.
+  4. Receives a lightweight reward/loyalty status.
+  5. Returns for a second visit to the same merchant or tries another nearby merchant.
+- **What must exist before public launch:**  
+  - One fixed Paris cluster selected.
+  - 15–20 quality merchants live in that cluster, all vetted.
+  - One narrow category pair only, with consistent offer rules.
+  - A reliable redemption flow that staff can validate with minimal confusion.
+  - A visible reason for users to try the app: active offers and curated quality.
+  - A clear support path for disputes and inactive merchants.
+- **What must be productized now vs manual during pilot:**  
+  - **Must be productized now:** consumer discovery feed, merchant profile, one redemption flow, basic loyalty tracking, admin live/inactive controls, and a simple merchant status/offer state.  
+  - **Can stay manual during pilot:** merchant sourcing, offer setup, quality checks, activation approvals, curation, user recruitment, support, and dispute handling.  
+  - **Do not productize yet:** self-serve merchant tools, advanced personalization, broad review systems, event aggregation, or multi-category coverage.
 
 ## Review Summary
-The primary launch challenge for LocalLoop is the need to secure local independent businesses before the user side can be effectively marketed. The recommended GTM direction is a concierge pilot focusing on direct business engagement to gather feedback and validate market interest.
+The launch challenge is not building a broad local marketplace; it is proving that one tightly curated Paris neighborhood cluster can generate enough repeat use and merchant value to justify expansion. The recommended direction is a founder-led concierge pilot in one micro-market, starting with merchant supply, then recruiting a narrow audience of frequent coffee/lunch decision-makers.
+
+## Build Vs Pilot Operations
+
+### Must Be Productized Now
+- Consumer discovery feed
+- Merchant profile pages
+- One offer display
+- Single redemption flow
+- Basic loyalty tracking
+- Admin controls for live/inactive status
+- Support/dispute handling for redemption issues
+- Manual approval gate surfaced in product workflow
+
+### Can Stay Manual Or Operational During Pilot
+- Merchant sourcing and onboarding
+- Offer creation and validation
+- Content curation
+- Quality checklist execution
+- Neighborhood selection
+- User recruitment
+- Customer support
+- Repeat-visit verification when needed
+- Merchant follow-up and retention conversations
+
+### Deferred Until After Proof
+- Self-serve merchant portal
+- Advanced personalization
+- Open reviews and ratings
+- Event feed
+- Multi-city rollout
+- Paid promotion marketplace
+- Cross-merchant rewards
+- Automated offer optimization
+- Broad category expansion
 
 ## Critical Assumptions
-- Local independent businesses will see value in being listed and paying for profile visibility on the app.
-- Urban young professionals will prioritize local recommendations over larger platforms.
-- The initial pilot city contains a sufficient number of suitable independent businesses to onboard.
-- Users will engage with the app if it provides meaningful value through personalized recommendations.
-- Business owners will be proactive in providing promotions and participating in the LocalLoop community.
+- One Paris micro-market can support enough dense, independent supply to make the app feel useful.
+- Frequent coffee/lunch users will prefer curated local recommendations over Google Maps for this use case.
+- A simple offer plus loyalty will create at least one repeat visit for some users.
+- Merchants will tolerate manual onboarding if the traffic quality is credible.
+- The redemption flow can work reliably in real shops with limited staff training.
 
 ## Requested Changes
-- Develop a streamlined onboarding process for local businesses that motivates them to join.
-- Enhance the user profile creation process to better capture preferences and facilitate personalized recommendations.
-- Include initial promotional offers in the onboarding process to attract users and businesses alike.
-- Create a feedback mechanism from businesses to understand their perspective on platform value.
-- Integrate features for monitoring conversion from new users to regular users for further improvement insights.
+- Define one named Paris micro-market for the pilot instead of “one neighborhood cluster.”
+- Narrow the first audience to **frequent coffee/lunch decision-makers in that micro-market**.
+- Specify the first category pair explicitly and remove broader category ambiguity.
+- Add a concrete demand threshold, such as minimum repeat visit rate and minimum redemption volume, for pilot success.
+- Clarify the merchant activation rule: no merchant goes live without a completed quality checklist and manual approval.
 
 ## Risks
-- Low interest from local businesses in adopting and paying for platform features.
-- Insufficient user engagement leading to high churn rates post-launch.
-- User dissatisfaction with the quality or relevance of recommendations causing poor retention.
-- Strong competition from established platforms undermining user acquisition efforts.
-- Failure to create a compelling value proposition for both users and businesses.
+- Supply density may still be too thin in the chosen micro-market.
+- Users may treat the app as another local directory and revert to Google Maps.
+- Merchants may not perceive enough incremental traffic to stay active.
+- Redemption friction could break trust at the point of visit.
+- Manual curation may hide whether the product scales beyond the pilot.
 
 ## Open Questions
-- What incentives can be offered to local businesses to encourage early participation?
-- How will we measure the success of business onboarding and user engagement during the pilot phase?
-- What feedback collection methods will be put in place to understand user experience and business satisfaction?
-- How will we manage the promotional offers to ensure they align with user preferences?
-- What specific metrics will determine if LocalLoop should expand or pivot after the pilot?
+- Which exact Paris micro-market will be used first?
+- What is the exact first category pair: coffee + lunch, or something else?
+- What is the minimum merchant count needed for the feed to feel alive?
+- What repeat-use threshold will count as proof of demand?
+- Which merchant offer structure is simplest for in-store validation?
 
 ## Why This Could Fail Even With Good Execution
-Even with a well-executed plan, if local businesses find the cost of participation outweighs the perceived benefits, they may not join the platform, leading to a lack of offerings that ultimately disappoints users and harms retention.
+Even with strong execution, this can fail if the chosen micro-market cannot produce enough density and repeat habit around a narrow use case. If users do not feel immediate advantage over Google Maps, or merchants do not see quick incremental visits, the product will be perceived as a curated directory rather than a new discovery loop.
 
 ## GTM Readiness
 Status: LIMITED
 
 Blocking Gaps:
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
-- Need for a clear go-to-market strategy to attract users effectively.
+- No named Paris micro-market selected, so supply density and localized traction cannot be tested credibly [market_motion]
+- First audience is still too broad; the launch needs one narrow frequent-use segment [market_motion]
+- Demand proof is undefined without a concrete repeat-use and redemption threshold [demand_validation]
 
 Required Improvements:
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
+- Select one Paris micro-market and lock the pilot boundary before merchant sourcing begins [scope]
+- Narrow the first audience to frequent coffee/lunch decision-makers in that micro-market [market_motion]
+- Define a measurable success threshold for repeat visits and redemption volume [demand_validation]
+- Keep the launch to one category pair and one offer mechanic only [scope]
+- Require manual merchant approval and quality checklist completion before any live listing [quality_assurance]

@@ -1,68 +1,204 @@
-# LocalLoop Product Proposal
+# LocalLoop MVP Product Proposal
 
 ## Product Problem
-Consumers want to support local independent businesses but face difficulties in discovering them. Existing solutions are often overshadowed by large platforms, leading to a fragmented experience. Small businesses struggle with visibility and customer retention due to lack of resources and expertise in digital marketing.
+People in Paris who want to support local independent businesses still default to Google Maps, Instagram, Deliveroo/Tripadvisor, or word of mouth because discovery is fragmented and not personalized enough.
+
+Independent businesses want nearby customers and repeat visits, but they lack simple tools and distribution to compete for attention.
+
+The MVP must prove one narrow thing first: whether a tightly curated Paris discovery loop can drive real visits to independent businesses better than generic search and social browsing.
 
 ## Initial Wedge
-The MVP will focus on personalized local business recommendations specifically targeted at young urban professionals who are likely to explore their neighborhoods and support local businesses.
+A Paris-only mobile app for frequent coffee/lunch decision-makers in one named micro-market, focused on independent coffee shops and lunch spots, with a simple offer and a verified visit-based loyalty loop.
+
+This is narrow enough to control supply quality, keep the feed alive, and test repeat usage in a real neighborhood context.
 
 ## First Target User
-Young urban professionals aged 25-35 who are tech-savvy, socially conscious, and seek unique local experiences.
+Primary user:
+- Urban residents in Paris who make frequent coffee and lunch decisions on weekdays
+- Young professionals aged 22–40 within the pilot micro-market
+
+First use case:
+- “I want a good nearby independent place to go right now, with a reason to choose it over a chain.”
+
+Secondary supply-side target:
+- Independent coffee shops and casual lunch spots in the same pilot micro-market
 
 ## Existing Alternatives And Switching Trigger
-Current alternatives include platforms like Yelp, Google Maps, and social media. Users might switch to LocalLoop if it provides a more curated, personalized experience focused specifically on local independent businesses, along with attractive promotions that are easy to access.
+Current alternatives:
+- Google Maps for discovery and directions
+- Instagram/TikTok for informal recommendations
+- Deliveroo/Uber Eats for food discovery
+- City guides and blogs for editorial discovery
+- Paper loyalty cards or POS-linked loyalty tools for retention
+
+Switching trigger:
+- The user wants a curated local-only recommendation with an immediate incentive, not a generic map result or influencer content.
+- The merchant wants first-time foot traffic or repeat visits without running paid ads or building their own app.
 
 ## Core MVP Workflow
-1. Users sign up and create a profile, indicating their preferences.
-2. The app uses geolocation to recommend nearby independent businesses.
-3. Users receive personalized recommendations and exclusive local deals.
-4. Businesses can create simple profiles to showcase their offerings and promotions.
+1. User opens the app and sets a few preferences: neighborhood and category.
+2. App shows a small feed of nearby independent businesses that are currently active.
+3. Each listing includes:
+   - short merchant description
+   - distance
+   - one offer or reward
+   - basic loyalty status
+4. User taps a merchant and sees enough detail to decide to visit.
+5. User redeems the offer in-store through a single one-time token shown in-app and validated by staff or ops.
+6. Redemption is marked consumed once validated; failed validation can be marked disputed for later support resolution.
+7. Loyalty accrues through verified repeat visits to the same merchant.
+8. Merchant sees basic activity and redemption metrics.
 
 ## In Scope
-- User sign-up and profile creation with basic preference capture.
-- Geolocation-based personalized recommendations.
-- Merchant profiles for local businesses with clear onboarding process.
-- Limited promotional offers from onboarding businesses based on user preferences.
+- Paris-only consumer app
+- One named Paris micro-market for the pilot
+- Independent coffee shops and lunch spots only
+- Basic filtering by location and category
+- Merchant profile page with essential details
+- One offer per merchant
+- One loyalty mechanic tied to verified repeat visits
+- One redemption method using a one-time token
+- Manual merchant onboarding for pilot
+- Curated inventory to reduce irrelevant listings
+- Required merchant quality checklist before activation
+- Manual approval for live status
+- Basic merchant analytics: views, redemptions, repeat visits
+- Admin controls to manage merchant live/inactive state and suppress stale offers
+- Audit logs and override permissions for support-side adjustments
+- Disputed redemption handling
+- Fixed category set for pilot
 
 ## Out of Scope
-- In-depth analytics or marketing tools for businesses.
-- Comprehensive loyalty reward tracking beyond basic implementation.
-- Extensive event discovery features unrelated to personalized recommendations.
-- Coverage beyond the initial launch city.
+- Citywide expansion beyond Paris
+- Multi-city marketplace mechanics
+- Deep social features
+- Open reviews and ratings
+- Full event aggregation feed
+- Advanced recommendation engine
+- Merchant self-serve onboarding
+- Ad marketplace or paid promotion system
+- Delivery ordering
+- Table booking
+- Full CRM or marketing automation for merchants
+- Chain businesses and horizontal retail coverage
+- Heavy gamification
+- Multiple redemption methods
+- Complex loyalty tiers or cross-merchant rewards
+- Broad category coverage beyond coffee and lunch
+- Automated offer optimization
+- Merchant-initiated live publishing without approval
+- Uncurated open marketplace inventory
+
+## MVP Build Vs Pilot Operations
+### Must Build Now
+- Consumer mobile app
+- Merchant profile pages
+- Nearby discovery feed
+- Basic preference and location filtering
+- Offer display
+- Single redemption flow
+- Verified loyalty tracking for repeat visits
+- Basic merchant analytics
+- Admin console for merchant status, offers, disputes, and support overrides
+- Audit logging for manual adjustments
+- Merchant quality checklist workflow
+- Manual approval gate for live status
+- Stale-offer suppression controls
+
+### Manual Or Operational During Pilot
+- Merchant sourcing and onboarding in Paris
+- Offer setup and validation
+- Content curation to keep feed relevant
+- Quality checks on listings and merchant details
+- Customer support for redemption issues
+- Outreach to merchants and initial users
+- Micro-market selection and inventory balancing
+- Manual review of active/inactive merchant status
+- Manual verification of repeat visits when needed
+- Dispute resolution for failed redemptions
+
+### Deferred Until After Proof
+- Self-serve merchant portal
+- Advanced personalization
+- Reviews and social features
+- Event discovery feed
+- Multi-city rollout
+- Paid merchant tools and campaigns
+- Cross-merchant rewards
+- Automated offer optimization
+- Broad category expansion
+- Multiple redemption paths
+- Full merchant CRM tooling
 
 ## Business Model Hypothesis
-LocalLoop will generate revenue through a subscription model where local businesses pay a nominal monthly fee to maintain their profiles and access promotional features.
+Primary hypothesis:
+- Charge merchants a simple monthly subscription for visibility, offers, and basic retention tools once the product proves it can drive visits.
+
+Secondary hypothesis:
+- Later add premium analytics or promoted placements, but only after proving merchant ROI and user engagement.
+
+For the pilot, the objective is not monetization optimization; it is validating willingness to pay after measurable foot traffic and repeat visits.
 
 ## Critical Assumptions
-- Urban young professionals will find personalized local recommendations valuable and preferable compared to existing platforms.
-- Local businesses will be willing to pay for increased visibility and customer retention tools.
-- The initial city will have a sufficient number of independent businesses to onboard to validate the model.
+- Users will trust the app enough to try a local recommendation instead of using Google Maps.
+- Enough independent businesses in one fixed Paris micro-market will participate.
+- Coffee and lunch use cases can generate enough repeat use to create habit.
+- Offers and loyalty rewards will be compelling enough to change behavior.
+- The app can keep recommendations relevant without a large inventory.
+- Merchants will see value in simple visit and repeat-visit tracking.
+- The redemption flow can be made simple and reliable.
+- The experience can avoid looking like a noisy coupon directory.
 
 ## How To Test Quickly
-- Conduct surveys and focus groups with potential users to validate the value proposition.
-- Onboard a small cohort of local businesses and measure their interest in paid profiles through pilot promotions.
-- Create a basic landing page to gauge interest before full development.
+- Run a concierge pilot in one fixed Paris micro-market with 20–30 independent businesses.
+- Manually curate a small set of merchants in coffee and lunch.
+- Launch a limited beta focused on “where should I go nearby?”
+- Track:
+  - app opens
+  - listing clicks
+  - offer redemptions
+  - repeat visits
+  - merchant willingness to continue
+- Interview users after visits to understand what made them choose the business.
+- Interview merchants to determine whether the app delivered incremental traffic or retention.
 
 ## Acceptance Criteria
-- At least 100 users signed up within the first month post-launch.
-- Onboard at least 10 local businesses within the same period.
-- At least 70% of users report finding valuable local recommendations.
-- User engagement metrics, such as user log-in frequency and promotion redemption rates, meet or exceed predefined thresholds.
+- A user can find a relevant nearby independent business in under 30 seconds.
+- A merchant profile clearly shows location, offer, and reason to visit.
+- The one-time token redemption flow works reliably with minimal staff confusion.
+- A required merchant quality checklist is completed before activation for every live merchant.
+- At least 20 participating businesses are active in the pilot area.
+- Users can redeem an offer or loyalty reward without support intervention in most cases.
+- Merchants can see basic activity metrics.
+- A meaningful share of users return for a second visit to the same merchant within a short test window.
+- Pilot results show enough repeat visits and redemptions to justify continued investment.
 
 ## Risks And Failure Modes
-- Difficulty convincing local businesses to join or pay for the service.
-- Lack of sufficient user engagement leading to high churn rates.
-- Quality of recommendations failing to meet user expectations, leading to poor retention.
+- Poor supply density makes the app feel empty [supply_density]
+- Recommendations are too generic and users revert to Google Maps [recommendation_quality]
+- Merchants do not see enough ROI to stay active [merchant_roi]
+- Offers attract deal-seekers who do not convert into repeat customers [low_quality_traffic]
+- Manual curation does not scale beyond the pilot [ops_scalability]
+- Redemption friction causes failure at the point of visit [redemption_friction]
+- The product becomes another irrelevant local listing app [category_blur]
+- Quality control is too burdensome and slows supply activation [quality_assurance]
 
 ## Product Readiness
 Status: LIMITED
 
 Blocking Gaps:
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
+- No proof yet that curated local discovery changes user behavior in Paris [demand_validation]
+- No proof yet that merchants will provide enough quality inventory and continue participation [supply_validation]
+- No proof yet that the one-time token redemption flow and verified loyalty tracking work reliably in live use [redemption_friction]
 
 Required Improvements:
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
+- Run a concierge pilot with real users and merchants in one fixed Paris micro-market [concierge_pilot]
+- Validate repeat visit and redemption behavior with coffee and lunch only [behavior_proof]
+- Confirm merchant willingness to continue after initial traffic testing [merchant_roi]
 
 ## Recommendation
-Proceed with a concierge pilot focused on validating user interest and business adoption. Approach local businesses directly to onboard them and gather feedback on value before investing in full MVP development.
+Proceed with a tightly scoped Paris concierge pilot.
+
+Do not build a broad marketplace yet. The right next step is to prove one repeatable use case: nearby independent business discovery with a simple offer and verified loyalty loop.
+
+If pilot results show weak user pull or merchant retention, stop or re-scope before expanding beyond a few neighborhoods.

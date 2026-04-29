@@ -1,0 +1,26 @@
+flowchart LR
+  A[Coordinator / Family Member] --> UI[Web App]
+  B[Caregiver / Invited Participant] --> UI
+
+  UI --> API[API / Modular Monolith]
+  API --> AUTH[Auth & Invite Module]
+  API --> SPACE[Care Space & Permissions]
+  API --> COORD[Appointments / Tasks / Recurrence]
+  API --> DOC[Document Storage Access]
+  API --> AUDIT[Activity & Audit Log]
+  API --> ADMIN[Internal Admin Console]
+
+  COORD --> DB[(Relational Database)]
+  SPACE --> DB
+  AUTH --> DB
+  AUDIT --> DB
+
+  DOC --> OBJ[(Encrypted Object Storage)]
+
+  COORD --> JOBS[Background Jobs / Scheduler]
+  JOBS --> NOTIF[Notification Service]
+  NOTIF --> EMAIL[Email Provider]
+  NOTIF --> PUSH[Push Provider]
+
+  ADMIN --> DB
+  ADMIN --> OBJ

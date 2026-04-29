@@ -1,1 +1,0 @@
-I want an app for dog dating. It should be fun, quirky, original, and heavily focused on humor and irony.

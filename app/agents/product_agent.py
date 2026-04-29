@@ -1,6 +1,7 @@
 from copy import deepcopy
 from pathlib import Path
 import os
+import re
 
 from llm import call_llm
 from readiness import parse_readiness_block
@@ -96,7 +97,13 @@ def _build_revision_user_prompt(
         "Revise the PRD by arbitrating between the structured expert recommendations. "
         "Retain only decisions that are necessary for MVP viability, launchability, trust, compliance, "
         "or core usability. Defer useful but non-essential ideas. Leave unresolved clarifications out of "
-        "the PRD if they are not yet decided. Keep the result focused, disciplined, and MVP-first."
+        "the PRD if they are not yet decided. Keep the result focused, disciplined, and MVP-first.\n\n"
+        "After the clean PRD, add a separate system block headed exactly `## Product Arbitration`. "
+        "For every Tech and Growth recommendation, choose exactly one bucket: Retained, Deferred, "
+        "Rejected, or Open Points. Do not leave a recommendation in a generic 'needs arbitration' state. "
+        "Use Open Points only when the project brief does not contain enough information to decide safely. "
+        "Use exactly these subsections: `### Retained`, `### Deferred`, `### Rejected`, "
+        "`### Open Points`, `### Rationales`."
     )
 
 
@@ -280,6 +287,7 @@ def run_product_locking_pass(blackboard: dict) -> dict:
             "source": "app/agents/product_agent.py",
         }
     )
+    blackboard = _reconcile_arbitration_with_deliverables(blackboard)
     return blackboard
 
 
@@ -399,7 +407,7 @@ def _build_arbitration_outcomes(blackboard: dict, revised_prd_draft: str) -> dic
         ("tech", tech_recommendations),
         ("growth", growth_recommendations),
     ):
-        for index, recommendation in enumerate(recommendations):
+        for recommendation in recommendations:
             normalized_source = source.capitalize()
             if _recommendation_is_retained(recommendation, revised_prd_draft):
                 retained.append(f"{normalized_source}: {recommendation}")
@@ -408,10 +416,7 @@ def _build_arbitration_outcomes(blackboard: dict, revised_prd_draft: str) -> dic
             elif _recommendation_is_mvp_later(recommendation):
                 deferred.append(f"{normalized_source}: {recommendation}")
             else:
-                if index == 0:
-                    deferred.append(f"{normalized_source}: {recommendation}")
-                else:
-                    rejected.append(f"{normalized_source}: {recommendation}")
+                open_points.append(f"{normalized_source}: {recommendation}")
 
     open_points.extend(
         f"Tech: {item}" for item in blackboard["expert_contributions"]["tech"]["open_questions"]
@@ -467,6 +472,32 @@ def _build_arbitration_state(
 def _reconcile_arbitration_with_deliverables(blackboard: dict) -> dict:
     arbitration = blackboard.get("arbitration", {})
     raw_parsed = arbitration.get("raw_parsed") or arbitration
+    if raw_parsed.get("source") != "heuristic_fallback":
+        reconciliation_notes = [
+            "Parsed Product Arbitration supplied by Product; heuristic reconciliation was not needed."
+        ]
+        blackboard["arbitration"] = _build_arbitration_state(
+            parsed_arbitration=arbitration,
+            raw_parsed=raw_parsed,
+            reconciled=raw_parsed,
+            reconciliation_notes=reconciliation_notes,
+        )
+        blackboard["retained_decisions"] = list(raw_parsed.get("retained", []))
+        blackboard["deferred_decisions"] = list(raw_parsed.get("deferred", []))
+        blackboard["rejected_changes"] = list(raw_parsed.get("rejected", []))
+        blackboard["open_points"] = list(raw_parsed.get("open_points", []))
+        blackboard["applied_changes"] = list(raw_parsed.get("retained", []))
+        blackboard["decisions"] = list(raw_parsed.get("retained", []))
+        blackboard["activity_log"].append(
+            {
+                "agent": "product_agent",
+                "event": "arbitration_reconciled",
+                "source": "app/agents/product_agent.py",
+                "details": reconciliation_notes[0],
+            }
+        )
+        return blackboard
+
     deliverable_text = "\n\n".join(
         [
             blackboard.get("prd_draft", ""),
@@ -530,19 +561,22 @@ def _reconcile_arbitration_with_deliverables(blackboard: dict) -> dict:
 def _item_appears_in_deliverables(item: str, deliverable_text: str) -> bool:
     if not item or not deliverable_text:
         return False
-    normalized_deliverables = " ".join(deliverable_text.lower().split())
-    if item.lower() in normalized_deliverables:
+    normalized_deliverables = _normalize_match_text(deliverable_text)
+    normalized_item = _normalize_match_text(item)
+    if normalized_item and normalized_item in normalized_deliverables:
         return True
     for phrase in _recommendation_phrases(item):
-        if phrase.lower() in normalized_deliverables:
+        if _normalize_match_text(phrase) in normalized_deliverables:
             return True
-    return False
+    return _has_strong_token_overlap(item, deliverable_text)
 
 
 def _recommendation_is_retained(recommendation: str, revised_prd_draft: str) -> bool:
-    text = revised_prd_draft.lower()
+    text = _normalize_match_text(revised_prd_draft)
     phrases = _recommendation_phrases(recommendation)
-    return any(phrase in text for phrase in phrases)
+    if any(_normalize_match_text(phrase) in text for phrase in phrases):
+        return True
+    return _has_strong_token_overlap(recommendation, revised_prd_draft)
 
 
 def _recommendation_phrases(recommendation: str) -> list[str]:
@@ -594,6 +628,57 @@ def _long_phrases(text: str) -> list[str]:
     candidates = [cleaned]
     candidates.extend(parts)
     return [candidate for candidate in candidates if len(candidate) >= 12]
+
+
+def _normalize_match_text(value: str) -> str:
+    normalized = value.lower().replace("`", "").replace("**", "")
+    normalized = re.sub(r"[_/-]+", " ", normalized)
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _has_strong_token_overlap(needle: str, haystack: str) -> bool:
+    needle_tokens = _content_tokens(needle)
+    if len(needle_tokens) < 3:
+        return False
+    haystack_tokens = set(_content_tokens(haystack))
+    overlap = [token for token in needle_tokens if token in haystack_tokens]
+    return len(overlap) >= min(4, len(needle_tokens)) and len(overlap) / len(needle_tokens) >= 0.55
+
+
+def _content_tokens(value: str) -> list[str]:
+    stopwords = {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "be",
+        "before",
+        "by",
+        "for",
+        "from",
+        "in",
+        "into",
+        "is",
+        "it",
+        "make",
+        "must",
+        "of",
+        "or",
+        "pass",
+        "should",
+        "the",
+        "through",
+        "to",
+        "with",
+    }
+    normalized = _normalize_match_text(value)
+    return [
+        token
+        for token in normalized.split()
+        if len(token) >= 4 and token not in stopwords
+    ]
 
 
 def _extract_inline_value(line: str) -> str:

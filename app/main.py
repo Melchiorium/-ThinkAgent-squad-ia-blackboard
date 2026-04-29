@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 
-from architecture_render import render_architecture_pdf
+from architecture_render import render_architecture_diagram
 from orchestrator import run_v0_flow, run_v2_flow
 from readiness import group_tagged_items, render_tagged_item
 
@@ -199,6 +199,22 @@ def _format_artifacts_section(blackboard: dict) -> str:
                     "Architecture Visual Warning",
                     artifacts.get("architecture_visual_warning", ""),
                 ),
+                _format_block(
+                    "Architecture Mermaid Ready",
+                    str(bool(artifacts.get("architecture_mermaid_ready"))),
+                ),
+                _format_block(
+                    "Architecture Mermaid Source",
+                    artifacts.get("architecture_mermaid_source", ""),
+                ),
+                _format_block(
+                    "Architecture Image Ready",
+                    str(bool(artifacts.get("architecture_image_ready"))),
+                ),
+                _format_block(
+                    "Architecture Image Path",
+                    artifacts.get("architecture_image_path", ""),
+                ),
             ]
         )
         + "\n"
@@ -242,6 +258,7 @@ def _format_product_arbitration_section(blackboard: dict) -> str:
         arbitration[key] for key in ("retained", "deferred", "rejected", "open_points", "rationales")
     ):
         return "## Product Arbitration\n\n_Aucun arbitrage produit pour ce run._\n"
+    reconciled = arbitration.get("reconciled", {})
     return (
         "## Product Arbitration\n\n"
         + "\n\n".join(
@@ -271,6 +288,16 @@ def _format_product_arbitration_section(blackboard: dict) -> str:
                     "Rationales",
                     arbitration["rationales"],
                     "_Aucune rationale._",
+                ),
+                _format_list_block(
+                    "Reconciliation Notes",
+                    arbitration.get("reconciliation_notes", []),
+                    "_Aucune note de réconciliation._",
+                ),
+                _format_list_block(
+                    "Reconciliation Warnings",
+                    reconciled.get("warnings", []),
+                    "_Aucune contradiction détectée._",
                 ),
             ]
         )
@@ -651,11 +678,7 @@ def _write_run_artifacts(
     (output_dir / "architecture.md").write_text(
         blackboard["architecture_notes"], encoding="utf-8"
     )
-    artifact_state = render_architecture_pdf(
-        output_dir / "architecture.pdf",
-        output_dir.parent.name,
-        blackboard,
-    )
+    artifact_state = render_architecture_diagram(output_dir, blackboard)
     blackboard.setdefault("artifacts", {}).update(artifact_state)
     if artifact_state.get("architecture_visual_warning"):
         blackboard["activity_log"].append(

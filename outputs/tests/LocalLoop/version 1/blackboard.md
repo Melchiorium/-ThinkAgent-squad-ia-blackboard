@@ -57,7 +57,7 @@ projects/project-LocalLoop.md
 
 ## Workflow Stage
 
-first_pass_final
+first_pass_locked
 
 ## Source Version
 
@@ -66,6 +66,43 @@ _Aucun contenu._
 ## CEO Evaluation
 
 _Aucun contenu._
+
+## Artifacts
+
+## Architecture Markdown Ready
+
+True
+
+
+## Architecture Visual Ready
+
+True
+
+
+## Architecture Visual Warning
+
+_Aucun contenu._
+
+
+## Architecture Mermaid Ready
+
+True
+
+
+## Architecture Mermaid Source
+
+/Users/rodolphe.rosalie/ProjetsIA/squad-ia-blackboard/outputs/tests/LocalLoop/version 1/architecture-diagram.mmd
+
+
+## Architecture Image Ready
+
+True
+
+
+## Architecture Image Path
+
+/Users/rodolphe.rosalie/ProjetsIA/squad-ia-blackboard/outputs/tests/LocalLoop/version 1/architecture-diagram.png
+
 
 ## Readiness
 
@@ -76,29 +113,46 @@ LIMITED
 
 ## Product Blocking Gaps
 
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
+### demand_validation
+- [demand_validation] No proof yet that curated local discovery changes user behavior in Paris
 
+### quality_assurance
+- [quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation
+
+### untagged
+- No proof yet that the one-time token redemption flow and verified loyalty tracking work reliably in live use
 
 ## Product Required Improvements
 
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
+### market_motion
+- [market_motion] Run a concierge pilot with real users and merchants in one fixed Paris micro-market
 
+### demand_validation
+- [demand_validation] Validate repeat visit and redemption behavior with coffee and lunch only
+- [demand_validation] Confirm merchant willingness to continue after initial traffic testing
 
 ## Tech Status
 
-_Aucun contenu._
+LIMITED
 
 
 ## Tech Blocking Gaps
 
-_Aucun blocage identifié._
+### quality_assurance
+- [quality_assurance] The merchant quality gate is not yet defined as a hard publish control with required fields and approval state.
 
+### untagged
+- The redemption token lifecycle is still too implicit to guarantee reliable in-store use.
+- The merchant validation path is not fixed, so staff-side execution could be inconsistent.
 
 ## Tech Required Improvements
 
-_Aucune amélioration requise._
+### quality_assurance
+- [quality_assurance] Implement a mandatory pre-live checklist in the admin console with required fields and approval lockout.
+- [quality_assurance] Define the single redemption token format, expiry, consumption, and dispute states.
 
+### scope
+- [scope] Choose one validation path for merchants and keep it operationally minimal for MVP.
 
 ## Growth Status
 
@@ -107,15 +161,27 @@ LIMITED
 
 ## Growth Blocking Gaps
 
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
-- Need for a clear go-to-market strategy to attract users effectively.
+### demand_validation
+- [demand_validation] No named Paris micro-market selected, so supply density and localized traction cannot be tested credibly
+- [demand_validation] Demand proof is undefined without a concrete repeat-use and redemption threshold
 
+### scope
+- [scope] First audience is still too broad; the launch needs one narrow frequent-use segment
 
 ## Growth Required Improvements
 
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
+### scope
+- [scope] Select one Paris micro-market and lock the pilot boundary before merchant sourcing begins
+- [scope] Keep the launch to one category pair and one offer mechanic only
 
+### market_motion
+- [market_motion] Narrow the first audience to frequent coffee/lunch decision-makers in that micro-market
+
+### demand_validation
+- [demand_validation] Define a measurable success threshold for repeat visits and redemption volume
+
+### quality_assurance
+- [quality_assurance] Require manual merchant approval and quality checklist completion before any live listing
 
 ## Global Status
 
@@ -124,14 +190,51 @@ LIMITED
 
 ## Global Blocking Gaps
 
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
-- Need for a clear go-to-market strategy to attract users effectively.
+### demand_validation
+- [demand_validation] No proof yet that curated local discovery changes user behavior in Paris
+- [demand_validation] No named Paris micro-market selected, so supply density and localized traction cannot be tested credibly
+- [demand_validation] Demand proof is undefined without a concrete repeat-use and redemption threshold
 
+### quality_assurance
+- [quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation
+- [quality_assurance] The merchant quality gate is not yet defined as a hard publish control with required fields and approval state.
+
+### untagged
+- No proof yet that the one-time token redemption flow and verified loyalty tracking work reliably in live use
+- The redemption token lifecycle is still too implicit to guarantee reliable in-store use.
+- The merchant validation path is not fixed, so staff-side execution could be inconsistent.
+
+### scope
+- [scope] First audience is still too broad; the launch needs one narrow frequent-use segment
 
 ## Global Required Improvements
 
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
+### market_motion
+- [market_motion] Run a concierge pilot with real users and merchants in one fixed Paris micro-market
+- [market_motion] Narrow the first audience to frequent coffee/lunch decision-makers in that micro-market
+
+### demand_validation
+- [demand_validation] Validate repeat visit and redemption behavior with coffee and lunch only
+- [demand_validation] Confirm merchant willingness to continue after initial traffic testing
+- [demand_validation] Define a measurable success threshold for repeat visits and redemption volume
+
+### quality_assurance
+- [quality_assurance] Implement a mandatory pre-live checklist in the admin console with required fields and approval lockout.
+- [quality_assurance] Define the single redemption token format, expiry, consumption, and dispute states.
+- [quality_assurance] Require manual merchant approval and quality checklist completion before any live listing
+
+### scope
+- [scope] Choose one validation path for merchants and keep it operationally minimal for MVP.
+- [scope] Select one Paris micro-market and lock the pilot boundary before merchant sourcing begins
+- [scope] Keep the launch to one category pair and one offer mechanic only
+
+## Known Tags
+
+- demand_validation
+- quality_assurance
+- untagged
+- scope
+- market_motion
 
 
 ## Correction Loop
@@ -165,43 +268,21 @@ LIMITED
 
 ### Loop 1
 
-#### Growth Task
+#### Tech Task
 
 ## Task
 
-Replace the broad adoption concern with one concrete pilot motion and a clear validation signal.
+Clarify the smallest quality-control mechanism needed for MVP submissions or supply.
 
 
 ## Source Gap
 
-Uncertainty around willingness of businesses to adopt the platform and pay for profiles. Need for a clear go-to-market strategy to attract users effectively. Validate business onboarding through preliminary partnerships and interest surveys. Refine user engagement strategies to ensure a compelling experience upon initial launch.
+[quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation Redemption flow is not yet specified with enough precision to guarantee in-store reliability Define a single end-to-end redemption flow with clear token format, validation step, and failure fallback No proof that the redemption flow is frictionless enough for live use Test the in-store redemption flow with real staff before any public launch
 
 
 ## Expected Output
 
-One pilot motion with an explicit audience, validation signal, and trust message.
-
-
-## Contributors
-
-_Aucun contributeur._
-
-
-#### Product Task
-
-## Task
-
-Tighten the MVP scope so the wedge, target segment, and business model stay explicit.
-
-
-## Source Gap
-
-Develop user testing to validate user appetite for personalized recommendations before scaling efforts.
-
-
-## Expected Output
-
-A narrowed MVP framing that makes the wedge and business hypothesis explicit.
+A concrete quality-control answer that fits MVP scope.
 
 
 ## Contributors
@@ -213,17 +294,39 @@ A narrowed MVP framing that makes the wedge and business hypothesis explicit.
 
 ## Task
 
-Turn the market concern into one focused acquisition or activation experiment.
+Clarify the narrowest credible launch audience and first market motion.
 
 
 ## Source Gap
 
-Clarity on how to effectively engage and onboard local businesses. Insufficient proof of user value proposition from early surveys or focus groups. Conduct targeted outreach to identify and secure initial business partnerships.
+[market_motion] Run a concierge pilot with real users and merchants in one Paris neighborhood cluster No validated proof that enough merchants in one micro-market will participate and remain active Run a concierge pilot in one named Paris neighborhood cluster with a fixed merchant set
 
 
 ## Expected Output
 
-One targeted growth action that can be tested without broad rework.
+A concrete launch motion for the smallest credible audience.
+
+
+## Contributors
+
+_Aucun contributeur._
+
+
+#### Growth Task
+
+## Task
+
+Clarify the clearest early demand signal and how it will be observed.
+
+
+## Source Gap
+
+[demand_validation] No proof yet that curated local discovery changes user behavior in Paris Validate repeat visit and redemption behavior with a narrow category set Confirm merchant willingness to continue after initial traffic testing No validated proof that the narrowed Paris discovery loop changes user behavior versus existing defaults Validate one narrow use case and measure repeat use, not broad engagement
+
+
+## Expected Output
+
+A concrete demand-validation approach with a signal threshold.
 
 
 ## Contributors
@@ -233,21 +336,21 @@ _Aucun contributeur._
 
 ### Loop 2
 
-#### Growth Task
+#### Tech Task
 
 ## Task
 
-Replace the broad adoption concern with one concrete pilot motion and a clear validation signal.
+Clarify the smallest quality-control mechanism needed for MVP submissions or supply.
 
 
 ## Source Gap
 
-Uncertainty around willingness of businesses to adopt the platform and pay for profiles. Need for a clear go-to-market strategy to attract users effectively. Validate business onboarding through preliminary partnerships and interest surveys. Refine user engagement strategies to ensure a compelling experience upon initial launch. Limited proof of concept with local businesses and user engagement in real-life scenarios. Need for defined metrics to measure the success of user engagement and recommendations. Conduct pilot outreach to gauge local business interest and willingness to participate actively.
+[quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation Redemption flow is not yet specified with enough precision to guarantee in-store reliability No concrete merchant quality gate exists to prevent weak or incorrect supply from going live Define a single end-to-end redemption flow with token format, expiry, consumption rules, and failure fallback
 
 
 ## Expected Output
 
-One pilot motion with an explicit audience, validation signal, and trust message.
+A concrete quality-control answer that fits MVP scope.
 
 
 ## Contributors
@@ -255,26 +358,48 @@ One pilot motion with an explicit audience, validation signal, and trust message
 _Aucun contributeur._
 
 
-#### Product Task
+#### Growth Task
 
 ## Task
 
-Clarify the user onboarding path that keeps the MVP simple enough for first-time adoption.
+Clarify the narrowest credible launch audience and first market motion.
 
 
 ## Source Gap
 
-Develop a more user-friendly onboarding process that businesses can understand quickly and effectively.
+[market_motion] Run a concierge pilot with real users and merchants in one fixed Paris neighborhood cluster Add a mandatory pre-live merchant quality checklist and approval step before activation No named Paris micro-market has been selected for the pilot, so supply density cannot be assessed credibly The first audience is still too broad; the launch needs one narrow, high-frequency use case Select one Paris neighborhood cluster and set a fixed merchant target before acquisition begins Narrow the first audience to frequent local coffee/lunch decision-makers in that cluster
 
 
 ## Expected Output
 
-A minimal onboarding path that keeps the MVP understandable for the first users.
+A concrete launch motion for the smallest credible audience.
 
 
 ## Contributors
 
-- growth
+- tech
+
+
+#### Growth Task
+
+## Task
+
+Clarify the clearest early demand signal and how it will be observed.
+
+
+## Source Gap
+
+[demand_validation] No proof yet that curated local discovery changes user behavior in Paris Validate repeat visit and redemption behavior with one narrow category pair Confirm merchant willingness to continue after initial traffic testing Demand proof is undefined beyond general engagement; the team needs a measurable repeat-use and redemption threshold Define a concrete demand signal such as repeat visit rate within a short window and minimum redemption volume
+
+
+## Expected Output
+
+A concrete demand-validation approach with a signal threshold.
+
+
+## Contributors
+
+_Aucun contributeur._
 
 
 ## Readiness History
@@ -293,7 +418,7 @@ LIMITED
 
 ## Tech Status
 
-_Aucun contenu._
+LIMITED
 
 
 ## Growth Status
@@ -303,71 +428,93 @@ LIMITED
 
 ## Global Blocking Gaps
 
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
-- Need for a clear go-to-market strategy to attract users effectively.
-- Clarity on how to effectively engage and onboard local businesses.
-- Insufficient proof of user value proposition from early surveys or focus groups.
+### demand_validation
+- [demand_validation] No proof yet that curated local discovery changes user behavior in Paris
+- [demand_validation] No validated proof that the narrowed Paris discovery loop changes user behavior versus existing defaults
 
+### quality_assurance
+- [quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation
+- [quality_assurance] Redemption flow is not yet specified with enough precision to guarantee in-store reliability
+- [quality_assurance] No proof that the redemption flow is frictionless enough for live use
+
+### untagged
+- No proof yet that the single redemption flow and loyalty tracking work reliably in live use
+- Merchant lifecycle and offer validity rules are not defined tightly enough to prevent stale inventory from reaching users
+- Loyalty state and duplicate-redemption prevention are not yet specified at the data-model level
+
+### market_motion
+- [market_motion] No validated proof that enough merchants in one micro-market will participate and remain active
 
 ## Global Required Improvements
 
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
-- Conduct targeted outreach to identify and secure initial business partnerships.
-- Develop user testing to validate user appetite for personalized recommendations before scaling efforts.
+### market_motion
+- [market_motion] Run a concierge pilot with real users and merchants in one Paris neighborhood cluster
+- [market_motion] Run a concierge pilot in one named Paris neighborhood cluster with a fixed merchant set
 
+### demand_validation
+- [demand_validation] Validate repeat visit and redemption behavior with a narrow category set
+- [demand_validation] Confirm merchant willingness to continue after initial traffic testing
+- [demand_validation] Validate one narrow use case and measure repeat use, not broad engagement
+
+### quality_assurance
+- [quality_assurance] Define a single end-to-end redemption flow with clear token format, validation step, and failure fallback
+- [quality_assurance] Test the in-store redemption flow with real staff before any public launch
+
+### untagged
+- Add merchant and offer state transitions with expiry, pause, and archive behavior
+- Specify loyalty event sourcing or equivalent idempotent storage for repeat visits and reward issuance
 
 ## Loop Tasks
 
-##### Growth
+##### Tech
 
 ## Task
 
-Replace the broad adoption concern with one concrete pilot motion and a clear validation signal.
+Clarify the smallest quality-control mechanism needed for MVP submissions or supply.
 
 
 ## Source Gap
 
-Uncertainty around willingness of businesses to adopt the platform and pay for profiles. Need for a clear go-to-market strategy to attract users effectively. Validate business onboarding through preliminary partnerships and interest surveys. Refine user engagement strategies to ensure a compelling experience upon initial launch.
+[quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation Redemption flow is not yet specified with enough precision to guarantee in-store reliability Define a single end-to-end redemption flow with clear token format, validation step, and failure fallback No proof that the redemption flow is frictionless enough for live use Test the in-store redemption flow with real staff before any public launch
 
 
 ## Expected Output
 
-One pilot motion with an explicit audience, validation signal, and trust message.
-
-
-##### Product
-
-## Task
-
-Tighten the MVP scope so the wedge, target segment, and business model stay explicit.
-
-
-## Source Gap
-
-Develop user testing to validate user appetite for personalized recommendations before scaling efforts.
-
-
-## Expected Output
-
-A narrowed MVP framing that makes the wedge and business hypothesis explicit.
+A concrete quality-control answer that fits MVP scope.
 
 
 ##### Growth
 
 ## Task
 
-Turn the market concern into one focused acquisition or activation experiment.
+Clarify the narrowest credible launch audience and first market motion.
 
 
 ## Source Gap
 
-Clarity on how to effectively engage and onboard local businesses. Insufficient proof of user value proposition from early surveys or focus groups. Conduct targeted outreach to identify and secure initial business partnerships.
+[market_motion] Run a concierge pilot with real users and merchants in one Paris neighborhood cluster No validated proof that enough merchants in one micro-market will participate and remain active Run a concierge pilot in one named Paris neighborhood cluster with a fixed merchant set
 
 
 ## Expected Output
 
-One targeted growth action that can be tested without broad rework.
+A concrete launch motion for the smallest credible audience.
+
+
+##### Growth
+
+## Task
+
+Clarify the clearest early demand signal and how it will be observed.
+
+
+## Source Gap
+
+[demand_validation] No proof yet that curated local discovery changes user behavior in Paris Validate repeat visit and redemption behavior with a narrow category set Confirm merchant willingness to continue after initial traffic testing No validated proof that the narrowed Paris discovery loop changes user behavior versus existing defaults Validate one narrow use case and measure repeat use, not broad engagement
+
+
+## Expected Output
+
+A concrete demand-validation approach with a signal threshold.
 
 
 ### Loop 1 after
@@ -384,7 +531,7 @@ LIMITED
 
 ## Tech Status
 
-_Aucun contenu._
+LIMITED
 
 
 ## Growth Status
@@ -394,71 +541,89 @@ LIMITED
 
 ## Global Blocking Gaps
 
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
-- Need for a clear go-to-market strategy to attract users effectively.
-- Limited proof of concept with local businesses and user engagement in real-life scenarios.
-- Need for defined metrics to measure the success of user engagement and recommendations.
+### demand_validation
+- [demand_validation] No proof yet that curated local discovery changes user behavior in Paris
+- [demand_validation] Demand proof is undefined beyond general engagement; the team needs a measurable repeat-use and redemption threshold
 
+### quality_assurance
+- [quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation
+- [quality_assurance] Redemption flow is not yet specified with enough precision to guarantee in-store reliability
+- [quality_assurance] No concrete merchant quality gate exists to prevent weak or incorrect supply from going live
+
+### untagged
+- No proof yet that the one-time token redemption flow and verified loyalty tracking work reliably in live use
+
+### market_motion
+- [market_motion] No named Paris micro-market has been selected for the pilot, so supply density cannot be assessed credibly
+- [market_motion] The first audience is still too broad; the launch needs one narrow, high-frequency use case
 
 ## Global Required Improvements
 
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
-- Conduct pilot outreach to gauge local business interest and willingness to participate actively.
-- Develop a more user-friendly onboarding process that businesses can understand quickly and effectively.
+### market_motion
+- [market_motion] Run a concierge pilot with real users and merchants in one fixed Paris neighborhood cluster
+- [market_motion] Add a mandatory pre-live merchant quality checklist and approval step before activation
+- [market_motion] Select one Paris neighborhood cluster and set a fixed merchant target before acquisition begins
+- [market_motion] Narrow the first audience to frequent local coffee/lunch decision-makers in that cluster
 
+### demand_validation
+- [demand_validation] Validate repeat visit and redemption behavior with one narrow category pair
+- [demand_validation] Confirm merchant willingness to continue after initial traffic testing
+- [demand_validation] Define a concrete demand signal such as repeat visit rate within a short window and minimum redemption volume
+
+### quality_assurance
+- [quality_assurance] Define a single end-to-end redemption flow with token format, expiry, consumption rules, and failure fallback
 
 ## Loop Tasks
 
-##### Growth
+##### Tech
 
 ## Task
 
-Replace the broad adoption concern with one concrete pilot motion and a clear validation signal.
+Clarify the smallest quality-control mechanism needed for MVP submissions or supply.
 
 
 ## Source Gap
 
-Uncertainty around willingness of businesses to adopt the platform and pay for profiles. Need for a clear go-to-market strategy to attract users effectively. Validate business onboarding through preliminary partnerships and interest surveys. Refine user engagement strategies to ensure a compelling experience upon initial launch.
+[quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation Redemption flow is not yet specified with enough precision to guarantee in-store reliability Define a single end-to-end redemption flow with clear token format, validation step, and failure fallback No proof that the redemption flow is frictionless enough for live use Test the in-store redemption flow with real staff before any public launch
 
 
 ## Expected Output
 
-One pilot motion with an explicit audience, validation signal, and trust message.
-
-
-##### Product
-
-## Task
-
-Tighten the MVP scope so the wedge, target segment, and business model stay explicit.
-
-
-## Source Gap
-
-Develop user testing to validate user appetite for personalized recommendations before scaling efforts.
-
-
-## Expected Output
-
-A narrowed MVP framing that makes the wedge and business hypothesis explicit.
+A concrete quality-control answer that fits MVP scope.
 
 
 ##### Growth
 
 ## Task
 
-Turn the market concern into one focused acquisition or activation experiment.
+Clarify the narrowest credible launch audience and first market motion.
 
 
 ## Source Gap
 
-Clarity on how to effectively engage and onboard local businesses. Insufficient proof of user value proposition from early surveys or focus groups. Conduct targeted outreach to identify and secure initial business partnerships.
+[market_motion] Run a concierge pilot with real users and merchants in one Paris neighborhood cluster No validated proof that enough merchants in one micro-market will participate and remain active Run a concierge pilot in one named Paris neighborhood cluster with a fixed merchant set
 
 
 ## Expected Output
 
-One targeted growth action that can be tested without broad rework.
+A concrete launch motion for the smallest credible audience.
+
+
+##### Growth
+
+## Task
+
+Clarify the clearest early demand signal and how it will be observed.
+
+
+## Source Gap
+
+[demand_validation] No proof yet that curated local discovery changes user behavior in Paris Validate repeat visit and redemption behavior with a narrow category set Confirm merchant willingness to continue after initial traffic testing No validated proof that the narrowed Paris discovery loop changes user behavior versus existing defaults Validate one narrow use case and measure repeat use, not broad engagement
+
+
+## Expected Output
+
+A concrete demand-validation approach with a signal threshold.
 
 
 ### Loop 2 before
@@ -475,7 +640,7 @@ LIMITED
 
 ## Tech Status
 
-_Aucun contenu._
+LIMITED
 
 
 ## Growth Status
@@ -485,54 +650,89 @@ LIMITED
 
 ## Global Blocking Gaps
 
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
-- Need for a clear go-to-market strategy to attract users effectively.
-- Limited proof of concept with local businesses and user engagement in real-life scenarios.
-- Need for defined metrics to measure the success of user engagement and recommendations.
+### demand_validation
+- [demand_validation] No proof yet that curated local discovery changes user behavior in Paris
+- [demand_validation] Demand proof is undefined beyond general engagement; the team needs a measurable repeat-use and redemption threshold
 
+### quality_assurance
+- [quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation
+- [quality_assurance] Redemption flow is not yet specified with enough precision to guarantee in-store reliability
+- [quality_assurance] No concrete merchant quality gate exists to prevent weak or incorrect supply from going live
+
+### untagged
+- No proof yet that the one-time token redemption flow and verified loyalty tracking work reliably in live use
+
+### market_motion
+- [market_motion] No named Paris micro-market has been selected for the pilot, so supply density cannot be assessed credibly
+- [market_motion] The first audience is still too broad; the launch needs one narrow, high-frequency use case
 
 ## Global Required Improvements
 
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
-- Conduct pilot outreach to gauge local business interest and willingness to participate actively.
-- Develop a more user-friendly onboarding process that businesses can understand quickly and effectively.
+### market_motion
+- [market_motion] Run a concierge pilot with real users and merchants in one fixed Paris neighborhood cluster
+- [market_motion] Add a mandatory pre-live merchant quality checklist and approval step before activation
+- [market_motion] Select one Paris neighborhood cluster and set a fixed merchant target before acquisition begins
+- [market_motion] Narrow the first audience to frequent local coffee/lunch decision-makers in that cluster
 
+### demand_validation
+- [demand_validation] Validate repeat visit and redemption behavior with one narrow category pair
+- [demand_validation] Confirm merchant willingness to continue after initial traffic testing
+- [demand_validation] Define a concrete demand signal such as repeat visit rate within a short window and minimum redemption volume
+
+### quality_assurance
+- [quality_assurance] Define a single end-to-end redemption flow with token format, expiry, consumption rules, and failure fallback
 
 ## Loop Tasks
+
+##### Tech
+
+## Task
+
+Clarify the smallest quality-control mechanism needed for MVP submissions or supply.
+
+
+## Source Gap
+
+[quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation Redemption flow is not yet specified with enough precision to guarantee in-store reliability No concrete merchant quality gate exists to prevent weak or incorrect supply from going live Define a single end-to-end redemption flow with token format, expiry, consumption rules, and failure fallback
+
+
+## Expected Output
+
+A concrete quality-control answer that fits MVP scope.
+
 
 ##### Growth
 
 ## Task
 
-Replace the broad adoption concern with one concrete pilot motion and a clear validation signal.
+Clarify the narrowest credible launch audience and first market motion.
 
 
 ## Source Gap
 
-Uncertainty around willingness of businesses to adopt the platform and pay for profiles. Need for a clear go-to-market strategy to attract users effectively. Validate business onboarding through preliminary partnerships and interest surveys. Refine user engagement strategies to ensure a compelling experience upon initial launch. Limited proof of concept with local businesses and user engagement in real-life scenarios. Need for defined metrics to measure the success of user engagement and recommendations. Conduct pilot outreach to gauge local business interest and willingness to participate actively.
+[market_motion] Run a concierge pilot with real users and merchants in one fixed Paris neighborhood cluster Add a mandatory pre-live merchant quality checklist and approval step before activation No named Paris micro-market has been selected for the pilot, so supply density cannot be assessed credibly The first audience is still too broad; the launch needs one narrow, high-frequency use case Select one Paris neighborhood cluster and set a fixed merchant target before acquisition begins Narrow the first audience to frequent local coffee/lunch decision-makers in that cluster
 
 
 ## Expected Output
 
-One pilot motion with an explicit audience, validation signal, and trust message.
+A concrete launch motion for the smallest credible audience.
 
 
-##### Product
+##### Growth
 
 ## Task
 
-Clarify the user onboarding path that keeps the MVP simple enough for first-time adoption.
+Clarify the clearest early demand signal and how it will be observed.
 
 
 ## Source Gap
 
-Develop a more user-friendly onboarding process that businesses can understand quickly and effectively.
+[demand_validation] No proof yet that curated local discovery changes user behavior in Paris Validate repeat visit and redemption behavior with one narrow category pair Confirm merchant willingness to continue after initial traffic testing Demand proof is undefined beyond general engagement; the team needs a measurable repeat-use and redemption threshold Define a concrete demand signal such as repeat visit rate within a short window and minimum redemption volume
 
 
 ## Expected Output
 
-A minimal onboarding path that keeps the MVP understandable for the first users.
+A concrete demand-validation approach with a signal threshold.
 
 
 ### Loop 2 after
@@ -549,7 +749,7 @@ LIMITED
 
 ## Tech Status
 
-_Aucun contenu._
+LIMITED
 
 
 ## Growth Status
@@ -559,106 +759,314 @@ LIMITED
 
 ## Global Blocking Gaps
 
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
-- Need for a clear go-to-market strategy to attract users effectively.
+### demand_validation
+- [demand_validation] No proof yet that curated local discovery changes user behavior in Paris
+- [demand_validation] No named Paris micro-market selected, so supply density and localized traction cannot be tested credibly
+- [demand_validation] Demand proof is undefined without a concrete repeat-use and redemption threshold
 
+### quality_assurance
+- [quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation
+- [quality_assurance] The merchant quality gate is not yet defined as a hard publish control with required fields and approval state.
+
+### untagged
+- No proof yet that the one-time token redemption flow and verified loyalty tracking work reliably in live use
+- The redemption token lifecycle is still too implicit to guarantee reliable in-store use.
+- The merchant validation path is not fixed, so staff-side execution could be inconsistent.
+
+### scope
+- [scope] First audience is still too broad; the launch needs one narrow frequent-use segment
 
 ## Global Required Improvements
 
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
+### market_motion
+- [market_motion] Run a concierge pilot with real users and merchants in one fixed Paris micro-market
+- [market_motion] Narrow the first audience to frequent coffee/lunch decision-makers in that micro-market
 
+### demand_validation
+- [demand_validation] Validate repeat visit and redemption behavior with coffee and lunch only
+- [demand_validation] Confirm merchant willingness to continue after initial traffic testing
+- [demand_validation] Define a measurable success threshold for repeat visits and redemption volume
+
+### quality_assurance
+- [quality_assurance] Implement a mandatory pre-live checklist in the admin console with required fields and approval lockout.
+- [quality_assurance] Define the single redemption token format, expiry, consumption, and dispute states.
+- [quality_assurance] Require manual merchant approval and quality checklist completion before any live listing
+
+### scope
+- [scope] Choose one validation path for merchants and keep it operationally minimal for MVP.
+- [scope] Select one Paris micro-market and lock the pilot boundary before merchant sourcing begins
+- [scope] Keep the launch to one category pair and one offer mechanic only
 
 ## Loop Tasks
+
+##### Tech
+
+## Task
+
+Clarify the smallest quality-control mechanism needed for MVP submissions or supply.
+
+
+## Source Gap
+
+[quality_assurance] No proof yet that merchants will provide enough quality inventory and continue participation Redemption flow is not yet specified with enough precision to guarantee in-store reliability No concrete merchant quality gate exists to prevent weak or incorrect supply from going live Define a single end-to-end redemption flow with token format, expiry, consumption rules, and failure fallback
+
+
+## Expected Output
+
+A concrete quality-control answer that fits MVP scope.
+
 
 ##### Growth
 
 ## Task
 
-Replace the broad adoption concern with one concrete pilot motion and a clear validation signal.
+Clarify the narrowest credible launch audience and first market motion.
 
 
 ## Source Gap
 
-Uncertainty around willingness of businesses to adopt the platform and pay for profiles. Need for a clear go-to-market strategy to attract users effectively. Validate business onboarding through preliminary partnerships and interest surveys. Refine user engagement strategies to ensure a compelling experience upon initial launch. Limited proof of concept with local businesses and user engagement in real-life scenarios. Need for defined metrics to measure the success of user engagement and recommendations. Conduct pilot outreach to gauge local business interest and willingness to participate actively.
+[market_motion] Run a concierge pilot with real users and merchants in one fixed Paris neighborhood cluster Add a mandatory pre-live merchant quality checklist and approval step before activation No named Paris micro-market has been selected for the pilot, so supply density cannot be assessed credibly The first audience is still too broad; the launch needs one narrow, high-frequency use case Select one Paris neighborhood cluster and set a fixed merchant target before acquisition begins Narrow the first audience to frequent local coffee/lunch decision-makers in that cluster
 
 
 ## Expected Output
 
-One pilot motion with an explicit audience, validation signal, and trust message.
+A concrete launch motion for the smallest credible audience.
 
 
-##### Product
+##### Growth
 
 ## Task
 
-Clarify the user onboarding path that keeps the MVP simple enough for first-time adoption.
+Clarify the clearest early demand signal and how it will be observed.
 
 
 ## Source Gap
 
-Develop a more user-friendly onboarding process that businesses can understand quickly and effectively.
+[demand_validation] No proof yet that curated local discovery changes user behavior in Paris Validate repeat visit and redemption behavior with one narrow category pair Confirm merchant willingness to continue after initial traffic testing Demand proof is undefined beyond general engagement; the team needs a measurable repeat-use and redemption threshold Define a concrete demand signal such as repeat visit rate within a short window and minimum redemption volume
 
 
 ## Expected Output
 
-A minimal onboarding path that keeps the MVP understandable for the first users.
+A concrete demand-validation approach with a signal threshold.
+
+
+## Expert Decisions
+
+## Tech Structural Decisions
+
+### tech
+- [tech] **Manual supply gating before publish**
+- [tech] Every merchant must pass a checklist and be explicitly approved by ops before becoming visible.
+- [tech] This is the key quality-control mechanism for MVP supply.
+- [tech] **Single redemption model**
+
+## Growth Structural Decisions
+
+### growth
+- [growth] Define one named Paris micro-market for the pilot instead of “one neighborhood cluster.”
+- [growth] Narrow the first audience to **frequent coffee/lunch decision-makers in that micro-market**.
+
+## Product Locking
+
+## Applied
+
+True
+
+
+## Confirmed In Scope
+
+- Paris-only consumer app [scope]
+- One named Paris micro-market [market_motion]
+- Frequent coffee/lunch decision-makers as the first audience [market_motion]
+- Independent coffee shops and lunch spots only [scope]
+- Manual supply gating before publish [quality_assurance]
+- Merchant quality checklist before activation [quality_assurance]
+- One ops-approved live state with no self-serve publishing [quality_assurance]
+- Single redemption model [quality_assurance]
+- Explicit redemption token lifecycle in the admin workflow [quality_assurance]
+- Stale-offer suppression [quality_assurance]
+- Audit log for manual overrides, publish, and dispute actions [quality_assurance]
+- Basic merchant analytics [scope]
+
+
+## Confirmed Deferred
+
+- Self-serve merchant portal
+- Advanced personalization
+- Reviews and social features
+- Event discovery feed
+- Multi-city rollout
+- Paid merchant tools and campaigns
+- Cross-merchant rewards
+- Automated offer optimization
+- Broad category expansion
+- Multiple redemption paths
+- Full merchant CRM tooling
+
+
+## Confirmed Out Of Scope
+
+- Open reviews and ratings
+- Deep social features
+- Delivery ordering
+- Table booking
+- Chain businesses and horizontal retail coverage
+- Heavy gamification
+- Uncurated open marketplace inventory
+- Merchant-initiated live publishing without approval
+
+
+## Locking Note
+
+- Scope remains intentionally narrow for proof: local discovery, one offer, one redemption path, and verified repeat visits. - No broader marketplace, social, or monetization expansion is being added in this pass. - The remaining open questions are operational, not scope-expanding.
 
 
 ## Expert Contributions
 
 ### Tech Summary
 
-The primary feasibility challenge lies in validating the willingness of local businesses to adopt and pay for their profiles. The recommended direction is to implement a basic MVP focusing on user and merchant profiles, with manual workflows to preliminary validate business interest before extensive development.
+The MVP is only feasible if LocalLoop is treated as a tightly controlled concierge system, not a marketplace. The critical path is merchant quality control plus a simple, reliable redemption mechanism; everything else should remain manual until the pilot proves that curated Paris supply can sustain repeat visits.
+
+## Tech Structural Decisions
+
+- **Manual supply gating before publish**
+- Every merchant must pass a checklist and be explicitly approved by ops before becoming visible.
+- This is the key quality-control mechanism for MVP supply.
+- **Single redemption model**
+
 
 ## Tech Recommendations
 
-- Clearly define the onboarding process for local businesses to streamline engagement.
-- Increase emphasis on capturing user preferences during profile setup for better personalization.
-- Specify types of promotions to initially offer businesses that would be attractive to users.
-- Explore potential partnerships for geolocation services to ensure accuracy and efficiency.
-- Develop a feedback mechanism that allows users to rate their experiences directly tied to recommendations.
+- Define the merchant quality checklist as a required publish gate in the admin console, not a manual guideline. [quality_assurance]
+- Specify the exact redemption token lifecycle: issued, expiring, consumed, disputed, voided. [quality_assurance]
+- Constrain merchant activation to one ops-approved live state with no self-serve publishing. [quality_assurance]
+- Add an explicit stale-offer suppression rule so inactive merchants cannot appear in the feed. [quality_assurance]
+- Require an audit log entry for every manual override, publish, or dispute resolution action. [quality_assurance]
 
 
 ## Tech Risks
 
-- Local businesses may not show interest in the platform or aligning financially.
-- Poor user engagement may lead to high churn and minimal repeat use.
-- Inaccurate recommendations due to insufficient data could impair user trust.
+- Manual approval may become a bottleneck if merchant onboarding volume rises too quickly. [ops_scalability]
+- Token validation may fail at the point of visit if merchant staff do not have a simple enough process. [redemption_friction]
+- Poorly controlled supply may still create a feed that feels thin or inconsistent. [quality_assurance]
 
 
 ## Tech Open Questions
 
-- What specific metrics will be used to determine the success of the MVP beyond user sign-ups?
-- How can we effectively communicate the value proposition to local businesses to incentivize them to join?
-- What feedback mechanisms can we implement to quickly adapt the user experience?
+- Should merchant validation be done by an ops staffer, or by merchant staff through a minimal validation screen?
+- What exact expiry window should the one-time token use to balance safety and in-store usability?
+- Which fields are mandatory for the quality checklist before a merchant can go live?
 
 
 ### Growth Summary
 
-The primary launch challenge for LocalLoop is the need to secure local independent businesses before the user side can be effectively marketed. The recommended GTM direction is a concierge pilot focusing on direct business engagement to gather feedback and validate market interest.
+The launch challenge is not building a broad local marketplace; it is proving that one tightly curated Paris neighborhood cluster can generate enough repeat use and merchant value to justify expansion. The recommended direction is a founder-led concierge pilot in one micro-market, starting with merchant supply, then recruiting a narrow audience of frequent coffee/lunch decision-makers.
+
+## Growth Structural Decisions
+
+- Define one named Paris micro-market for the pilot instead of “one neighborhood cluster.”
+- Narrow the first audience to **frequent coffee/lunch decision-makers in that micro-market**.
+
 
 ## Growth Recommendations
 
-- Develop a streamlined onboarding process for local businesses that motivates them to join.
-- Enhance the user profile creation process to better capture preferences and facilitate personalized recommendations.
-- Include initial promotional offers in the onboarding process to attract users and businesses alike.
-- Create a feedback mechanism from businesses to understand their perspective on platform value.
-- Integrate features for monitoring conversion from new users to regular users for further improvement insights.
+- Define one named Paris micro-market for the pilot instead of “one neighborhood cluster.”
+- Narrow the first audience to **frequent coffee/lunch decision-makers in that micro-market**.
+- Specify the first category pair explicitly and remove broader category ambiguity.
+- Add a concrete demand threshold, such as minimum repeat visit rate and minimum redemption volume, for pilot success.
+- Clarify the merchant activation rule: no merchant goes live without a completed quality checklist and manual approval.
 
 
 ## Growth Risks
 
-- Low interest from local businesses in adopting and paying for platform features.
-- Insufficient user engagement leading to high churn rates post-launch.
-- User dissatisfaction with the quality or relevance of recommendations causing poor retention.
+- Supply density may still be too thin in the chosen micro-market.
+- Users may treat the app as another local directory and revert to Google Maps.
+- Merchants may not perceive enough incremental traffic to stay active.
 
 
 ## Growth Open Questions
 
-- What incentives can be offered to local businesses to encourage early participation?
-- How will we measure the success of business onboarding and user engagement during the pilot phase?
-- What feedback collection methods will be put in place to understand user experience and business satisfaction?
+- Which exact Paris micro-market will be used first?
+- What is the exact first category pair: coffee + lunch, or something else?
+- What is the minimum merchant count needed for the feed to feel alive?
+
+
+## Product Arbitration
+
+## Source
+
+parsed
+
+
+## Retained
+
+- Manual supply gating before publish [quality_assurance]
+- Single redemption model [quality_assurance]
+- Merchant quality checklist as a required publish gate [quality_assurance]
+- Explicit redemption token lifecycle in the admin workflow [quality_assurance]
+- One ops-approved live state with no self-serve publishing [quality_assurance]
+- Stale-offer suppression so inactive merchants do not appear in feed [quality_assurance]
+- Audit log for every manual override, publish, and dispute action [quality_assurance]
+- One named Paris micro-market for the pilot [market_motion]
+- Narrow first audience to frequent coffee/lunch decision-makers in that micro-market [market_motion]
+- First category pair limited to coffee and lunch [scope]
+- Concrete pilot success threshold tied to repeat visits and redemptions [demand_validation]
+- Manual approval required before any merchant goes live [quality_assurance]
+
+
+## Deferred
+
+- Self-serve merchant portal
+- Advanced personalization
+- Reviews and social features
+- Event discovery feed
+- Multi-city rollout
+- Paid merchant tools and campaigns
+- Cross-merchant rewards
+- Automated offer optimization
+- Broad category expansion
+- Multiple redemption paths
+- Full merchant CRM tooling
+
+
+## Rejected
+
+- Open reviews and ratings
+- Deep social features
+- Delivery ordering
+- Table booking
+- Chain businesses and horizontal retail coverage
+- Heavy gamification
+- Uncurated open marketplace inventory
+- Merchant-initiated live publishing without approval
+
+
+## Open Points
+
+- Exact named Paris micro-market for the pilot [market_motion]
+- Exact expiry window for the redemption token [quality_assurance]
+- Whether merchant validation is performed by ops or merchant staff [quality_assurance]
+- Exact mandatory fields in the merchant quality checklist [quality_assurance]
+- Minimum merchant count needed for the feed to feel alive [demand_validation]
+
+
+## Rationales
+
+- The MVP only works if supply quality is tightly controlled; otherwise it collapses into a generic local listings app.
+- Coffee and lunch are the cleanest repeat-use wedge for Paris because they support frequent decisions and short feedback loops.
+- Manual operations are acceptable in the pilot because they are proof-critical, not scalable product scope.
+- Reviews, social, and broader category expansion add complexity without helping the MVP prove visits, retention, or merchant value.
+- Exact micro-market naming and token timing are important, but the brief does not provide enough evidence to lock them safely yet.
+
+
+## Reconciliation Notes
+
+- Parsed Product Arbitration supplied by Product; heuristic reconciliation was not needed.
+
+
+## Reconciliation Warnings
+
+_Aucune contradiction détectée._
 
 
 ## Source PRD
@@ -667,243 +1075,509 @@ _Aucun contenu._
 
 ## Initial PRD
 
-# LocalLoop Product Proposal
+# LocalLoop MVP Product Proposal
 
 ## Product Problem
-Consumers want to support local independent businesses but face difficulties in discovering them. Existing solutions are often overshadowed by large platforms, leading to a fragmented experience. Small businesses struggle with visibility and customer retention due to lack of resources and expertise in digital marketing.
+People in Paris who want to support local businesses still default to Google Maps, Instagram, Deliveroo/Tripadvisor, or word-of-mouth because local discovery is fragmented and not personalized enough.
+
+Independent businesses want nearby customers and repeat visits, but they lack simple tools and distribution to compete for attention.
+
+The product must prove one narrow thing first: whether a localized discovery loop can drive real visits to independent businesses in one city better than generic search and social browsing.
 
 ## Initial Wedge
-The MVP will focus on personalized local business recommendations specifically targeted at young urban professionals who are likely to explore their neighborhoods and support local businesses.
+A Paris-only mobile app for young professionals and urban residents that recommends nearby independent coffee shops, lunch spots, and small retail businesses with simple neighborhood offers and a lightweight loyalty reward.
+
+This wedge is narrow enough to solve a frequent local need and practical enough to build a credible supply base in one city.
 
 ## First Target User
-Young urban professionals aged 25-35 who are tech-savvy, socially conscious, and seek unique local experiences.
+Primary user:
+- Urban residents in Paris, especially young professionals aged 22–40
+
+First use case:
+- “I want a good nearby independent place to go right now, with a reason to choose it over a chain.”
+
+Secondary supply-side target:
+- Independent coffee shops, casual restaurants, and small neighborhood businesses in central Paris
 
 ## Existing Alternatives And Switching Trigger
-Current alternatives include platforms like Yelp, Google Maps, and social media. Users might switch to LocalLoop if it provides a more curated, personalized experience focused specifically on local independent businesses, along with attractive promotions that are easy to access.
+Current alternatives:
+- Google Maps for discovery and directions
+- Instagram/TikTok for informal recommendations
+- Deliveroo/Uber Eats for food discovery
+- City guides and blogs for editorial discovery
+- Paper loyalty cards or POS-linked loyalty tools for retention
+
+Switching trigger:
+- The user wants a curated, local-only recommendation with an immediate incentive, not a generic map result or influencer content.
+- The merchant wants first-time foot traffic or repeat visits without running paid ads or building their own app.
 
 ## Core MVP Workflow
-1. Users sign up and create a profile, indicating their preferences.
-2. The app uses geolocation to recommend nearby independent businesses.
-3. Users receive personalized recommendations and exclusive local deals.
-4. Businesses can create simple profiles to showcase their offerings and promotions.
-5. Users can engage in loyalty rewards and provide feedback through reviews.
+1. User opens the app and sets a few preferences: neighborhood, category, and broad interests.
+2. App shows a small feed of nearby independent businesses.
+3. Each listing includes:
+   - short merchant description
+   - distance
+   - one offer or reward
+   - one loyalty action
+4. User taps a merchant and sees enough detail to decide to visit.
+5. User redeems an offer in-store or via a simple code/QR check-in.
+6. Loyalty accrues through repeat visits to the same merchant.
+7. Merchant sees basic redemptions and repeat activity.
 
 ## In Scope
-- User sign-up and profile creation.
-- Geolocation-based personalized recommendations.
-- Merchant profiles for local businesses.
-- Limited promotional offers from onboarding businesses.
-- Basic loyalty reward tracking.
-- Reviews functionality.
+- Paris-only consumer app
+- Independent business listings
+- Basic personalization by location and category
+- Merchant profile page with essential details
+- Simple offer display
+- Simple loyalty tracking for repeated visits
+- Manual merchant onboarding for pilot
+- Basic merchant analytics: views, redemptions, repeat visits
+- Curated neighborhood inventory to reduce irrelevant listings
 
 ## Out of Scope
-- In-depth analytics or marketing tools for businesses.
-- Extensive backend infrastructure for large-scale promotions.
-- Features unrelated to personalized recommendations (e.g., extensive event discovery).
-- Coverage beyond the initial launch city.
+- Citywide expansion beyond Paris
+- Multi-city marketplace mechanics
+- Deep social features
+- Open reviews and ratings
+- Full event aggregation feed
+- Advanced recommendation engine
+- Merchant self-serve onboarding
+- Ad marketplace or paid promotion system
+- Delivery ordering
+- Table booking
+- Full CRM or marketing automation for merchants
+- Chain businesses and horizontal retail coverage
+- Heavy gamification
+
+## MVP Build Vs Pilot Operations
+### Must Build Now
+- Consumer mobile app
+- Merchant profile pages
+- Nearby discovery feed
+- Basic preference and location filtering
+- Offer display
+- Loyalty tracking for repeat visits
+- Simple redemption mechanism
+- Basic merchant analytics
+
+### Manual Or Operational During Pilot
+- Merchant sourcing and onboarding in Paris
+- Offer setup and validation
+- Content curation to keep feed relevant
+- Quality checks on listings and merchant details
+- Customer support for redemption issues
+- Outreach to merchants and initial users
+- Neighborhood selection and inventory balancing
+
+### Deferred Until After Proof
+- Self-serve merchant portal
+- Advanced personalization
+- Reviews and social features
+- Automated offer optimization
+- Event discovery feed
+- Multi-city rollout
+- Paid merchant tools and campaigns
+- Complex loyalty tiers or cross-merchant rewards
 
 ## Business Model Hypothesis
-LocalLoop will generate revenue through a subscription model where local businesses pay a nominal monthly fee to maintain their profiles and access promotional features.
+Primary hypothesis:
+- Charge merchants a simple monthly subscription for visibility, offers, and basic retention tools once the product proves it can drive visits.
+
+Secondary hypothesis:
+- Eventually add paid promotion placements or premium analytics, but only after proving merchant ROI and user engagement.
+
+For the pilot, the objective is not monetization optimization; it is validating willingness to pay after measurable foot traffic and repeat visits.
 
 ## Critical Assumptions
-- Urban young professionals will find personalized local recommendations valuable and preferable compared to existing platforms.
-- Local businesses will be willing to pay for increased visibility and customer retention tools.
-- The initial city will have a sufficient number of independent businesses to onboard to validate the model.
+- Users will trust the app enough to try a local recommendation instead of using Google Maps.
+- Enough independent businesses in one Paris neighborhood will participate.
+- Offers and loyalty rewards will be compelling enough to change behavior.
+- The app can keep recommendations relevant without a large inventory.
+- Merchants will see value in simple visit and repeat-visit tracking.
+- Redeeming offers in-store can be made simple and reliable.
+- The experience can avoid looking like a noisy coupon directory.
 
 ## How To Test Quickly
-- Conduct surveys and focus groups with potential users to validate the value proposition.
-- Onboard a small cohort of local businesses and measure their interest in paid profiles through pilot promotions.
-- Create a basic landing page to gauge interest before full development.
+- Run a concierge pilot in 1–2 Paris neighborhoods with 20–30 independent businesses.
+- Manually curate a small set of merchants in one or two high-frequency categories.
+- Offer users a limited beta focused on “where should I go nearby?”
+- Track:
+  - app opens
+  - listing clicks
+  - offer redemptions
+  - repeat visits
+  - merchant willingness to continue
+- Interview users after visits to understand what made them choose the business.
+- Interview merchants to determine whether the app delivered incremental traffic or retention.
 
 ## Acceptance Criteria
-- At least 100 users signed up within the first month post-launch.
-- Onboard at least 10 local businesses within the same period.
-- At least 70% of users report finding valuable local recommendations.
-- User engagement metrics, such as user log-in frequency and promotion redemption rates, meet or exceed predefined thresholds.
+- A user can find a relevant nearby independent business in under 30 seconds.
+- A merchant profile clearly shows location, offer, and reason to visit.
+- Redemption works reliably with minimal staff confusion.
+- At least 20 participating businesses are active in the pilot area.
+- Users can redeem an offer or loyalty reward without support intervention in most cases.
+- Merchants can see basic activity metrics.
+- At least one-third of pilot merchants report perceived incremental value.
+- A meaningful share of users return for a second visit to the same merchant within a short test window.
 
 ## Risks And Failure Modes
-- Difficulty convincing local businesses to join or pay for the service.
-- Lack of sufficient user engagement leading to high churn rates.
-- Quality of recommendations failing to meet user expectations, leading to poor retention.
+- Poor supply density makes the app feel empty [supply_density]
+- Recommendations are too generic and users revert to Google Maps [recommendation_quality]
+- Merchants do not see enough ROI to stay active [merchant_roi]
+- Offers attract deal-seekers who do not convert into repeat customers [low_quality_traffic]
+- Manual curation does not scale beyond the pilot [ops_scalability]
+- Redemption friction causes failure at the point of visit [redemption_friction]
+- The product becomes another irrelevant local listing app [category_blur]
 
 ## Product Readiness
 Status: LIMITED
 
 Blocking Gaps:
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
-- Need for a clear go-to-market strategy to attract users effectively.
+- No proof yet that curated local discovery changes user behavior in Paris [demand_validation]
+- No proof yet that merchants will provide enough quality inventory and continue participation [supply_validation]
+- No proof yet that redemption and loyalty are simple enough to work reliably in live use [redemption_friction]
 
 Required Improvements:
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
+- Run a concierge pilot with real users and merchants in one Paris neighborhood [concierge_pilot]
+- Validate repeat visit and redemption behavior with a narrow category set [behavior_proof]
+- Confirm merchant willingness to continue after initial traffic testing [merchant_roi]
 
 ## Recommendation
-Proceed with a concierge pilot focused on validating user interest and business adoption. Approach local businesses directly to onboard them and gather feedback on value before investing in full MVP development.
+Proceed with a tightly scoped Paris concierge pilot.
+
+Do not build a broad marketplace yet. The right next step is to prove one repeatable use case: nearby independent business discovery with a simple offer and loyalty loop.
+
+If pilot results show weak user pull or merchant retention, stop or re-scope before expanding beyond a few neighborhoods.
 
 ## Retained Decisions
 
-_Aucune décision retenue._
+- Manual supply gating before publish [quality_assurance]
+- Single redemption model [quality_assurance]
+- Merchant quality checklist as a required publish gate [quality_assurance]
+- Explicit redemption token lifecycle in the admin workflow [quality_assurance]
+- One ops-approved live state with no self-serve publishing [quality_assurance]
+- Stale-offer suppression so inactive merchants do not appear in feed [quality_assurance]
+- Audit log for every manual override, publish, and dispute action [quality_assurance]
+- One named Paris micro-market for the pilot [market_motion]
+- Narrow first audience to frequent coffee/lunch decision-makers in that micro-market [market_motion]
+- First category pair limited to coffee and lunch [scope]
+- Concrete pilot success threshold tied to repeat visits and redemptions [demand_validation]
+- Manual approval required before any merchant goes live [quality_assurance]
 
 ## Deferred Decisions
 
-- Tech: Clearly define the onboarding process for local businesses to streamline engagement.
-- Growth: Develop a streamlined onboarding process for local businesses that motivates them to join.
+- Self-serve merchant portal
+- Advanced personalization
+- Reviews and social features
+- Event discovery feed
+- Multi-city rollout
+- Paid merchant tools and campaigns
+- Cross-merchant rewards
+- Automated offer optimization
+- Broad category expansion
+- Multiple redemption paths
+- Full merchant CRM tooling
 
 ## Rejected Recommendations
 
-- Tech: Increase emphasis on capturing user preferences during profile setup for better personalization.
-- Tech: Explore potential partnerships for geolocation services to ensure accuracy and efficiency.
-- Tech: Develop a feedback mechanism that allows users to rate their experiences directly tied to recommendations.
-- Growth: Enhance the user profile creation process to better capture preferences and facilitate personalized recommendations.
-- Growth: Include initial promotional offers in the onboarding process to attract users and businesses alike.
-- Growth: Create a feedback mechanism from businesses to understand their perspective on platform value.
-- Growth: Integrate features for monitoring conversion from new users to regular users for further improvement insights.
+- Open reviews and ratings
+- Deep social features
+- Delivery ordering
+- Table booking
+- Chain businesses and horizontal retail coverage
+- Heavy gamification
+- Uncurated open marketplace inventory
+- Merchant-initiated live publishing without approval
 
 ## Unresolved Tensions
 
-- Tech recommendation needing arbitration: Increase emphasis on capturing user preferences during profile setup for better personalization.
-- Tech recommendation needing arbitration: Specify types of promotions to initially offer businesses that would be attractive to users.
-- Tech recommendation needing arbitration: Explore potential partnerships for geolocation services to ensure accuracy and efficiency.
-- Tech recommendation needing arbitration: Develop a feedback mechanism that allows users to rate their experiences directly tied to recommendations.
-- Growth recommendation needing arbitration: Enhance the user profile creation process to better capture preferences and facilitate personalized recommendations.
-- Growth recommendation needing arbitration: Include initial promotional offers in the onboarding process to attract users and businesses alike.
-- Growth recommendation needing arbitration: Create a feedback mechanism from businesses to understand their perspective on platform value.
-- Growth recommendation needing arbitration: Integrate features for monitoring conversion from new users to regular users for further improvement insights.
-- Tech open question: What specific metrics will be used to determine the success of the MVP beyond user sign-ups?
-- Tech open question: How can we effectively communicate the value proposition to local businesses to incentivize them to join?
-- Tech open question: What feedback mechanisms can we implement to quickly adapt the user experience?
-- Growth open question: What incentives can be offered to local businesses to encourage early participation?
-- Growth open question: How will we measure the success of business onboarding and user engagement during the pilot phase?
-- Growth open question: What feedback collection methods will be put in place to understand user experience and business satisfaction?
+- Tech recommendation needing arbitration: Specify the exact redemption token lifecycle: issued, expiring, consumed, disputed, voided. [quality_assurance]
+- Tech recommendation needing arbitration: Constrain merchant activation to one ops-approved live state with no self-serve publishing. [quality_assurance]
+- Tech recommendation needing arbitration: Add an explicit stale-offer suppression rule so inactive merchants cannot appear in the feed. [quality_assurance]
+- Tech recommendation needing arbitration: Require an audit log entry for every manual override, publish, or dispute resolution action. [quality_assurance]
+- Growth recommendation needing arbitration: Narrow the first audience to **frequent coffee/lunch decision-makers in that micro-market**.
+- Growth recommendation needing arbitration: Specify the first category pair explicitly and remove broader category ambiguity.
+- Growth recommendation needing arbitration: Add a concrete demand threshold, such as minimum repeat visit rate and minimum redemption volume, for pilot success.
+- Growth recommendation needing arbitration: Clarify the merchant activation rule: no merchant goes live without a completed quality checklist and manual approval.
+- Tech open question: Should merchant validation be done by an ops staffer, or by merchant staff through a minimal validation screen?
+- Tech open question: What exact expiry window should the one-time token use to balance safety and in-store usability?
+- Tech open question: Which fields are mandatory for the quality checklist before a merchant can go live?
+- Growth open question: Which exact Paris micro-market will be used first?
+- Growth open question: What is the exact first category pair: coffee + lunch, or something else?
+- Growth open question: What is the minimum merchant count needed for the feed to feel alive?
 
 ## Applied Changes
 
-_Aucun changement appliqué._
+- Manual supply gating before publish [quality_assurance]
+- Single redemption model [quality_assurance]
+- Merchant quality checklist as a required publish gate [quality_assurance]
+- Explicit redemption token lifecycle in the admin workflow [quality_assurance]
+- One ops-approved live state with no self-serve publishing [quality_assurance]
+- Stale-offer suppression so inactive merchants do not appear in feed [quality_assurance]
+- Audit log for every manual override, publish, and dispute action [quality_assurance]
+- One named Paris micro-market for the pilot [market_motion]
+- Narrow first audience to frequent coffee/lunch decision-makers in that micro-market [market_motion]
+- First category pair limited to coffee and lunch [scope]
+- Concrete pilot success threshold tied to repeat visits and redemptions [demand_validation]
+- Manual approval required before any merchant goes live [quality_assurance]
 
 ## Remaining Open Points
 
-- Tech: Specify types of promotions to initially offer businesses that would be attractive to users.
-- Tech: What specific metrics will be used to determine the success of the MVP beyond user sign-ups?
-- Tech: How can we effectively communicate the value proposition to local businesses to incentivize them to join?
-- Tech: What feedback mechanisms can we implement to quickly adapt the user experience?
-- Growth: What incentives can be offered to local businesses to encourage early participation?
-- Growth: How will we measure the success of business onboarding and user engagement during the pilot phase?
-- Growth: What feedback collection methods will be put in place to understand user experience and business satisfaction?
-- Tech recommendation needing arbitration: Increase emphasis on capturing user preferences during profile setup for better personalization.
-- Tech recommendation needing arbitration: Specify types of promotions to initially offer businesses that would be attractive to users.
-- Tech recommendation needing arbitration: Explore potential partnerships for geolocation services to ensure accuracy and efficiency.
-- Tech recommendation needing arbitration: Develop a feedback mechanism that allows users to rate their experiences directly tied to recommendations.
-- Growth recommendation needing arbitration: Enhance the user profile creation process to better capture preferences and facilitate personalized recommendations.
-- Growth recommendation needing arbitration: Include initial promotional offers in the onboarding process to attract users and businesses alike.
-- Growth recommendation needing arbitration: Create a feedback mechanism from businesses to understand their perspective on platform value.
-- Growth recommendation needing arbitration: Integrate features for monitoring conversion from new users to regular users for further improvement insights.
-- Tech open question: What specific metrics will be used to determine the success of the MVP beyond user sign-ups?
-- Tech open question: How can we effectively communicate the value proposition to local businesses to incentivize them to join?
-- Tech open question: What feedback mechanisms can we implement to quickly adapt the user experience?
-- Growth open question: What incentives can be offered to local businesses to encourage early participation?
-- Growth open question: How will we measure the success of business onboarding and user engagement during the pilot phase?
-- Growth open question: What feedback collection methods will be put in place to understand user experience and business satisfaction?
+- Exact named Paris micro-market for the pilot [market_motion]
+- Exact expiry window for the redemption token [quality_assurance]
+- Whether merchant validation is performed by ops or merchant staff [quality_assurance]
+- Exact mandatory fields in the merchant quality checklist [quality_assurance]
+- Minimum merchant count needed for the feed to feel alive [demand_validation]
 
 ## Risks
 
-- Local businesses may not show interest in the platform or aligning financially.
-- Poor user engagement may lead to high churn and minimal repeat use.
-- Inaccurate recommendations due to insufficient data could impair user trust.
-- Lack of willingness from local businesses to adopt the platform could delay user engagement.
-- Poor perception of the app's quality could emerge if initial recommendations do not meet user expectations, affecting retention.
-- Limited user engagement would lead to high churn rates and difficulties maintaining the required network effect.
-- Limited local business engagement due to skepticism about value adds from the platform.
-- Potential low user retention if initial recommendations do not meet expectations.
-- Challenge in curbing irrelevant business offers that dilute the app’s value proposition.
-- Low interest from local businesses in adopting and paying for platform features.
-- Insufficient user engagement leading to high churn rates post-launch.
-- User dissatisfaction with the quality or relevance of recommendations causing poor retention.
+- Users default back to Google Maps because LocalLoop is not clearly better on first use.
+- Supply density is too low, making the app feel empty or repetitive.
+- Merchants join initially but do not stay active after the pilot period.
+- Redemption failure at the merchant counter creates immediate trust loss. [quality_assurance]
+- Curated inventory may become stale quickly without operational discipline. [supply_validation]
+- Loyalty tracking may be gamed or duplicated without idempotent state handling. [data_integrity]
+- Staff confusion at redemption if the validation flow is not extremely simple.
+- Broken or stale merchant data creating mistrust in the feed.
+- Manual curation overhead becoming too high if supply quality checks are too heavy.
+- The neighborhood feed may feel too small to sustain repeat use.
+- Merchants may join once but not stay active after initial curiosity.
+- Users may treat the app like a coupon app rather than a discovery habit.
+- Manual approval may become a bottleneck if merchant onboarding volume rises too quickly. [ops_scalability]
+- Token validation may fail at the point of visit if merchant staff do not have a simple enough process. [redemption_friction]
+- Poorly controlled supply may still create a feed that feels thin or inconsistent. [quality_assurance]
+- Supply density may still be too thin in the chosen micro-market.
+- Users may treat the app as another local directory and revert to Google Maps.
+- Merchants may not perceive enough incremental traffic to stay active.
 
 ## Open Questions
 
-- What specific metrics will be used to determine the success of the MVP beyond user sign-ups?
-- How can we effectively communicate the value proposition to local businesses to incentivize them to join?
-- What feedback mechanisms can we implement to quickly adapt the user experience?
-- How many local businesses need to be onboarded to ensure a compelling offering for early users?
-- What specific promotional deals would attract both users and businesses effectively?
-- How can the app structure reward systems to ensure high user engagement and repeat visits?
-- What specific incentives would make local businesses more likely to join and pay for their profile on the platform?
-- How will the platform handle diverse user preferences to ensure effective personalization?
-- What feedback mechanisms will actively engage users, ensuring their suggestions lead to meaningful product updates?
-- What incentives can be offered to local businesses to encourage early participation?
-- How will we measure the success of business onboarding and user engagement during the pilot phase?
-- What feedback collection methods will be put in place to understand user experience and business satisfaction?
+- Which exact Paris neighborhoods have enough independent density to support the first loop?
+- Which single category is strongest for repeat use: coffee, lunch, retail, or services?
+- What merchant incentive is enough to get the first 20–30 businesses live?
+- What is the single redemption method merchants in Paris will consistently accept?
+- Will loyalty be based on QR check-ins, staff confirmation, or both?
+- How often will merchant status and offer validity be reviewed operationally?
+- Should redemption be validated by merchant staff in their own web view, or only by an internal ops tool?
+- Is the loyalty mechanic a simple count of verified visits, or does it require merchant-specific reward rules?
+- What is the exact token lifetime before expiry?
+- Which exact Paris neighborhood cluster is the best first market?
+- What is the minimum merchant density needed before acquisition starts?
+- Which narrow category should be first: coffee, lunch, or another high-frequency use case?
+- Should merchant validation be done by an ops staffer, or by merchant staff through a minimal validation screen?
+- What exact expiry window should the one-time token use to balance safety and in-store usability?
+- Which fields are mandatory for the quality checklist before a merchant can go live?
+- Which exact Paris micro-market will be used first?
+- What is the exact first category pair: coffee + lunch, or something else?
+- What is the minimum merchant count needed for the feed to feel alive?
 
 ## Final Revised PRD
 
-# LocalLoop Product Proposal
+# LocalLoop MVP Product Proposal
 
 ## Product Problem
-Consumers want to support local independent businesses but face difficulties in discovering them. Existing solutions are often overshadowed by large platforms, leading to a fragmented experience. Small businesses struggle with visibility and customer retention due to lack of resources and expertise in digital marketing.
+People in Paris who want to support local independent businesses still default to Google Maps, Instagram, Deliveroo/Tripadvisor, or word of mouth because discovery is fragmented and not personalized enough.
+
+Independent businesses want nearby customers and repeat visits, but they lack simple tools and distribution to compete for attention.
+
+The MVP must prove one narrow thing first: whether a tightly curated Paris discovery loop can drive real visits to independent businesses better than generic search and social browsing.
 
 ## Initial Wedge
-The MVP will focus on personalized local business recommendations specifically targeted at young urban professionals who are likely to explore their neighborhoods and support local businesses.
+A Paris-only mobile app for frequent coffee/lunch decision-makers in one named micro-market, focused on independent coffee shops and lunch spots, with a simple offer and a verified visit-based loyalty loop.
+
+This is narrow enough to control supply quality, keep the feed alive, and test repeat usage in a real neighborhood context.
 
 ## First Target User
-Young urban professionals aged 25-35 who are tech-savvy, socially conscious, and seek unique local experiences.
+Primary user:
+- Urban residents in Paris who make frequent coffee and lunch decisions on weekdays
+- Young professionals aged 22–40 within the pilot micro-market
+
+First use case:
+- “I want a good nearby independent place to go right now, with a reason to choose it over a chain.”
+
+Secondary supply-side target:
+- Independent coffee shops and casual lunch spots in the same pilot micro-market
 
 ## Existing Alternatives And Switching Trigger
-Current alternatives include platforms like Yelp, Google Maps, and social media. Users might switch to LocalLoop if it provides a more curated, personalized experience focused specifically on local independent businesses, along with attractive promotions that are easy to access.
+Current alternatives:
+- Google Maps for discovery and directions
+- Instagram/TikTok for informal recommendations
+- Deliveroo/Uber Eats for food discovery
+- City guides and blogs for editorial discovery
+- Paper loyalty cards or POS-linked loyalty tools for retention
+
+Switching trigger:
+- The user wants a curated local-only recommendation with an immediate incentive, not a generic map result or influencer content.
+- The merchant wants first-time foot traffic or repeat visits without running paid ads or building their own app.
 
 ## Core MVP Workflow
-1. Users sign up and create a profile, indicating their preferences.
-2. The app uses geolocation to recommend nearby independent businesses.
-3. Users receive personalized recommendations and exclusive local deals.
-4. Businesses can create simple profiles to showcase their offerings and promotions.
+1. User opens the app and sets a few preferences: neighborhood and category.
+2. App shows a small feed of nearby independent businesses that are currently active.
+3. Each listing includes:
+   - short merchant description
+   - distance
+   - one offer or reward
+   - basic loyalty status
+4. User taps a merchant and sees enough detail to decide to visit.
+5. User redeems the offer in-store through a single one-time token shown in-app and validated by staff or ops.
+6. Redemption is marked consumed once validated; failed validation can be marked disputed for later support resolution.
+7. Loyalty accrues through verified repeat visits to the same merchant.
+8. Merchant sees basic activity and redemption metrics.
 
 ## In Scope
-- User sign-up and profile creation with basic preference capture.
-- Geolocation-based personalized recommendations.
-- Merchant profiles for local businesses with clear onboarding process.
-- Limited promotional offers from onboarding businesses based on user preferences.
+- Paris-only consumer app
+- One named Paris micro-market for the pilot
+- Independent coffee shops and lunch spots only
+- Basic filtering by location and category
+- Merchant profile page with essential details
+- One offer per merchant
+- One loyalty mechanic tied to verified repeat visits
+- One redemption method using a one-time token
+- Manual merchant onboarding for pilot
+- Curated inventory to reduce irrelevant listings
+- Required merchant quality checklist before activation
+- Manual approval for live status
+- Basic merchant analytics: views, redemptions, repeat visits
+- Admin controls to manage merchant live/inactive state and suppress stale offers
+- Audit logs and override permissions for support-side adjustments
+- Disputed redemption handling
+- Fixed category set for pilot
 
 ## Out of Scope
-- In-depth analytics or marketing tools for businesses.
-- Comprehensive loyalty reward tracking beyond basic implementation.
-- Extensive event discovery features unrelated to personalized recommendations.
-- Coverage beyond the initial launch city.
+- Citywide expansion beyond Paris
+- Multi-city marketplace mechanics
+- Deep social features
+- Open reviews and ratings
+- Full event aggregation feed
+- Advanced recommendation engine
+- Merchant self-serve onboarding
+- Ad marketplace or paid promotion system
+- Delivery ordering
+- Table booking
+- Full CRM or marketing automation for merchants
+- Chain businesses and horizontal retail coverage
+- Heavy gamification
+- Multiple redemption methods
+- Complex loyalty tiers or cross-merchant rewards
+- Broad category coverage beyond coffee and lunch
+- Automated offer optimization
+- Merchant-initiated live publishing without approval
+- Uncurated open marketplace inventory
+
+## MVP Build Vs Pilot Operations
+### Must Build Now
+- Consumer mobile app
+- Merchant profile pages
+- Nearby discovery feed
+- Basic preference and location filtering
+- Offer display
+- Single redemption flow
+- Verified loyalty tracking for repeat visits
+- Basic merchant analytics
+- Admin console for merchant status, offers, disputes, and support overrides
+- Audit logging for manual adjustments
+- Merchant quality checklist workflow
+- Manual approval gate for live status
+- Stale-offer suppression controls
+
+### Manual Or Operational During Pilot
+- Merchant sourcing and onboarding in Paris
+- Offer setup and validation
+- Content curation to keep feed relevant
+- Quality checks on listings and merchant details
+- Customer support for redemption issues
+- Outreach to merchants and initial users
+- Micro-market selection and inventory balancing
+- Manual review of active/inactive merchant status
+- Manual verification of repeat visits when needed
+- Dispute resolution for failed redemptions
+
+### Deferred Until After Proof
+- Self-serve merchant portal
+- Advanced personalization
+- Reviews and social features
+- Event discovery feed
+- Multi-city rollout
+- Paid merchant tools and campaigns
+- Cross-merchant rewards
+- Automated offer optimization
+- Broad category expansion
+- Multiple redemption paths
+- Full merchant CRM tooling
 
 ## Business Model Hypothesis
-LocalLoop will generate revenue through a subscription model where local businesses pay a nominal monthly fee to maintain their profiles and access promotional features.
+Primary hypothesis:
+- Charge merchants a simple monthly subscription for visibility, offers, and basic retention tools once the product proves it can drive visits.
+
+Secondary hypothesis:
+- Later add premium analytics or promoted placements, but only after proving merchant ROI and user engagement.
+
+For the pilot, the objective is not monetization optimization; it is validating willingness to pay after measurable foot traffic and repeat visits.
 
 ## Critical Assumptions
-- Urban young professionals will find personalized local recommendations valuable and preferable compared to existing platforms.
-- Local businesses will be willing to pay for increased visibility and customer retention tools.
-- The initial city will have a sufficient number of independent businesses to onboard to validate the model.
+- Users will trust the app enough to try a local recommendation instead of using Google Maps.
+- Enough independent businesses in one fixed Paris micro-market will participate.
+- Coffee and lunch use cases can generate enough repeat use to create habit.
+- Offers and loyalty rewards will be compelling enough to change behavior.
+- The app can keep recommendations relevant without a large inventory.
+- Merchants will see value in simple visit and repeat-visit tracking.
+- The redemption flow can be made simple and reliable.
+- The experience can avoid looking like a noisy coupon directory.
 
 ## How To Test Quickly
-- Conduct surveys and focus groups with potential users to validate the value proposition.
-- Onboard a small cohort of local businesses and measure their interest in paid profiles through pilot promotions.
-- Create a basic landing page to gauge interest before full development.
+- Run a concierge pilot in one fixed Paris micro-market with 20–30 independent businesses.
+- Manually curate a small set of merchants in coffee and lunch.
+- Launch a limited beta focused on “where should I go nearby?”
+- Track:
+  - app opens
+  - listing clicks
+  - offer redemptions
+  - repeat visits
+  - merchant willingness to continue
+- Interview users after visits to understand what made them choose the business.
+- Interview merchants to determine whether the app delivered incremental traffic or retention.
 
 ## Acceptance Criteria
-- At least 100 users signed up within the first month post-launch.
-- Onboard at least 10 local businesses within the same period.
-- At least 70% of users report finding valuable local recommendations.
-- User engagement metrics, such as user log-in frequency and promotion redemption rates, meet or exceed predefined thresholds.
+- A user can find a relevant nearby independent business in under 30 seconds.
+- A merchant profile clearly shows location, offer, and reason to visit.
+- The one-time token redemption flow works reliably with minimal staff confusion.
+- A required merchant quality checklist is completed before activation for every live merchant.
+- At least 20 participating businesses are active in the pilot area.
+- Users can redeem an offer or loyalty reward without support intervention in most cases.
+- Merchants can see basic activity metrics.
+- A meaningful share of users return for a second visit to the same merchant within a short test window.
+- Pilot results show enough repeat visits and redemptions to justify continued investment.
 
 ## Risks And Failure Modes
-- Difficulty convincing local businesses to join or pay for the service.
-- Lack of sufficient user engagement leading to high churn rates.
-- Quality of recommendations failing to meet user expectations, leading to poor retention.
+- Poor supply density makes the app feel empty [supply_density]
+- Recommendations are too generic and users revert to Google Maps [recommendation_quality]
+- Merchants do not see enough ROI to stay active [merchant_roi]
+- Offers attract deal-seekers who do not convert into repeat customers [low_quality_traffic]
+- Manual curation does not scale beyond the pilot [ops_scalability]
+- Redemption friction causes failure at the point of visit [redemption_friction]
+- The product becomes another irrelevant local listing app [category_blur]
+- Quality control is too burdensome and slows supply activation [quality_assurance]
 
 ## Product Readiness
 Status: LIMITED
 
 Blocking Gaps:
-- Uncertainty around willingness of businesses to adopt the platform and pay for profiles.
+- No proof yet that curated local discovery changes user behavior in Paris [demand_validation]
+- No proof yet that merchants will provide enough quality inventory and continue participation [supply_validation]
+- No proof yet that the one-time token redemption flow and verified loyalty tracking work reliably in live use [redemption_friction]
 
 Required Improvements:
-- Validate business onboarding through preliminary partnerships and interest surveys.
-- Refine user engagement strategies to ensure a compelling experience upon initial launch.
+- Run a concierge pilot with real users and merchants in one fixed Paris micro-market [concierge_pilot]
+- Validate repeat visit and redemption behavior with coffee and lunch only [behavior_proof]
+- Confirm merchant willingness to continue after initial traffic testing [merchant_roi]
 
 ## Recommendation
-Proceed with a concierge pilot focused on validating user interest and business adoption. Approach local businesses directly to onboard them and gather feedback on value before investing in full MVP development.
+Proceed with a tightly scoped Paris concierge pilot.
+
+Do not build a broad marketplace yet. The right next step is to prove one repeatable use case: nearby independent business discovery with a simple offer and verified loyalty loop.
+
+If pilot results show weak user pull or merchant retention, stop or re-scope before expanding beyond a few neighborhoods.
 
 ## Revision Summary
 
@@ -911,7 +1585,18 @@ Updated the PRD after tech and growth review to align scope, technical constrain
 
 ## Decisions
 
-_Aucune décision._
+- Manual supply gating before publish [quality_assurance]
+- Single redemption model [quality_assurance]
+- Merchant quality checklist as a required publish gate [quality_assurance]
+- Explicit redemption token lifecycle in the admin workflow [quality_assurance]
+- One ops-approved live state with no self-serve publishing [quality_assurance]
+- Stale-offer suppression so inactive merchants do not appear in feed [quality_assurance]
+- Audit log for every manual override, publish, and dispute action [quality_assurance]
+- One named Paris micro-market for the pilot [market_motion]
+- Narrow first audience to frequent coffee/lunch decision-makers in that micro-market [market_motion]
+- First category pair limited to coffee and lunch [scope]
+- Concrete pilot success threshold tied to repeat visits and redemptions [demand_validation]
+- Manual approval required before any merchant goes live [quality_assurance]
 
 ## Conflicts
 
@@ -920,10 +1605,14 @@ _Aucun conflit._
 ## Activity Log
 
 - product_agent: prd_draft_generated
+- growth_agent: gtm_notes_generated
+- tech_agent: architecture_notes_generated
+- product_agent: prd_draft_revised
 - tech_agent: architecture_notes_generated
 - growth_agent: gtm_notes_generated
 - product_agent: prd_draft_revised
+- tech_agent: architecture_notes_generated
 - growth_agent: gtm_notes_generated
 - product_agent: prd_draft_revised
-- growth_agent: gtm_notes_generated
-- product_agent: prd_draft_revised
+- product_agent: product_locking_applied
+- product_agent: arbitration_reconciled

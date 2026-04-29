@@ -7,7 +7,8 @@ Your role is to assess whether Product, Tech and Growth teams produced strong st
 Read:
 - prd.md
 - architecture.md
-- architecture.pdf (if present)
+- architecture.mmd (if present)
+- architecture-diagram.png (if present)
 - gtm.md
 
 Evaluate:

@@ -1,62 +1,115 @@
 ## Go-To-Market Notes
-- **Main Market Bottleneck**: User density must be sufficient to enable meaningful matches based on music compatibility.
-- **Side of the Market to Secure First**: Music enthusiasts willing to engage with a dating feature focused on music compatibility.
-- **Initial Target Audience**: Singles aged 25-35, located in urban areas with active music scenes and lifestyle-oriented behaviors.
-- **Positioning**: "Find your rhythm in love" - emphasizing deep musical connections over superficial profiles and promoting a unique music-based dating experience.
-- **First Acquisition Motion**: Leverage grassroots marketing through local music events, partnerships with music venues, and social media targeting music-related groups to drive initial sign-ups.
-- **Operating Assumptions for the First Acquisition Motion**: 
-  - Requirements: Rank venues and community groups with substantial local engagement.
-  - Expected user engagement: Target 100-150 signups from events each month with a conversion rate of about 20-30% from event engagement.
-- **Switching Trigger**: Users will switch if they experience tailored matches that lead to real engagements (dates or activities) based on shared music interests, which differentiates from existing dating apps.
-- **First Activation Loop**: Encourage users to:
-  1. Complete their music profile (75% completion rate target).
-  2. View at least 5 matches post profile completion.
-  3. Initiate a conversation with at least one match, resulting in organizing a music activity or concert visit.
-- **What Must Exist Before Public Launch**: A validated, minimal user acquisition strategy tested at pilot music events, with clear metrics indicating user interest and initial engagement response.
+- **Main market bottleneck:** Paris user density in a narrow, trustable cohort is the gating factor, not feature breadth. Melody will fail if it starts as a broad music-social network; it needs enough compatible users in one scene to produce repeated, high-quality matches.
+- **Side of the market to secure first:** Secure the **supply side of active, matchable users** first: music-active Paris singles/concert-goers who will create enough inventory of compatible profiles. Only then open broader discovery.
+- **Structural GTM decisions:**
+  1. **Single wedge:** launch as **Paris concert-companion matching** only, not dating, not community, not marketplace.
+  2. **Single scene first:** focus on **one Paris live-music scene** with repeat attendance and identifiable communities; do not spread across genres/cities.
+  3. **Founder-led density build:** use a **concierge, founder-sourced launch** from venues, organizer communities, and music circles before any scalable acquisition.
+- **Initial target audience:** 22–35-year-old Paris-based concert-goers who actively use music as identity and are open to meeting one local person for a specific concert or live-music outing. Narrower still: people already attending events in one chosen scene.
+- **Positioning:** “Find one compatible Paris person to go to a concert with, based on music taste.” This is intentionally not “music dating” and not “social network.”
+- **First acquisition motion:** Founder-led sourcing through **live-music venues, event communities, and scene-specific Paris groups**. Manual outreach to people already attending concerts in the chosen scene.
+- **Operating assumptions for the first acquisition motion:**
+  - One scene can supply enough weekly new users to create visible match inventory.
+  - Users will join for a specific near-term concert plan, not abstract social discovery.
+  - Founder outreach can recruit the first 30–100 matchable users faster than paid acquisition.
+  - A concierge onboarding process is acceptable during pilot.
+- **Switching trigger:** Move beyond the founder-led pilot only if the product reaches a minimum credible proof such as:
+  - at least **30–50 activated users** in one Paris scene,
+  - **meaningful match-to-message conversion**,
+  - and users repeatedly expressing that matches feel better than generic dating/event alternatives.
+- **First activation loop:** user completes mandatory music profile → sees a small set of local compatible users → matches → exchanges message → proposes a concert plan → attends / confirms interest → returns to update intent or discover another match.
+- **What must exist before public launch:**
+  - mandatory music onboarding with required fields complete
+  - Paris-only scope
+  - one intent only: concert companion
+  - profile activation gate
+  - basic matching and messaging
+  - reporting/blocking
+  - manual review for early profiles
+  - ability to track match-to-message conversion
+- **What must be productized now vs manual during pilot:**
+  - **Productized now:** onboarding, activation gate, Paris-only matching, basic compatibility score, messaging, reporting/blocking, moderation state, core analytics.
+  - **Manual during pilot:** sourcing users, curation of invites, profile review, match quality checks, follow-up on first meetup outcomes, scene selection adjustments.
+  - **Deferred:** broader community features, marketplace, band discovery, artist recommendations, ticketing, multi-city expansion, dating-first mode.
 
 ## Review Summary
-The main launch challenge is building sufficient user density focused on music compatibility while engaging the right target audience willing to embrace a specialized dating platform. The recommended GTM direction prioritizes local grassroots marketing at music events to directly access potential users within a niche community before expanding broadly.
+The main launch challenge is not product completeness but density: Melody needs one scene-based Paris cohort large enough to produce trustworthy matches and prove that music taste is a real compatibility signal. The recommended direction is a founder-led concierge pilot focused only on concert companionship in one Paris scene, with mandatory music input and a strict activation gate.
+
+## Build Vs Pilot Operations
+
+### Must Be Productized Now
+- Mandatory music preference onboarding
+- Profile activation gate
+- Paris-only matching
+- One intent selection per user
+- Basic compatibility scoring
+- Basic messaging after match
+- Reporting and blocking
+- Profile moderation state
+- Core analytics for activation and match-to-message conversion
+
+### Can Stay Manual Or Operational During Pilot
+- Founder sourcing of the first users
+- Venue/community outreach
+- Invite curation
+- Manual review of early profiles
+- Manual inspection of match quality
+- Follow-up on first meetup outcomes
+- Adjusting the chosen scene based on density
+
+### Deferred Until After Proof
+- Community groups
+- Marketplace
+- Band member discovery
+- Artist recommendation engine
+- Event ticketing or booking
+- Advanced filters and search
+- Multi-city rollout
+- Dating-first positioning
+- Monetization optimization
 
 ## Critical Assumptions
-1. The target audience values music compatibility significantly when seeking romantic partners.
-2. Engaging grassroots marketing at music events generates enough user signups within a limited budget.
-3. The platform's unique value proposition drives initial users to remain engaged and convert from signups to active conversations.
-4. Users will actively participate in community music events through the app, validating its positioning within the niche market.
-5. Data on users' music preferences can be accurately captured, supporting the compatibility scoring system.
+- One Paris music scene has enough density for meaningful matching.
+- Music taste is strong enough to improve perceived compatibility.
+- Users will complete mandatory music onboarding before activation.
+- Users will accept a concert-companion-first product rather than expecting full dating functionality.
+- Early matches will convert to messages and at least some real-world plans.
 
 ## Requested Changes
-1. Simplify the onboarding questionnaire to focus on key music genres and preferences for faster collection.
-2. Integrate early partnerships with local music venues for direct promotional efforts and user acquisition.
-3. Enhance the messaging feature to allow sharing of concert/event experiences to boost engagement.
-4. Create promotional materials that emphasize the unique dating focus on music compatibility.
-5. Develop a preliminary privacy policy and data handling framework before launch to build user trust.
+- Define **one specific Paris scene** as the launch wedge instead of “music lovers” broadly. [market_motion]
+- Make **music onboarding fields mandatory** before a profile becomes matchable, and specify the minimum set required for activation. [quality_assurance]
+- Add a **clear activation threshold** for when a profile becomes visible or matchable, based on completed music inputs. [scope]
+- Remove or clearly defer non-wedge use cases from the MVP framing so the launch is not interpreted as a multi-purpose music platform. [scope]
+- Add a measurable **first-market motion** tied to founder-led sourcing from venues and communities, with a target volume for the pilot cohort. [market_motion]
 
 ## Risks
-1. Inability to generate sufficient early user density, making matching ineffective.
-2. Potential reluctance of users to provide accurate musical information due to privacy concerns.
-3. Competition from established dating platforms that could overshadow Melody's niche approach.
-4. Threat of users                                   dropping out due to dissatisfaction with the matchmaking process or perceived value.
-5. Non-commitment from local venues to partner for user acquisition efforts, limiting outreach.
+- The chosen Paris scene may be too small to sustain useful matching.
+- Users may treat the product like a dating app despite the concert-companion framing.
+- Music taste may not be strong enough on its own to drive repeated usage.
+- Manual sourcing may be necessary longer than planned.
+- Trust and safety issues may appear early in a matching product.
 
 ## Open Questions
-1. What specific channels and metrics will be used to measure the effectiveness of grassroots marketing efforts?
-2. How will user feedback be collected and implemented to iteratively improve the dating feature before public launch?
-3. What are the most effective music preference data sources that can be quickly integrated into the platform?
-4. What minimum engagement actions constitute sufficient early proof of traction before scaling acquisition efforts?
-5. What legal considerations need to be addressed concerning user data and privacy before launch?
+- Which exact Paris music scene will be the first wedge?
+- What is the minimum viable number of activated users needed before launch is credible?
+- Which mandatory music fields are required before activation?
+- Is the primary intent strictly concert companionship, or can dating be introduced later in pilot?
+- What weekly acquisition capacity does the founder-led motion realistically have?
 
 ## Why This Could Fail Even With Good Execution
-If a competent execution leads to initial user acquisition but users find the matchmaking process lacking or unengagement, they may abandon the platform and leave negative impressions, impeding long-term growth despite operational excellence.
+Even with disciplined execution, Melody can fail if the selected Paris cohort is too small or too weakly motivated to create enough high-quality matches. In that case, the product will look interesting but never reach the density needed for repeat use, and users will revert to existing dating or event platforms.
 
 ## GTM Readiness
 Status: LIMITED
 
 Blocking Gaps:
-- Uncertainty regarding effective, localized user acquisition strategies and potential partnerships.
-- Lack of a structured approach to direct user feedback.
+- The launch audience is still too broad and needs one scene-based wedge before launch can be credible. [market_motion]
+- The first acquisition motion is not tied to a measurable density target. [demand_validation]
+- The activation threshold for moving profiles from pending to matchable is undefined. [quality_assurance]
+- The required manual music fields are not explicitly specified as mandatory before activation. [scope]
 
 Required Improvements:
-- Validate the music compatibility focus through targeted engagement strategies.
-- Finalize partnerships with local music venues or communities to create foundational user density.
-- Streamline onboarding to maximize user data collection with minimal effort.
-- Create a feedback mechanism for early users to inform product evolution.
+- Choose one Paris scene and define it as the only initial market segment. [market_motion]
+- Set a pilot density target for the first cohort and use it as the launch gate. [demand_validation]
+- Define the exact mandatory music fields and the activation rule for matchability. [quality_assurance]
+- Tie founder-led sourcing to a repeatable outreach channel from venues or communities. [market_motion]

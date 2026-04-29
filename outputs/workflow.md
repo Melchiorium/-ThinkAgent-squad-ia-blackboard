@@ -6,7 +6,8 @@ This project turns a project brief into a multi-agent startup dossier made of:
 - `project-brief.md`
 - `prd.md`
 - `architecture.md`
-- `architecture.pdf`
+- `architecture-diagram.mmd`
+- `architecture-diagram.png` when Mermaid rendering succeeds
 - `gtm.md`
 - `blackboard.md`
 - `activity_log.txt`
@@ -30,6 +31,37 @@ Important:
 - prompt loading is versioned by `BLACKBOARD_PROMPT_VERSION`
 - code default is still `V2`
 - the best recent runs were obtained with `BLACKBOARD_PROMPT_VERSION=V3`
+
+## Deployment Assumption
+
+The V3 agent prompts now share one global deployment assumption:
+
+- `The projects will be implemented in France, in the city of Paris.`
+
+This is a generic execution context, not a project-specific optimization.
+
+Why it exists:
+- many readiness gaps were previously caused by unknown geography, regulation, or launch context
+- legal, privacy, market access, supply density, local operations, and GTM assumptions depend heavily on location
+- the agents should not waste cycles asking which country or city applies when evaluating MVP feasibility
+
+Expected effect:
+- Product can frame scope and trust assumptions against a concrete market context
+- Growth can reason about launch geography, acquisition, partnerships, and local density more concretely
+- Tech can reason about French/EU privacy, data, consent, and operational constraints more responsibly
+
+Observed effect in the latest four-project batch:
+- CareSync V38 reached 7.6/10
+- LocalLoop V38 reached 7.6/10
+- Melody V8 reached 7.4/10
+- SkillBridge V6 reached 7.4/10
+- all four were evaluated as `ACCEPTABLE`
+- evaluations explicitly credited the Paris/France context with better market, legal, trust, local-density, and operational grounding
+
+Important:
+- this should stay generic across projects
+- prompts should not encode project-specific rules such as a fixed merchant threshold or a fixed neighborhood
+- if a project brief explicitly contradicts Paris/France, the brief should win and the mismatch should be surfaced
 
 ## Output Structure
 
@@ -60,7 +92,7 @@ They collaborate through:
 - a later Product arbitration pass
 
 This is important:
-- `Tech` does not read `gtm.md`
+- `Tech` now receives `gtm_notes` as additional context
 - `Growth` does not read `architecture.md`
 - both mainly react to the current `prd_draft`
 - `Product` is the role that sees and arbitrates both perspectives together
@@ -132,7 +164,7 @@ The blackboard stores:
 Important fields:
 - `prd_draft`
 - `architecture_notes`
-- `diagram_blueprint`
+- `mermaid_diagram`
 - `gtm_notes`
 - `expert_contributions`
 - `expert_decisions`
@@ -154,8 +186,8 @@ Second-pass-only fields:
 Actual order in [app/orchestrator.py](/Users/rodolphe.rosalie/ProjetsIA/squad-ia-blackboard/app/orchestrator.py):
 
 1. `run_product_agent()`
-2. `run_tech_agent()`
-3. `run_growth_agent()`
+2. `run_growth_agent()`
+3. `run_tech_agent()`
 4. `run_product_revision()`
 5. `_finalize_readiness()`
 6. `_run_targeted_correction_loop()`
@@ -163,8 +195,8 @@ Actual order in [app/orchestrator.py](/Users/rodolphe.rosalie/ProjetsIA/squad-ia
 8. `_finalize_readiness()`
 
 This means:
-- `Tech` currently runs before `Growth`
-- `Growth-before-Tech` was discussed, but is not the current implementation
+- `Growth` now runs before `Tech`
+- market wedge and launch logic are challenged before feasibility and architecture
 
 ## Step 2: Product Initial Draft
 
@@ -191,56 +223,7 @@ Side effects:
 - `readiness.product`
 - `activity_log += prd_draft_generated`
 
-## Step 3: Tech Review
-
-Handled in:
-- `run_tech_agent()`
-
-Prompt:
-- `app/prompts <VERSION>/tech_prompt.md`
-
-User input sent to Tech:
-- `Mode: review` or `Mode: correction`
-- `Project brief`
-- `PRD draft`
-- `Known reusable tags`
-- optional `Targeted correction tasks`
-
-Tech sees:
-- the brief
-- the current PRD
-- known tags
-- optional correction tasks
-
-Tech does not see:
-- `gtm.md`
-- Growth decisions directly
-
-Expected useful sections in output:
-- `## Review Summary`
-- `### Structural Technical Decisions`
-- `## Requested Changes`
-- `## Risks`
-- `## Open Questions`
-- `## Technical Readiness`
-- optional `Diagram Blueprint`
-
-Stored into blackboard:
-- `architecture_notes`
-- `diagram_blueprint`
-- `expert_contributions.tech`
-- `expert_decisions.tech`
-- `requested_changes.tech`
-- `review_summaries.tech`
-- `readiness.tech`
-- `risks`
-- `open_questions`
-
-Notes:
-- if structured technical decisions are missing, fallback is taken from the first requested changes
-- `diagram_blueprint` is later used to render `architecture.pdf`
-
-## Step 4: Growth Review
+## Step 3: Growth Review
 
 Handled in:
 - `run_growth_agent()`
@@ -267,7 +250,7 @@ Growth does not see:
 
 Expected useful sections in output:
 - `## Review Summary`
-- `### 2 to 3 Structural GTM Decisions`
+- `### Structural GTM Decisions`
 - `## Requested Changes`
 - `## Risks`
 - `## Open Questions`
@@ -285,6 +268,58 @@ Stored into blackboard:
 
 Notes:
 - if structured GTM decisions are missing, fallback is taken from the first requested changes
+
+## Step 4: Tech Review
+
+Handled in:
+- `run_tech_agent()`
+
+Prompt:
+- `app/prompts <VERSION>/tech_prompt.md`
+
+User input sent to Tech:
+- `Mode: review` or `Mode: correction`
+- `Project brief`
+- `PRD draft`
+- `Known reusable tags`
+- optional `Targeted correction tasks`
+
+Tech sees:
+- the brief
+- the current PRD
+- the current GTM notes
+- known tags
+- optional correction tasks
+
+Tech does not see:
+- `architecture.md` from another pass
+- Growth decisions as a separately structured input block
+
+Expected useful sections in output:
+- `## Review Summary`
+- `### Structural Technical Decisions`
+- `## Requested Changes`
+- `## Risks`
+- `## Open Questions`
+- `## Technical Readiness`
+- `### Mermaid Diagram`
+
+Stored into blackboard:
+- `architecture_notes`
+- `mermaid_diagram`
+- `expert_contributions.tech`
+- `expert_decisions.tech`
+- `requested_changes.tech`
+- `review_summaries.tech`
+- `readiness.tech`
+- `risks`
+- `open_questions`
+
+Notes:
+- if structured technical decisions are missing, fallback is taken from the first requested changes
+- `mermaid_diagram` is written to `architecture-diagram.mmd`
+- if Mermaid CLI (`mmdc`) is installed, `architecture-diagram.png` is generated from that source
+- no `architecture.pdf` is generated in new batches
 
 ## Step 5: Product Revision / Arbitration
 
@@ -470,7 +505,8 @@ Written files:
 - `project-brief.md`
 - `prd.md`
 - `architecture.md`
-- `architecture.pdf`
+- `architecture-diagram.mmd`
+- `architecture-diagram.png` when Mermaid rendering succeeds
 - `gtm.md`
 - `blackboard.md`
 - `activity_log.txt`
@@ -478,15 +514,19 @@ Written files:
 Optional:
 - `evaluator-report.md` if `BLACKBOARD_EVALUATOR_REPORT` is provided
 
-### Architecture PDF
+### Architecture Diagram
 
 Rendered through:
-- `render_architecture_pdf()`
+- `render_architecture_diagram()`
 
 Its result updates:
 - `artifacts.architecture_markdown_ready`
 - `artifacts.architecture_visual_ready`
 - `artifacts.architecture_visual_warning`
+- `artifacts.architecture_mermaid_ready`
+- `artifacts.architecture_mermaid_source`
+- `artifacts.architecture_image_ready`
+- `artifacts.architecture_image_path`
 
 Warnings are also appended to:
 - `activity_log`
@@ -524,8 +564,8 @@ Current second-pass flow:
 3. set `workflow_stage = second_pass_initial`
 4. call `run_product_second_pass_initial()`
 5. then same chain as first pass:
-   - Tech
    - Growth
+   - Tech
    - Product revision
    - readiness
    - correction loop
@@ -576,7 +616,6 @@ It is:
 - “run at most 2 targeted correction passes”
 
 ### 4. Prompt version and validated baseline are different concepts
-
 Code default:
 - `V2`
 
@@ -588,12 +627,34 @@ Best known baseline:
 
 It exists, but is not yet a flexible reusable mode.
 
+### 6. Human clarification remains an open research track
+
+One promising but untested direction is a human clarification handoff.
+
+The idea:
+- after a run, extract a very small set of high-impact questions from readiness gaps, open points, and unresolved tensions
+- let a human answer only the questions where a real project decision exists
+- inject those answers into a later run as additional context
+
+This was not kept in the current project scope.
+
+Why it remains interesting:
+- some `LIMITED` statuses come from missing external context, not weak agent reasoning
+- agents should not invent decisions such as exact legal posture, launch district, supply threshold, or proof metric
+- a human clarification step could help close real ambiguity without adding more autonomous agent loops
+
+Why it is out of scope for the current finalized baseline:
+- it requires a new user workflow around questions and answers
+- it would need isolated testing across several projects
+- the current time box prioritizes stabilizing the best known baseline over adding another mechanism
+
 ## Current Recommended Mental Model
 
 If another agent has to resume the project, the right mental model is:
 
 - stable baseline = `V12-like workflow + prompts V3`
-- main generation path = `Product -> Tech -> Growth -> Product revision -> readiness loop -> Product locking`
+- V3 prompts assume deployment in Paris, France unless the brief explicitly says otherwise
+- main generation path = `Product -> Growth -> Tech -> Product revision -> readiness loop -> Product locking`
 - Product is the true arbiter
 - Tech and Growth are structured challengers, not co-authors of the final PRD
 - `blackboard.md` is the internal memory and trace

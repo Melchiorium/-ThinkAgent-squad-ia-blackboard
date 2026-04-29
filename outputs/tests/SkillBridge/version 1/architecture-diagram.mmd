@@ -1,0 +1,32 @@
+flowchart LR
+  C[Candidate] --> FE[Candidate Web UI]
+  O[Organization] --> FE
+  OP[Operator/Admin] --> AO[Admin Console]
+
+  FE --> API[Backend API]
+
+  API --> P[Profile Service]
+  API --> M[Mission Intake & Validation]
+  API --> W[Moderation & Workflow Engine]
+  API --> A[Application & Assignment]
+  API --> S[Messaging & Submission]
+  API --> F[Feedback & Proof Service]
+  API --> DB[(Postgres)]
+  API --> FS[(Secure File Storage)]
+
+  AO --> W
+  AO --> A
+  AO --> F
+
+  M --> W
+  W --> DB
+  A --> DB
+  S --> DB
+  F --> DB
+  S --> FS
+
+  API --> N[Email/Notification Service]
+  API --> LOG[Audit Log/Monitoring]
+
+  W --> PUB[Approved Mission Listings]
+  PUB --> FE

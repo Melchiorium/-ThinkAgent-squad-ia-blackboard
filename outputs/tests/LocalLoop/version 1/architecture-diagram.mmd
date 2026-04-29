@@ -1,0 +1,23 @@
+flowchart LR
+  U[Consumer Mobile App] --> API[Backend API]
+  API --> DB[(PostgreSQL)]
+  API --> TOK[Token Issuance & Validation]
+  API --> LOY[Loyalty Tracking]
+  API --> FEED[Curated Feed & Filtering]
+  API --> ANA[Basic Analytics]
+
+  OPS[Admin / Operations Console] --> API
+  OPS --> DB
+  OPS --> AUD[Audit Log]
+  OPS --> SUP[Dispute & Support Queue]
+
+  M[Merchant Staff] --> VAL[Minimal Redemption Validation Screen]
+  VAL --> API
+
+  API --> NOTIF[Notifications]
+  API --> MON[Monitoring / Error Tracking]
+
+  FEED --> API
+  TOK --> DB
+  LOY --> DB
+  ANA --> DB

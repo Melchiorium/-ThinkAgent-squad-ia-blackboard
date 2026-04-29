@@ -21,13 +21,14 @@ def run_tech_agent(blackboard: dict, correction_tasks: list[dict] | None = None)
         f"{mode}\n\n"
         f"Project brief:\n{blackboard['project_brief']}\n\n"
         f"PRD draft:\n{blackboard['prd_draft']}\n\n"
+        f"GTM notes:\n{blackboard.get('gtm_notes', '') or 'None'}\n\n"
         f"{_format_known_tags(known_tags)}\n\n"
         f"{_format_correction_tasks(correction_tasks)}"
     )
 
     architecture_notes = call_llm(system_prompt, user_prompt)
     blackboard["architecture_notes"] = architecture_notes
-    blackboard["diagram_blueprint"] = _extract_diagram_blueprint(architecture_notes)
+    blackboard["mermaid_diagram"] = _extract_mermaid_diagram(architecture_notes)
     tech_summary = _extract_section(
         architecture_notes, "## Review Summary"
     )
@@ -129,11 +130,28 @@ def _extract_list_value(line: str) -> str:
     return ""
 
 
-def _extract_diagram_blueprint(text: str) -> str:
-    section = _extract_section(text, "Diagram Blueprint")
-    if section:
-        return section
-    return ""
+def _extract_mermaid_diagram(text: str) -> str:
+    section = _extract_section(text, "Mermaid Diagram")
+    fenced = _extract_mermaid_code_block(section)
+    if fenced:
+        return fenced
+    return _extract_mermaid_code_block(text)
+
+
+def _extract_mermaid_code_block(text: str) -> str:
+    lines = text.splitlines()
+    capture = False
+    collected = []
+    for line in lines:
+        stripped = line.strip()
+        if not capture and stripped.startswith("```") and "mermaid" in stripped.lower():
+            capture = True
+            continue
+        if capture and stripped.startswith("```"):
+            break
+        if capture:
+            collected.append(line.rstrip())
+    return "\n".join(collected).strip()
 
 
 def _extract_structural_decisions(text: str, heading: str, limit: int) -> list[str]:

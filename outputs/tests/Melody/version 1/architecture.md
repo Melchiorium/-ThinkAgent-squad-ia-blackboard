@@ -1,100 +1,164 @@
 ## Architecture Notes
-**Macro Architecture Choice**
-- A single monolithic application with a microservices architecture for specific features (e.g., compatibility scoring). This approach simplifies deployment and management while allowing room for future growth.
+The decisive technical constraint is **supply quality control under low-density conditions**: if Paris onboarding data is inconsistent or low-signal, matching quality collapses before the product can prove anything. The simplest viable MVP is therefore a **manual-approval, database-driven matching app** with a hard profile state machine, not an automated social network.
 
-**Main Technical Dependency or Constraint**
-- Access to reliable and comprehensive music preference data is crucial for effective compatibility scoring and user onboarding.
+### Macro architecture choice
+Use a **single web/mobile client + lightweight backend API + relational database** architecture. Keep matching logic simple and deterministic. Add an admin review tool for supply validation before profiles become visible or matchable. Do not build event ingestion, marketplace, feeds, or recommendation infrastructure now.
 
-**Recommended Implementation Approach**
-- Develop a basic user onboarding module to collect music preferences, a compatibility scoring engine based on centralized music data, and messaging functionality. This should be implemented within a single application to facilitate quick iterations and testing.
+### Main technical dependency or constraint first
+The core dependency is a **minimum viable quality-control gate on user submissions**:
+- every profile must pass through `pending_review` before becoming `active`
+- matchability depends on required music fields being complete and valid
+- manual review is acceptable during the pilot because density is more important than automation
 
-**What Must Be Built Now**
-- User onboarding system to gather music preferences
-- Compatibility scoring algorithm that processes user data
-- Simple messaging framework for user communication
+Without this gate, the app will fill with weak or spammy profiles and the matching pool will not be trustworthy enough to test the wedge.
 
-**What Can Be Handled Manually or Operationally First**
-- Manual curation of music data for testing purposes prior to integrating with a third-party music data provider. Initial messaging can be facilitated via simpler user interactions that don't require extensive backend infrastructure.
+### Structural technical decisions
+1. **Hard profile state machine**
+   - `draft` → `pending_review` → `active` → `reported` / `suspended`
+   - only `active` profiles appear in matching
+   - moderators can move profiles back to `pending_review` or suspend them
 
-**Main Modules or Components**
-1. **User Onboarding**: Form to capture music preferences.
-2. **Compatibility Scoring Engine**: Basic algorithm to compute scores based on preferences.
-3. **Matching System**: Logic to match users based on calculated scores.
-4. **Messaging Feature**: Basic chat capability allowing users to communicate.
+2. **Minimum music submission schema**
+   - require top artists, genres, one identity prompt, one intent, and one Paris scene
+   - store normalized values where possible, but allow free-text entry initially
+   - reject or hold profiles that do not meet completeness rules
 
-**Critical Data or Workflow States**
-- User preference collection, compatibility score calculation, user matching, and user messaging status.
+3. **Manual review over automated trust scoring**
+   - for the pilot, review submissions and reports in an internal admin console
+   - keep automation limited to simple checks: required fields, duplicate detection, obvious abuse signals
 
-**Minimum Reliability, Data, Permission, or Control Requirements**
-- Reliability in user onboarding is critical; it should successfully collect preferences from at least 90% of users.
-- Proper handling of sensitive data (music preferences) must be ensured with user consent.
-- Initial measures for user privacy and data protection must be in place before launch to ensure compliance.
+### Recommended implementation approach
+Build a **single Rails/Next.js-style product with Postgres** and a basic admin interface. Keep the matching algorithm as a transparent scoring function over artist and genre overlap plus coarse location/scene alignment. Use a small operational team to approve profiles and review reports daily.
 
-**Control Points, Internal Tools, or Support Needs**
-- Dashboard for monitoring user onboarding success and engagement.
-- Tools for moderation of user interactions and reporting mechanisms.
-- A permissions model to ensure authorization of sensitive user data usage.
+### What must be built now
+- account creation and authentication
+- profile onboarding with required music fields
+- hard validation of minimum submission completeness
+- profile review queue
+- `pending_review` / `active` / `reported` / `suspended` state handling
+- matching list generation for active profiles only
+- basic messaging after match
+- report and block flows
+- simple admin dashboard for review and moderation
+- audit trail for moderation actions
+- basic analytics on activation, match, message, report, and suspension rates
 
-### Diagram Blueprint 
-- **Main System Blocks**:
-  - User Onboarding Module
-  - Compatibility Scoring Engine
-  - Matching System
-  - Messaging Module
+### What can be handled manually or operationally first
+- screening first users before invite
+- approving borderline profiles manually
+- balancing supply by scene and intent
+- curating the first cohort
+- reviewing suspicious behavior
+- prompting first-message follow-up and meetup outcomes
 
-- **Main Flows Between Blocks**:
-  - User preferences → Compatibility Scoring Engine → Matching System → Messaging Module
+### Main modules or components
+- **Client app**: onboarding, profile view, match list, messaging, reporting
+- **API layer**: auth, profile CRUD, match retrieval, messaging, moderation actions
+- **Profile service**: required field validation, state transitions, activation gating
+- **Matching service**: simple compatibility scoring and candidate filtering
+- **Messaging service**: match-only conversations
+- **Admin console**: review queue, profile approval, reports, suspension
+- **Postgres database**: users, profiles, preferences, states, matches, messages, reports, audit log
+- **Monitoring/analytics**: event tracking and operational dashboards
 
-- **External Actors or Systems**:
-  - External music data provider API (to be defined).
-  - User-facing mobile/web application.
+### Critical data or workflow states
+- `draft`: profile started but incomplete
+- `pending_review`: required fields complete, awaiting approval
+- `active`: eligible for discovery and matching
+- `matched`: mutual match created
+- `messaging_enabled`: conversation available after match
+- `reported`: flagged by users, hidden from matching until reviewed
+- `suspended`: removed from the active pool
 
-- **Admin or Operations Control Points**:
-  - Admin dashboard for performance monitoring.
-  - Support tools for user issue resolution and moderation.
+### Minimum reliability, data, permission, or control requirements
+- enforce required fields server-side, not just in UI
+- only active profiles can be matched
+- only matched users can message each other
+- blocks must be symmetric and immediate
+- reports must hide profiles from discovery pending review
+- moderation actions must be logged with actor, reason, and timestamp
+- admin access must be role-based and restricted
+- data retention and deletion must be possible for account removal requests
+
+### Control points, internal tools, or support needs
+- internal review queue for new profiles
+- moderation console for reports and suspensions
+- manual duplicate or spam checks
+- support workflow for account recovery and safety issues
+- basic export of audit and engagement data for pilot analysis
+
+### Mermaid Diagram
+```mermaid
+flowchart LR
+  U[User] --> C[Client App]
+  C --> API[Backend API]
+
+  API --> AUTH[Auth & Account Service]
+  API --> PROF[Profile Service]
+  API --> MATCH[Matching Service]
+  API --> MSG[Messaging Service]
+  API --> MOD[Moderation Service]
+  API --> ANA[Analytics Events]
+
+  PROF --> DB[(Postgres Database)]
+  MATCH --> DB
+  MSG --> DB
+  MOD --> DB
+  AUTH --> DB
+
+  MOD --> ADM[Admin Console]
+  ADM --> MOD
+
+  U -->|report / block| C
+  MOD -->|state changes| DB
+
+  API --> NOTIF[Notification Service]
+  NOTIF --> U
+```
 
 ## Review Summary
-The main feasibility challenge is the dependency on reliable music preference data, which is crucial for creating a valuable user experience. The focus should be on building a basic platform that supports music-based matching while validating user interest and refining acquisition strategies.
+The main feasibility issue is not feature breadth but **whether low-volume Paris supply can be kept high-quality enough to trust the matching pool**. The MVP should therefore be built around a hard review gate, a small state machine, and manual moderation support, with everything else kept minimal and deterministic.
 
 ## Critical Assumptions
-1. Reliable music preference data can be sourced sustainably.
-2. Users will engage with the onboarding process and provide meaningful music preferences.
-3. The compatibility scoring algorithm can deliver actionable results using initial data sets.
-4. Messaging functionality does not require extensive features for MVP.
-5. Initial user retention can be achieved through music compatibility focus.
+- A manual review step is acceptable for the pilot cohort size.
+- The team can reliably validate required music fields before activation.
+- A single relational database can support the full MVP workflow.
+- Matching can stay simple without harming the proof.
+- Moderation volume will remain manageable in a Paris-only launch.
 
-## Requested Changes 
-1. Define specific third-party music data provider(s) for integration.
-2. Establish a clear framework for user data privacy and compliance.
-3. Enhance onboarding questionnaire to ensure a comprehensive data collection strategy.
-4. Develop a user acquisition plan in parallel with MVP development.
-5. Clearly outline and document the reporting mechanisms for user interactions.
+## Requested Changes
+- Add an explicit `pending_review` state before any profile becomes discoverable [quality_assurance]
+- Define the minimum required onboarding schema for activation: top artists, genres, identity prompt, intent, and Paris scene [quality_assurance]
+- Clarify that only `active` profiles can appear in match results [scope]
+- Add a moderator review queue and audit log to the MVP scope [operations]
+- Specify that report/block actions immediately remove a user from matching pending review [privacy_trust]
 
-## Risks 
-1. Limited access to quality music data might inhibit compatibility scoring effectiveness.
-2. Users failing to provide accurate music preferences could impact engagement.
-3. Competition from existing platforms could limit user interest.
-4. Inadequate initial user acquisition strategies may lead to insufficient user density.
-5. Potential legal issues related to data privacy and user consent.
+## Risks
+- Manual review may become a bottleneck if invite volume grows faster than expected [operations]
+- Weak or inconsistent music input will reduce match quality even if the product works technically [quality_assurance]
+- Abuse or spam may bypass review if submission rules are too loose [privacy_trust]
+- Matching quality may still be poor if the underlying Paris cohort is too small [demand_validation]
+- Admin moderation could be underbuilt and create trust issues if not auditable [privacy_trust]
 
-## Open Questions 
-1. Which music data providers offer the most reliable APIs for integration?
-2. What specific metrics will define success for the compatibility scoring algorithm?
-3. How will user privacy and data handling compliance be monitored and enforced?
-4. What are the initial marketing strategies to drive user acquisition?
-5. What moderation and support capabilities will be necessary to ensure user safety?
+## Open Questions
+- What exact fields are mandatory for a profile to move from `draft` to `pending_review`?
+- How many profiles per day can the team manually review during the pilot?
+- Should approval be required before first visibility, or only before first match?
+- What moderation SLA is needed for reports and blocks in a pilot setting?
+- What is the minimum acceptable completeness threshold for music preferences?
 
 ## Why This Could Fail Even With Good Execution
-The project could fail if users do not find value in music compatibility as a basis for dating, leading to low engagement despite a well-executed MVP. If the interest assumptions are incorrect, the entire approach will struggle to gain traction.
+Even if the system is built correctly, the project can still fail if the required music input does not produce enough high-confidence compatibility signals. In that case, the app will run safely but the matches will feel arbitrary, and the product will not justify itself as music-native rather than just a lightly themed social app.
 
 ## Technical Readiness
 Status: LIMITED
 
 Blocking Gaps:
-- Lack of access to clear music data providers.
-- Undefined legal and compliance framework regarding user data.
+- The minimum profile quality-control mechanism was not fully specified and must be enforced before activation [quality_assurance]
+- The profile state model needs a hard `pending_review` gate to prevent low-quality supply from entering matching [quality_assurance]
+- Moderation handling is missing an explicit audit trail and review queue for trust enforcement [privacy_trust]
 
 Required Improvements:
-- Establish partnerships with music data providers.
-- Develop a comprehensive legal framework for user data handling and compliance.
-- Create a strategy for effectively onboarding users and measuring engagement metrics.
+- Define and implement the required music submission schema and completeness rules [quality_assurance]
+- Add a profile state machine with `draft`, `pending_review`, `active`, `reported`, and `suspended` states [quality_assurance]
+- Build a small admin review console with logged moderation actions [operations]

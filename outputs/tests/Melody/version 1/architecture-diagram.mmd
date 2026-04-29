@@ -1,0 +1,25 @@
+flowchart LR
+  U[User] --> C[Client App]
+  C --> API[Backend API]
+
+  API --> AUTH[Auth & Account Service]
+  API --> PROF[Profile Service]
+  API --> MATCH[Matching Service]
+  API --> MSG[Messaging Service]
+  API --> MOD[Moderation Service]
+  API --> ANA[Analytics Events]
+
+  PROF --> DB[(Postgres Database)]
+  MATCH --> DB
+  MSG --> DB
+  MOD --> DB
+  AUTH --> DB
+
+  MOD --> ADM[Admin Console]
+  ADM --> MOD
+
+  U -->|report / block| C
+  MOD -->|state changes| DB
+
+  API --> NOTIF[Notification Service]
+  NOTIF --> U

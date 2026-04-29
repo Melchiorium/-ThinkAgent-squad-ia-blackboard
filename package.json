@@ -1,0 +1,25 @@
+{
+  "name": "squad-ia-blackboard",
+  "version": "1.0.0",
+  "description": "Projet Python local qui simule une petite équipe de 3 agents IA qui collaborent via un `blackboard` partagé.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "mmdc": "mmdc -p mermaid-puppeteer-config.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Melchiorium/-ThinkAgent-squad-ia-blackboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Melchiorium/-ThinkAgent-squad-ia-blackboard/issues"
+  },
+  "homepage": "https://github.com/Melchiorium/-ThinkAgent-squad-ia-blackboard#readme",
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.12.0"
+  }
+}

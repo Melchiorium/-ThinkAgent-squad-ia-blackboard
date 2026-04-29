@@ -1,96 +1,212 @@
 ## Architecture Notes
+The decisive technical constraint is **quality control of mission supply**: without a hard moderation gate and bounded mission schema, the product will drift into free-labor postings or generic freelancing before any marketplace proof is possible.
 
-### Macro Architecture Choice
-A centralized web application architecture will be implemented to facilitate connections between candidates and organizations. This architecture will support user registrations, project postings, and communication workflows necessary for the MVP.
+A simple MVP architecture is a **concierge-led, admin-governed web platform** with a strict mission state machine. Build a small transactional application with:
+- a public candidate/organization frontend,
+- an internal moderation and matching console,
+- a core workflow API,
+- and a relational database as the source of truth.
 
-### Main Technical Dependency or Constraint
-The primary technical constraint is ensuring compliance with varied legal and employment regulations across different jurisdictions that affect the classification of short-term projects. This compliance framework will influence user permissions, project definitions, and platform functionality.
+### Main technical dependency or constraint
+The platform depends on the ability to **approve only bounded, structured missions** before publication. That requires:
+- a fixed mission taxonomy,
+- mandatory structured fields,
+- moderation states,
+- rejection reasons,
+- and proof issuance only after completion feedback is recorded.
 
-### Recommended Implementation Approach
-1. **Centralized Database**: A relational database for user profiles, project postings, applications, and feedback.
-2. **Web Application**: A single-page application (SPA) framework (e.g., React) for a responsive user interface enabling quick interactions between candidates and organizations.
-3. **Backend API**: RESTful API to handle data retrieval and submission between the front end and the database, ensuring a clean separation of concerns.
-4. **Basic Authentication**: Implement user authentication to secure user data and ensure only registered users can access relevant features.
+### Structural technical decisions that shape the MVP
+1. **Hard mission schema, not free-form posting**  
+   Missions must be created from a constrained form with required fields: category, objective, deliverable, duration, effort range, location mode, compensation status, and review method. This is the main quality-control mechanism.
 
-### What Must Be Built Now
-- User registration and profile creation module for both candidates and organizations.
-- Project posting interface for organizations with basic validation to ensure clarity.
-- Application submission functionality for candidates applying to projects.
-- A simple matching system to connect candidates based on criteria (e.g., skill set).
-- Feedback and reputation rating system post-project completion.
+2. **Manual approval with state machine gating**  
+   No mission is visible until it moves through explicit states such as `draft -> submitted -> under_review -> approved/rejected -> published -> matched -> in_progress -> submitted_for_review -> completed -> proof_issued`. This is the core trust control.
 
-### What Can Be Handled Manually or Operationally First
-- Initial vetting and approval of projects by an internal team, to ensure quality and compliance before postings go live.
-- Manual outreach to candidates and organizations to validate interest in platform functionality and gathering feedback.
+3. **Internal matching and proof issuance are operator-controlled**  
+   Matching should stay manual in the pilot. Proof-of-work artifacts should be generated only after structured completion feedback exists. Do not automate reputation or ranking in MVP.
 
-### Main Modules or Components
-1. **User Management**: Handles user registration, profile updates, and authentication.
-2. **Project Management**: Interfaces for posting, editing, and viewing projects.
-3. **Application Management**: Functionality for candidates to apply for projects.
-4. **Matching Engine**: A simple algorithm or rule set to match candidates to projects based on user-defined criteria.
-5. **Feedback and Ratings**: System to collect and display feedback from both parties post-project.
+### Recommended implementation approach
+Build a **single monolithic web app** with role-based access control and a Postgres database. Use one backend service and two UI surfaces:
+- external portal for candidate/org submission and mission browsing,
+- internal admin console for review, approval, matching, and completion verification.
 
-### Critical Data or Workflow States
-- User registration/activation state.
-- Project creation, validation, and posting state.
-- Application state (submitted, accepted, rejected).
-- Project completion and feedback collection state.
+### What must be built now
+- Candidate profile creation
+- Organization profile creation with identity/commitment fields
+- Constrained mission posting form
+- Mission moderation queue
+- Publish/reject workflow with reasons
+- Mission listing for approved missions only
+- Candidate application submission
+- Internal matching assignment
+- Basic messaging or controlled contact thread
+- Deliverable submission
+- Completion confirmation
+- Structured feedback form
+- Proof-of-work artifact generation
+- Audit trail of moderation and status changes
 
-### Minimum Reliability, Data, Permission, or Control Requirements
-- User authentication must be reliable to protect user data.
-- Project postings must have a strict review process to minimize abuse.
-- Application and feedback systems should guarantee that data is correctly associated with the respective users to maintain accountability.
+### What can be handled manually or operationally first
+- Sourcing organizations
+- Legal wording review for France
+- Screening mission quality before approval
+- Matching decisions
+- Deliverable review if unclear
+- Dispute handling
+- Candidate onboarding
+- Repeat outreach to organizations
 
-### Control Points, Internal Tools, or Support Needs
-- An administrative dashboard for internal teams to monitor project quality, user activity, and compliance with legal guidelines.
-- Logging and audit trails to contemporaneously track actions taken on projects and user interactions for accountability.
+### Main modules or components
+- **Auth and roles**: candidate, organization, operator/admin
+- **Profile service**: basic identity, skills, availability, organization details
+- **Mission intake module**: strict template, validation, submission
+- **Moderation module**: review queue, approve/reject, rejection reasons
+- **Marketplace module**: browse approved missions, apply
+- **Assignment module**: manual match and state transitions
+- **Messaging module**: minimal thread per mission or controlled comment thread
+- **Submission module**: upload/link deliverables
+- **Feedback module**: structured completion review
+- **Proof module**: generate standardized proof artifact
+- **Audit/logging module**: status changes, moderator actions, issuance history
+- **Admin console**: internal control surface for all gated workflows
 
-### Diagram Blueprint
-- **Main System Blocks**: User Management, Project Management, Application Management, Matching Engine, Feedback System
-- **Main Flows Between Blocks**: User registration to User Management → Project posting triggers Project Management → Candidate applications flow to Application Management → Feedback submission feeds into Feedback System
-- **External Actors or Systems**: End users (candidates and organizations), support/customer service team
-- **Admin or Operations Control Points**: Admin Dashboard for monitoring, project approval/rejection, user support interactions
+### Critical data or workflow states
+Mission states should be explicit and enforceable:
+- `draft`
+- `submitted`
+- `under_review`
+- `approved`
+- `rejected`
+- `published`
+- `applied`
+- `assigned`
+- `in_progress`
+- `submitted_for_review`
+- `completed`
+- `proof_issued`
+- `closed`
+
+Critical data objects:
+- user profile
+- organization profile
+- mission template fields
+- moderation decision and reason
+- application record
+- assignment record
+- message thread
+- deliverable submission
+- feedback record
+- proof artifact record
+
+### Minimum reliability, data, permission, or control requirements
+- Role-based access control for candidates, organizations, operators
+- Only operators can approve, reject, assign, and issue proof
+- Validation of required mission fields at form level and API level
+- Immutable audit log for moderation and proof issuance
+- Proof cannot be generated without completed feedback
+- Rejection reasons must be structured, not free text only
+- Attachments and links must be stored securely with access control
+- Basic rate limits and anti-abuse checks on applications and submissions
+- Data retention and consent controls for French privacy expectations
+
+### Control points, internal tools, or support needs
+- Internal review queue with filters for taxonomy, location, compensation status, and duration
+- Operator notes on each mission
+- Rejection templates for consistent moderation
+- Assignment screen for manual matching
+- Completion review screen with structured feedback fields
+- Proof generation screen with operator confirmation
+- Support inbox or lightweight case log for disputes and clarifications
+
+### What the smallest quality-control mechanism must be
+For MVP, the smallest credible control is:
+- a **fixed mission taxonomy**
+- a **mandatory moderation state machine**
+- **required review fields**
+- **structured rejection reasons**
+- **proof issuance gated by completion feedback**
+
+This is enough to reduce abuse without building a complex reputation or algorithmic trust layer.
+
+### Mermaid Diagram
+```mermaid
+flowchart LR
+  C[Candidate] --> FE[Candidate Web UI]
+  O[Organization] --> FE
+  OP[Operator/Admin] --> AO[Admin Console]
+
+  FE --> API[Backend API]
+
+  API --> P[Profile Service]
+  API --> M[Mission Intake & Validation]
+  API --> W[Moderation & Workflow Engine]
+  API --> A[Application & Assignment]
+  API --> S[Messaging & Submission]
+  API --> F[Feedback & Proof Service]
+  API --> DB[(Postgres)]
+  API --> FS[(Secure File Storage)]
+
+  AO --> W
+  AO --> A
+  AO --> F
+
+  M --> W
+  W --> DB
+  A --> DB
+  S --> DB
+  F --> DB
+  S --> FS
+
+  API --> N[Email/Notification Service]
+  API --> LOG[Audit Log/Monitoring]
+
+  W --> PUB[Approved Mission Listings]
+  PUB --> FE
+```
 
 ## Review Summary
-The main feasibility challenge involves establishing a compliant framework for project postings across different jurisdictions that can affect user trust and platform engagement. A centralized web application with essential functionalities should be built while implementing a manual vetting process for projects to mitigate compliance risks.
+The MVP is feasible only if it is built as a tightly controlled concierge platform, not as an open marketplace. The main correction is to formalize mission quality control as a hard moderation workflow with a fixed taxonomy, approval gating, and proof issuance only after structured feedback.
 
 ## Critical Assumptions
-1. Recent graduates will actively seek short-term project opportunities on this platform.
-2. Small organizations will see value in posting more controlled, short-term projects.
-3. Both candidates and organizations will adhere to the feedback system helping to build trust.
-4. A basic legal framework can be established to guide project classifications and user permissions.
-5. Preliminary user interest can be validated through manual outreach and engagement.
+- A small fixed mission taxonomy is enough to filter unsafe or labor-like postings.
+- Manual moderation can keep volume low enough for the pilot.
+- Operators can reliably distinguish bounded starter missions from freelance work.
+- Structured feedback is sufficient to justify proof-of-work issuance.
+- The team can maintain a clear audit trail for moderation and completion decisions.
 
 ## Requested Changes
-1. Establish clear guidelines regarding the legal framework governing project classifications before platform launch.
-2. Develop a minimum viable verification process for project postings that ensures compliance and quality control.
-3. Implement user onboarding instructions that specify how candidates and organizations can interact safely.
-4. Define user roles and permissions explicitly in relation to project types and boundaries within that framework.
-5. Create testimonials or feedback mechanisms that can test user engagement and satisfaction levels pre-launch.
+- Add a **mandatory moderation state machine** for every mission, with `submitted`, `under_review`, `approved`, `rejected`, and `published` as enforced states. [quality_assurance]
+- Add a **fixed mission taxonomy** at form validation time so organizations cannot submit open-ended or unclassified work. [scope]
+- Add **structured rejection reasons** in the admin workflow so moderation decisions are consistent and auditable. [quality_assurance]
+- Gate **proof-of-work generation** on mandatory structured completion feedback from the organization. [quality_assurance]
+- Make the **approval queue an internal control surface** rather than a passive content review step. [quality_assurance]
 
 ## Risks
-1. Legal ambiguities leading to potential issues around user classification and project compliance.
-2. Low engagement or satisfaction levels causing a drop-off before the MVP achieves traction.
-3. High variability in the quality of projects posted, harming platform reputation.
-4. Operational risks associated with manual vetting becoming bottlenecks for user experience.
-5. Reliance on a limited spectrum of users for feedback, leading to a skewed understanding of platform value.
+- Moderation may become the bottleneck if the taxonomy is too broad or approvals are too manual.
+- Organizations may still attempt to stretch bounded missions into ongoing labor.
+- Proof artifacts may lose credibility if completion feedback is inconsistent.
+- The product may feel too constrained if the taxonomy is not well-designed.
+- Audit and permission controls may be underbuilt if the team treats this as a lightweight marketplace.
 
 ## Open Questions
-1. What specific legal constraints should we prioritize addressing in the MVP?
-2. How can we actively monitor and enhance the quality of projects as they get posted?
-3. What metrics will best reflect user satisfaction during early testing phases?
-4. How might we ensure candidates are not exploited under the guise of 'short-term projects'?
-5. What mechanisms can we employ to facilitate easy communication between candidates and organizations?
+- What are the exact 3 to 5 mission categories allowed at launch?
+- Which fields are mandatory to classify a mission as bounded and safe?
+- What minimum feedback schema is needed before proof issuance?
+- Which user roles can edit, approve, assign, or revoke a mission?
+- What evidence must be stored to audit moderation decisions later?
 
 ## Why This Could Fail Even With Good Execution
-Even with thorough execution, if the legal classification of short-term projects isn't adequately clarified and managed, the platform may face significant user trust issues, leading to low adoption rates and potential legal ramifications that could compromise its viability.
+Even with solid implementation, the project can fail if the taxonomy cannot reliably separate safe starter missions from disguised freelance or unpaid labor. If the boundary is ambiguous, moderation becomes subjective, trust degrades, and the platform will either over-reject useful missions or accept risky ones.
 
 ## Technical Readiness
 Status: LIMITED
 
 Blocking Gaps:
-- Uncertainty about the legal framework regarding short-term projects in various jurisdictions.
+- Mission quality control is not yet formalized into an enforced workflow [quality_assurance]
+- The launch taxonomy is not yet specified tightly enough to enforce scope [scope]
+- Proof-of-work issuance is not yet tied to structured completion feedback [quality_assurance]
 
 Required Improvements:
-- Validate candidate interest and potential engagement through direct outreach.
-- Develop clear compliance guidelines and verification processes for the MVP launch.
+- Implement a mandatory moderation state machine with publish gating and rejection reasons [quality_assurance]
+- Define a small fixed mission taxonomy and enforce it at form validation time [scope]
+- Require structured completion feedback before generating the proof artifact [quality_assurance]
