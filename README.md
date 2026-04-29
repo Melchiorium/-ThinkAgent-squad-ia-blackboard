@@ -1,15 +1,15 @@
 # Squad IA Blackboard
 
+> **Note pour relecture humaine**
+>
+> Je m'attendais plutôt à une évaluation par agent ; pour une relecture humaine, le document le plus adapté pour comprendre le projet, ses choix et ses limites est [outputs/rapport_final.md](outputs/rapport_final.md).
+
 Projet Python qui crée une petite squad de 3 agents IA spécialisés :
 - `Product` : PRD, MVP, cadrage produit
 - `Tech` : architecture, faisabilité, risques techniques
 - `Growth` : go-to-market, acquisition, lancement
 
 Les agents collaborent via une mémoire partagée appelée `blackboard`. Ils ne simulent pas un swarm autonome : l'orchestration est explicite, contrôlée et auditable.
-
-> **Note pour relecture humaine**
->
-> Je m'attendais plutôt à une évaluation par agent ; pour une relecture humaine, le document le plus adapté pour comprendre le projet, ses choix et ses limites est [outputs/rapport_final.md](outputs/rapport_final.md).
 
 ## Lecture Rapide Pour L'Évaluation
 

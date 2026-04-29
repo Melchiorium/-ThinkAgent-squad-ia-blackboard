@@ -5,7 +5,7 @@
 Ce document raconte la construction du projet `squad-ia-blackboard` : un prototype de système multi-agents capable de transformer un brief projet en dossier de cadrage startup.
 
 L'objectif n'était pas seulement de "passer l'exercice". L'objectif personnel était :
-- faire le maximum dans un temp limité (48h, devenu 36)
+- faire le maximum dans un temps limité (48h, devenu 36)
 - construire un POC réellement exécutable
 - tester, comparer, *explorer*
 - comprendre ce qui améliore vraiment la qualité d'un système agentique
