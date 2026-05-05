@@ -381,7 +381,9 @@ Mais elle a aussi révélé une limite importante : une deuxième version n'est 
 
 Cette expérience a préparé une leçon centrale du projet : il ne suffit pas d'ajouter une boucle de révision. Il faut aussi protéger les bons arbitrages déjà obtenus.
 
-Cette piste mériterait d'être creusée, même si elle a été abandonnée faute de temps.
+Cette piste mériterait d'être creusée, mais elle est aujourd'hui reléguée hors
+baseline : le code existe encore partiellement, avec des chemins hardcodés, et
+ne doit pas être présenté comme le workflow courant.
 
 ## Phase 7 - Le travail sur les prompts
 
@@ -511,9 +513,11 @@ Cette phase a été décisive.
 
 Elle a montré que le meilleur système n'est pas toujours le plus complexe. Trop de workflow peut étouffer le jugement des agents.
 
-## Phase 11 - Retour au baseline V12-like
+## Phase 11 - Retour au workflow standard validé
 
-Après plusieurs régressions, le projet est revenu vers un état plus sobre, appelé `V12-like`.
+Après plusieurs régressions, le projet est revenu vers un état plus sobre. Les
+notes historiques l'appelaient `V12-like`; le nom actuel est **workflow standard
+validé**.
 
 Ce baseline conserve :
 - prompts V3
@@ -585,7 +589,8 @@ Une phrase générique a été ajoutée aux prompts V3 :
 
 `The projects will be implemented in France, in the city of Paris.`
 
-Ce n'est pas une optimisation spécifique à un projet. C'est une hypothèse d'environnement.
+Ce n'est pas une optimisation spécifique à un projet. C'est une règle globale
+des prompts V3, sauf contradiction explicite dans le brief.
 
 Pourquoi l'ajouter ?
 
@@ -741,7 +746,8 @@ Un système agentique mature doit savoir signaler cette limite au lieu d'invente
 
 ### 8. La sobriété a souvent gagné
 
-Les meilleurs résultats récents ne viennent pas du workflow le plus complexe. Ils viennent d'un équilibre plus simple :
+Les meilleurs résultats documentés ne viennent pas du workflow le plus complexe.
+Ils viennent du workflow standard validé :
 - prompts V3
 - pas de prompt d'équipe
 - contexte Paris / France

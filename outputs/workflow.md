@@ -21,16 +21,18 @@ Main code entry points:
 
 ## Current Baseline
 
-The current validated baseline is a `V12-like` workflow:
+The current validated baseline is the **validated standard workflow**:
 - keep the `V3` prompts when running validated tests
 - keep the existing readiness loop
 - keep the Product locking pass
-- do not use the post-`V12` solution-proposal workflow experiments
+- do not use the later solution-proposal workflow experiments
 
 Important:
 - prompt loading is versioned by `BLACKBOARD_PROMPT_VERSION`
 - code default is still `V2`
 - the best recent runs were obtained with `BLACKBOARD_PROMPT_VERSION=V3`
+- older notes may call this baseline `V12-like`; that is historical vocabulary,
+  not the current name.
 
 ## Deployment Assumption
 
@@ -50,13 +52,16 @@ Expected effect:
 - Growth can reason about launch geography, acquisition, partnerships, and local density more concretely
 - Tech can reason about French/EU privacy, data, consent, and operational constraints more responsibly
 
-Observed effect in the latest four-project batch:
+Observed effect in the historical comparative batch:
 - CareSync V38 reached 7.6/10
 - LocalLoop V38 reached 7.6/10
 - Melody V8 reached 7.4/10
 - SkillBridge V6 reached 7.4/10
 - all four were evaluated as `ACCEPTABLE`
 - evaluations explicitly credited the Paris/France context with better market, legal, trust, local-density, and operational grounding
+
+Current generated folders in this repository may still be `version 1`; the
+scores above document project history, not necessarily the local folder names.
 
 Important:
 - this should stay generic across projects
@@ -69,7 +74,7 @@ Current output layout:
 - `outputs/dev-steps/`
 - `outputs/projects/`
 - `outputs/tests/<Project>/version X/`
-- `outputs/tests/pretests/`
+- `outputs/tests_preliminaires/`
 
 Project briefs used for normal runs live in:
 - `outputs/projects/*.md`
@@ -99,7 +104,8 @@ This is important:
 
 ## Real Workflow Modes
 
-The code currently exposes 2 real workflows.
+The current validated workflow is the standard first pass. The code also
+contains a second-pass experiment, but it is not part of the current baseline.
 
 ### 1. Standard first pass
 
@@ -109,7 +115,11 @@ Function:
 Used for:
 - a fresh project brief from `outputs/projects/`
 
-### 2. Second pass
+Note:
+- `run_v0_flow()` is the historical function name; docs should call this the
+  validated standard workflow.
+
+### 2. Experimental second pass
 
 Function:
 - `run_v2_flow()`
@@ -123,7 +133,8 @@ Current limitation:
   - `outputs/version 13`
   - `outputs/evaluation-version-13.md`
 
-So this mode exists, but is not yet generalized.
+So this mode exists in code, but it is historical/experimental and not yet
+generalized.
 
 ## Step 0: Brief Selection
 
@@ -556,9 +567,12 @@ Important:
 - `prd.md`, `architecture.md`, and `gtm.md` are the final user-facing deliverables
 - but `blackboard.md` should remain coherent with them
 
-## Second Pass Workflow
+## Experimental Second Pass Workflow
 
-Current second-pass flow:
+The second-pass flow was tested as a revision experiment, not as the current
+normal path.
+
+Current code path:
 1. load source artifacts from a fixed version directory
 2. create blackboard with `source_artifacts` + `executive_evaluation`
 3. set `workflow_stage = second_pass_initial`
@@ -574,7 +588,7 @@ Current second-pass flow:
 
 Important caveat:
 - current second-pass output is written back into the same source version directory
-- this mode should be treated carefully until generalized
+- this mode should be treated as experimental history until generalized
 
 ## Environment Variables That Matter
 
@@ -620,12 +634,12 @@ Code default:
 - `V2`
 
 Best known baseline:
-- workflow `V12-like`
+- validated standard workflow
 - prompts `V3`
 
-### 5. Second pass is still partly hardcoded
+### 5. Second pass is experimental and partly hardcoded
 
-It exists, but is not yet a flexible reusable mode.
+It exists, but is not part of the validated standard workflow.
 
 ### 6. Human clarification remains an open research track
 
@@ -652,7 +666,7 @@ Why it is out of scope for the current finalized baseline:
 
 If another agent has to resume the project, the right mental model is:
 
-- stable baseline = `V12-like workflow + prompts V3`
+- stable baseline = validated standard workflow + prompts V3
 - V3 prompts assume deployment in Paris, France unless the brief explicitly says otherwise
 - main generation path = `Product -> Growth -> Tech -> Product revision -> readiness loop -> Product locking`
 - Product is the true arbiter
@@ -668,4 +682,4 @@ Given the project history, changes should be treated carefully:
 - prefer one small change at a time
 - validate first on `CareSync` and `LocalLoop`
 
-This caution matters because several post-`V12` workflow experiments improved internal sophistication but reduced final output quality.
+This caution matters because several later workflow experiments improved internal sophistication but reduced final output quality.
