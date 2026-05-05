@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import json
 import secrets
 from datetime import datetime, timezone
@@ -115,6 +116,12 @@ def _utc_now() -> str:
 def _resolve_jobs_root(jobs_root: Path | None = None) -> Path:
     if jobs_root is not None:
         return jobs_root
+    configured_jobs_root = os.getenv("WEB_JOBS_ROOT", "").strip()
+    if configured_jobs_root:
+        return Path(configured_jobs_root)
+    configured_outputs_root = os.getenv("WEB_OUTPUTS_ROOT", "").strip()
+    if configured_outputs_root:
+        return Path(configured_outputs_root) / DEFAULT_WEB_JOBS_DIRNAME
     repo_root = Path(__file__).resolve().parent.parent
     return repo_root / "outputs" / DEFAULT_WEB_JOBS_DIRNAME
 

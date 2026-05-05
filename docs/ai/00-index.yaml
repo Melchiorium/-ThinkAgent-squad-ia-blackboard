@@ -36,6 +36,7 @@ key_paths:
   final_report: outputs/rapport_final.md
   package_manifest: package.json
   python_requirements: requirements.txt
+  web_deployment_entrypoint: Procfile
 
 task_routing:
   run_generation:

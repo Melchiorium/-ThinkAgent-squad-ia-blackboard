@@ -160,8 +160,9 @@ modules:
   - name: web_runs
     path: app/web_runs.py
     role: >
-      Lightweight inventory helper for generated runs under outputs/tests/.
-      Lists projects and version folders without reading file contents.
+      Lightweight inventory helper for generated runs under outputs/tests/ or a
+      configurable outputs root. Lists projects and version folders without
+      reading file contents.
     read_when:
       - adding or changing run inventory logic
       - changing the web viewer's data source
@@ -174,11 +175,12 @@ modules:
     path: app/web.py
     role: >
       Flask server for the POC viewer, job flow, and shared-link access gate.
-      Lists runs on /, accepts briefs on POST /jobs, shows session jobs on /,
+      Runs locally with the Flask dev server or on Render via Gunicorn. Lists
+      runs on /, accepts briefs on POST /jobs, shows session jobs on /,
       renders job status on /jobs/<job_id>, renders run details on
       /runs/<project>/<version>, serves allowlisted artifacts on
-      /runs/<project>/<version>/artifacts/<filename>, and protects the
-      application routes with WEB_ACCESS_TOKEN when configured.
+      /runs/<project>/<version>/artifacts/<filename>, exposes /healthz, and
+      protects the application routes with WEB_ACCESS_TOKEN when configured.
     read_when:
       - changing Flask routes
       - changing templates
@@ -187,6 +189,8 @@ modules:
       - changing web brief submission
       - changing job status display
       - changing access control behavior
+      - changing deployment or healthcheck behavior
+      - changing persistent storage defaults
     key_functions:
       - app
       - index
@@ -194,13 +198,18 @@ modules:
       - job_status
       - run_detail
       - run_artifact
+      - healthz
       - _guard_secret_access
+      - _outputs_root
+      - _jobs_root
+      - _run_generation_runner
 
   - name: web_jobs
     path: app/web_jobs.py
     role: >
       File-backed job store for the POC web generation flow. Persists submitted
-      briefs, statuses, session ids, output links, and errors under outputs/web-jobs/.
+      briefs, statuses, session ids, output links, and errors under outputs/web-jobs/
+      or a configured job storage root.
     read_when:
       - changing web job persistence
       - changing session job history
@@ -230,7 +239,8 @@ modules:
     role: >
       Reusable standard-generation service. Runs the validated standard
       workflow from an in-memory brief and writes a new
-      outputs/tests/<Project>/version X/ directory.
+      outputs/tests/<Project>/version X/ directory, or another outputs root
+      when configured for persistent storage.
     read_when:
       - adding non-CLI generation entrypoints
       - changing standard run creation from in-memory briefs

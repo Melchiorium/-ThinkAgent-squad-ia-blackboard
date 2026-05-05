@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import os
-import sys
+import inspect
 import hashlib
 import hmac
+import os
+import sys
 from pathlib import Path
 from threading import Lock, Thread
 
@@ -11,6 +12,7 @@ from flask import (
     Flask,
     abort,
     g,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -91,7 +93,7 @@ def _attach_session_cookie(response):
 @app.before_request
 def _guard_secret_access():
     token = _access_token()
-    if not token or request.endpoint == "static":
+    if not token or request.endpoint in {"static", "healthz"}:
         return None
 
     if _has_valid_access_query_token(token):
@@ -106,7 +108,7 @@ def _guard_secret_access():
 
 @app.get("/")
 def index():
-    runs = [_build_run_view(run) for run in list_runs()]
+    runs = [_build_run_view(run) for run in list_runs(outputs_root=_outputs_root())]
     session_id = g.web_session_id
     session_jobs = [
         _build_job_view(job) for job in list_jobs(session_id=session_id, jobs_root=_jobs_root())
@@ -156,7 +158,7 @@ def job_status(job_id: str):
 
 @app.get("/runs/<project>/<version>")
 def run_detail(project: str, version: str):
-    run = get_run(project, version)
+    run = get_run(project, version, outputs_root=_outputs_root())
     if run is None:
         abort(404)
     run_path = Path(run["path"])
@@ -172,7 +174,7 @@ def run_detail(project: str, version: str):
 
 @app.get("/runs/<project>/<version>/artifacts/<filename>")
 def run_artifact(project: str, version: str, filename: str):
-    run = get_run(project, version)
+    run = get_run(project, version, outputs_root=_outputs_root())
     if run is None or not _is_allowed_artifact_filename(filename):
         abort(404)
 
@@ -197,7 +199,17 @@ def _jobs_root() -> Path:
     configured_root = os.getenv("WEB_JOBS_ROOT", "").strip()
     if configured_root:
         return Path(configured_root)
-    return Path(__file__).resolve().parent.parent / "outputs" / DEFAULT_WEB_JOBS_DIRNAME
+    outputs_root = _outputs_root()
+    if outputs_root.name == "outputs":
+        return outputs_root / DEFAULT_WEB_JOBS_DIRNAME
+    return outputs_root / DEFAULT_WEB_JOBS_DIRNAME
+
+
+def _outputs_root() -> Path:
+    configured_root = os.getenv("WEB_OUTPUTS_ROOT", "").strip()
+    if configured_root:
+        return Path(configured_root)
+    return Path(__file__).resolve().parent.parent / "outputs"
 
 
 def _access_token() -> str:
@@ -308,6 +320,11 @@ def _is_allowed_artifact_filename(filename: str) -> bool:
     return True
 
 
+@app.get("/healthz")
+def healthz():
+    return jsonify({"status": "ok"})
+
+
 def _start_generation_job(job_id: str) -> None:
     job = get_job(job_id, jobs_root=_jobs_root())
     if job is None:
@@ -319,10 +336,7 @@ def _start_generation_job(job_id: str) -> None:
 
         update_job(job_id, {"status": "running"}, jobs_root=_jobs_root())
         try:
-            result = generation_runner(
-                job["brief_text"],
-                project_brief_source=f"web://job/{job_id}",
-            )
+            result = _run_generation_runner(job["brief_text"], job_id)
             output_dir = Path(result.output_dir)
             update_job(
                 job_id,
@@ -345,6 +359,25 @@ def _start_generation_job(job_id: str) -> None:
                 },
                 jobs_root=_jobs_root(),
             )
+
+
+def _run_generation_runner(brief_text: str, job_id: str):
+    runner = generation_runner
+    kwargs = {"project_brief_source": f"web://job/{job_id}"}
+    try:
+        signature = inspect.signature(runner)
+    except (TypeError, ValueError):
+        signature = None
+
+    if signature is None:
+        return runner(brief_text, **kwargs)
+
+    if "outputs_root" in signature.parameters or any(
+        parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in signature.parameters.values()
+    ):
+        kwargs["outputs_root"] = _outputs_root()
+    return runner(brief_text, **kwargs)
 
 
 if __name__ == "__main__":

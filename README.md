@@ -188,6 +188,14 @@ Si `WEB_ACCESS_TOKEN` est défini, ouvrir le viewer avec
 un cookie local `web_access_granted`. Ce mécanisme n'est pas une authentification
 complète et le lien ne doit pas être partagé publiquement.
 
+### Déploiement Render POC
+
+Render démarre l'app via `Procfile` et Gunicorn, avec un seul worker.
+Le disque persistant doit fournir `WEB_OUTPUTS_ROOT` et `WEB_JOBS_ROOT`.
+Si `WEB_ACCESS_TOKEN` est défini, l'URL d'accès initiale est
+`https://<render-host>/?access_token=<token>`.
+Ce POC reste en accès partagé, sans comptes ni authentification complète.
+
 Pour le démarrer localement :
 
 ```bash

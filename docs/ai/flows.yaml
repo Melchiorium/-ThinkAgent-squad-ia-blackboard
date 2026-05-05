@@ -168,6 +168,24 @@ web_secret_link_access_flow:
     - no roles or permissions
     - shared-token POC only
 
+web_render_poc_deployment_flow:
+  owner: Procfile and app/web.py
+  status: poc_deployment
+  steps:
+    - install Python dependencies from requirements.txt
+    - start app.web:app through gunicorn
+    - bind to Render PORT
+    - keep one web worker for process-local jobs
+    - use WEB_ACCESS_TOKEN for shared-link access
+    - use WEB_OUTPUTS_ROOT and WEB_JOBS_ROOT on persistent disk
+    - expose /healthz for service healthcheck
+  limitations:
+    - no full authentication
+    - no user accounts
+    - no distributed job queue
+    - no horizontal scaling
+    - POC audit deployment only
+
 recommended_change_discipline:
   - prefer one small workflow or prompt change at a time
   - validate first on CareSync and LocalLoop when changing behavior
