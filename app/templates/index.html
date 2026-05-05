@@ -23,16 +23,26 @@
         </div>
 
         <form class="brief-form" method="post" action="{{ url_for('create_job_route') }}">
+          <label for="project_title">Titre du projet</label>
+          <input
+            id="project_title"
+            name="project_title"
+            type="text"
+            maxlength="120"
+            placeholder="Yoyo"
+            required
+          >
           <label for="brief">Collez le brief</label>
           <textarea
             id="brief"
             name="brief"
             rows="10"
             maxlength="{{ max_brief_characters }}"
-            placeholder="Project name: ..."
+            placeholder="Décrivez le besoin, le contexte et les contraintes."
+            required
           ></textarea>
           <div class="brief-form__actions">
-            <p>{{ max_brief_characters }} characters max.</p>
+            <p>{{ max_brief_characters }} caractères max pour le brief.</p>
             <button type="submit">Lancer la génération</button>
           </div>
         </form>
@@ -52,7 +62,7 @@
               <article class="job-card">
                 <div class="job-card__header">
                   <div>
-                    <h3>Génération</h3>
+                    <h3>{{ job.display_title }}</h3>
                     <p class="technical-id">ID technique : {{ job.job_id }}</p>
                     <p>{{ job.created_at }}</p>
                   </div>

@@ -100,18 +100,27 @@ body {
   font-weight: 600;
 }
 
+.brief-form input[type="text"],
 .brief-form textarea {
   width: 100%;
-  min-height: 220px;
   padding: 14px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font: inherit;
   line-height: 1.5;
-  resize: vertical;
   box-sizing: border-box;
 }
 
+.brief-form input[type="text"] {
+  min-height: 48px;
+}
+
+.brief-form textarea {
+  min-height: 220px;
+  resize: vertical;
+}
+
+.brief-form input[type="text"]:focus,
 .brief-form textarea:focus {
   outline: 2px solid #bfdbfe;
   border-color: #93c5fd;

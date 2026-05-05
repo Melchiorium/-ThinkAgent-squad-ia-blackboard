@@ -17,6 +17,7 @@ def create_session_id() -> str:
 def create_job(
     brief_text: str,
     session_id: str,
+    project_title: str = "",
     jobs_root: Path | None = None,
 ) -> dict:
     brief_text = brief_text.strip()
@@ -29,6 +30,7 @@ def create_job(
         "updated_at": now,
         "brief_text": brief_text,
         "brief_preview": brief_text[:200],
+        "project_title": project_title.strip(),
         "project_name": "",
         "output_dir": "",
         "run_project": "",

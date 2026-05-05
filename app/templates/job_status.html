@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Suivi de la génération</title>
+    <title>{{ job.display_title }} - Suivi de la génération</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='web.css') }}">
     <script defer src="{{ url_for('static', filename='web.js') }}"></script>
   </head>
@@ -11,7 +11,8 @@
     <main class="page page--job">
       <header class="header">
         <a class="back-link" href="{{ url_for('index') }}">Retour à l'accueil</a>
-        <h1>Suivi de génération</h1>
+        <p class="eyebrow">Suivi de génération</p>
+        <h1>{{ job.display_title }}</h1>
         <p class="technical-id">ID technique : {{ job.job_id }}</p>
       </header>
 

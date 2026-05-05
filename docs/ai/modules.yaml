@@ -176,8 +176,8 @@ modules:
     role: >
       Flask server for the POC viewer, job flow, and shared-link access gate.
       Runs locally with the Flask dev server or on Render via Gunicorn. Lists
-      runs on /, accepts briefs on POST /jobs, shows session jobs on /,
-      renders job status on /jobs/<job_id>, exposes JSON status on
+      runs on /, accepts a project title plus brief on POST /jobs, shows
+      session generations on /, renders job status on /jobs/<job_id>, exposes JSON status on
       /api/jobs/<job_id>, renders run details on /runs/<project>/<version>,
       serves allowlisted artifacts on /runs/<project>/<version>/artifacts/<filename>,
       reuses _run_result.html for inline generated dossiers, loads web.js for
@@ -212,13 +212,14 @@ modules:
       - _build_job_result_sections
       - _build_sections
       - _status_label
+      - _job_display_title
 
   - name: web_jobs
     path: app/web_jobs.py
     role: >
       File-backed job store for the POC web generation flow. Persists submitted
-      briefs, statuses, session ids, output links, and errors under outputs/web-jobs/
-      or a configured job storage root.
+      briefs, project titles, statuses, session ids, output links, and errors
+      under outputs/web-jobs/ or a configured job storage root.
     read_when:
       - changing web job persistence
       - changing session job history
@@ -258,3 +259,14 @@ modules:
       - run_generation_from_brief
       - extract_project_name
       - next_project_version_outputs_dir
+
+  - name: web_local_launcher
+    path: scripts/run_web.sh
+    role: >
+      Local shell launcher for the web POC. Loads .env, applies local defaults,
+      checks OPENAI_API_KEY, and starts app/web.py with the expected browser
+      access token setup.
+    read_when:
+      - changing local web launch behavior
+      - changing .env loading
+      - changing local default environment variables

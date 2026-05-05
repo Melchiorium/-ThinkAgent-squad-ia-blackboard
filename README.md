@@ -168,15 +168,14 @@ Selon le modèle utilisé, il faut aussi configurer les variables de connexion L
 
 ## Viewer Web POC
 
-Ouvrir la home, coller un brief, lancer la génération, puis suivre le statut
-et lire le dossier généré directement dans l'interface. Les sections PRD,
-Architecture, Mermaid, GTM et logs restent visibles, et les anciens runs
-restent consultables plus bas.
+Ouvrir la home, saisir un titre de projet, coller un brief, lancer la
+génération, puis suivre le statut et lire le dossier généré directement dans
+l'interface. Les sections PRD, Architecture, Mermaid, GTM et logs restent
+visibles, et les anciens runs restent consultables plus bas.
 
 Les générations sont séparées par cookie `web_session_id` pour garder un
 historique par session navigateur. Il n'y a pas d'authentification, pas de
-comptes et pas de
-déploiement public prévu à ce stade.
+comptes et pas de déploiement public prévu à ce stade.
 
 Le CLI standard continue de fonctionner avec `python3 app/main.py`, et la
 logique de génération standard reste exposée par `app/generation_service.py`
@@ -194,19 +193,21 @@ Le disque persistant doit fournir `WEB_OUTPUTS_ROOT` et `WEB_JOBS_ROOT`.
 Si `WEB_ACCESS_TOKEN` est défini, l'URL d'accès initiale est
 `https://<render-host>/?access_token=<token>`.
 Ce POC reste en accès partagé, sans comptes ni authentification complète.
+Sur Render, les variables doivent être configurées dans le dashboard du
+service, pas dans `.env`.
 
 Pour le démarrer localement :
 
 ```bash
-python3 app/web.py
+./scripts/run_web.sh
 ```
 
-Par défaut, le serveur écoute sur `http://127.0.0.1:8000`.
-Pour un POC contrôlé sur le réseau local, utiliser :
+Le script charge `.env`, met `BLACKBOARD_PROMPT_VERSION=V3` par défaut et
+définit `WEB_ACCESS_TOKEN=demo` si aucune valeur n'est fournie. Avec ce token
+par défaut, l'URL locale à ouvrir est
+`http://127.0.0.1:8000/?access_token=demo`.
 
-```bash
-WEB_HOST=0.0.0.0 python3 app/web.py
-```
+Render ne dépend pas de `.env` local.
 
 ## Documents À Lire En Priorité
 

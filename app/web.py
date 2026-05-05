@@ -133,13 +133,25 @@ def job_status_api(job_id: str):
 
 @app.post("/jobs")
 def create_job_route():
+    project_title = request.form.get("project_title", "").strip()
     brief_text = request.form.get("brief", "").strip()
+    if not project_title:
+        return "Le titre du projet ne doit pas être vide.", 400
+    if len(project_title) > 120:
+        return "Le titre du projet dépasse la limite de 120 caractères.", 400
+    if _has_invalid_project_title_characters(project_title):
+        return "Le titre du projet contient des caractères interdits.", 400
     if not brief_text:
         return "Le brief ne doit pas être vide.", 400
     if len(brief_text) > MAX_BRIEF_CHARACTERS:
         return "Le brief dépasse la limite de 50 000 caractères.", 400
 
-    job = create_job(brief_text, g.web_session_id, jobs_root=_jobs_root())
+    job = create_job(
+        brief_text,
+        g.web_session_id,
+        project_title=project_title,
+        jobs_root=_jobs_root(),
+    )
     Thread(target=_start_generation_job, args=(job["job_id"],), daemon=True).start()
     return redirect(url_for("job_status", job_id=job["job_id"]))
 
@@ -260,6 +272,7 @@ def _build_run_view(run: dict) -> dict:
 
 def _build_job_view(job: dict) -> dict:
     view = dict(job)
+    view["display_title"] = _job_display_title(job)
     view["status_label"] = _status_label(job.get("status", ""))
     view["status_url"] = url_for("job_status", job_id=job["job_id"])
     view["status_api_url"] = url_for("job_status_api", job_id=job["job_id"])
@@ -298,6 +311,8 @@ def _build_job_status_payload(job: dict) -> dict:
         "created_at": job["created_at"],
         "updated_at": job["updated_at"],
         "brief_preview": job.get("brief_preview", ""),
+        "project_title": job.get("project_title", ""),
+        "display_title": _job_display_title(job),
         "error": job.get("error", ""),
         "run_url": run_url,
     }
@@ -393,6 +408,22 @@ def _is_allowed_artifact_filename(filename: str) -> bool:
     return True
 
 
+def _job_display_title(job: dict) -> str:
+    project_title = str(job.get("project_title", "")).strip()
+    if project_title:
+        return project_title
+    project_name = str(job.get("project_name", "")).strip()
+    if project_name:
+        return project_name
+    return "Génération"
+
+
+def _has_invalid_project_title_characters(project_title: str) -> bool:
+    if "/" in project_title or "\\" in project_title or ".." in project_title:
+        return True
+    return any(ord(character) < 32 or ord(character) == 127 for character in project_title)
+
+
 @app.get("/healthz")
 def healthz():
     return jsonify({"status": "ok"})
@@ -402,6 +433,8 @@ def _start_generation_job(job_id: str) -> None:
     job = get_job(job_id, jobs_root=_jobs_root())
     if job is None:
         return
+    effective_brief = _build_effective_brief(job)
+    project_title = str(job.get("project_title", "")).strip()
 
     with generation_lock:
         if get_job(job_id, jobs_root=_jobs_root()) is None:
@@ -409,7 +442,11 @@ def _start_generation_job(job_id: str) -> None:
 
         update_job(job_id, {"status": "running"}, jobs_root=_jobs_root())
         try:
-            result = _run_generation_runner(job["brief_text"], job_id)
+            result = _run_generation_runner(
+                effective_brief,
+                job_id,
+                project_name_override=project_title or None,
+            )
             output_dir = Path(result.output_dir)
             update_job(
                 job_id,
@@ -434,7 +471,19 @@ def _start_generation_job(job_id: str) -> None:
             )
 
 
-def _run_generation_runner(brief_text: str, job_id: str):
+def _build_effective_brief(job: dict) -> str:
+    project_title = str(job.get("project_title", "")).strip()
+    brief_text = str(job.get("brief_text", "")).strip()
+    if project_title:
+        return f"Project name: {project_title}\n\n{brief_text}"
+    return brief_text
+
+
+def _run_generation_runner(
+    brief_text: str,
+    job_id: str,
+    project_name_override: str | None = None,
+):
     runner = generation_runner
     kwargs = {"project_brief_source": f"web://job/{job_id}"}
     try:
@@ -443,6 +492,8 @@ def _run_generation_runner(brief_text: str, job_id: str):
         signature = None
 
     if signature is None:
+        if project_name_override is not None:
+            kwargs["project_name_override"] = project_name_override
         return runner(brief_text, **kwargs)
 
     if "outputs_root" in signature.parameters or any(
@@ -450,6 +501,14 @@ def _run_generation_runner(brief_text: str, job_id: str):
         for parameter in signature.parameters.values()
     ):
         kwargs["outputs_root"] = _outputs_root()
+    if project_name_override is not None and (
+        "project_name_override" in signature.parameters
+        or any(
+            parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in signature.parameters.values()
+        )
+    ):
+        kwargs["project_name_override"] = project_name_override
     return runner(brief_text, **kwargs)
 
 
