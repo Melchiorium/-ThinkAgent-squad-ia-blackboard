@@ -3,53 +3,79 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ job.job_id }}</title>
-    {% if refresh %}
-      <meta http-equiv="refresh" content="3">
-    {% endif %}
+    <title>Suivi de la génération</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='web.css') }}">
+    <script defer src="{{ url_for('static', filename='web.js') }}"></script>
   </head>
   <body>
     <main class="page page--job">
       <header class="header">
-        <a class="back-link" href="{{ url_for('index') }}">Back to inventory</a>
-        <h1>Job status</h1>
-        <p>{{ job.job_id }}</p>
+        <a class="back-link" href="{{ url_for('index') }}">Retour à l'accueil</a>
+        <h1>Suivi de génération</h1>
+        <p class="technical-id">ID technique : {{ job.job_id }}</p>
       </header>
 
-      <section class="panel">
+      <section
+        class="panel panel--status"
+        data-job-status-shell
+        data-job-status-url="{{ job.status_api_url }}"
+        data-job-page-url="{{ url_for('job_status', job_id=job.job_id) }}"
+        data-job-state="{{ job.status }}"
+      >
         <div class="job-status__topline">
-          <span class="status-badge status-badge--{{ job.status }}">{{ job.status }}</span>
-          <a class="job-status__link" href="{{ url_for('index') }}">Back to home</a>
+          <div class="job-status__statusline">
+            <span class="job-spinner" data-job-spinner aria-hidden="true"></span>
+            <span class="status-badge status-badge--{{ job.status }}" data-job-status-badge>{{ job.status_label }}</span>
+          </div>
+          <a class="job-status__link" href="{{ url_for('index') }}">Retour</a>
         </div>
         <dl class="job-status__grid">
           <div>
-            <dt>Created</dt>
+            <dt>Créé</dt>
             <dd>{{ job.created_at }}</dd>
           </div>
           <div>
-            <dt>Updated</dt>
+            <dt>Mis à jour</dt>
             <dd>{{ job.updated_at }}</dd>
           </div>
           <div>
-            <dt>Brief preview</dt>
+            <dt>Aperçu du brief</dt>
             <dd>
               <pre class="job-preview job-preview--full">{{ job.brief_preview }}</pre>
             </dd>
           </div>
         </dl>
 
-        {% if job.status == "failed" %}
-          <div class="job-status__error">
-            <h2>Error</h2>
-            <pre>{{ job.error or "No error recorded." }}</pre>
+        <div class="job-status__live">
+          <div class="job-status__message" data-job-state-message>
+            {% if job.status == "queued" %}
+              En attente de traitement.
+            {% elif job.status == "running" %}
+              Génération en cours.
+            {% elif job.status == "done" %}
+              Génération terminée.
+            {% elif job.status == "failed" %}
+              Génération en échec.
+            {% endif %}
           </div>
-        {% endif %}
+
+          <div class="job-status__error{% if job.status != 'failed' %} is-hidden{% endif %}" data-job-error>
+            <h2>Erreur</h2>
+            <pre>{{ job.error or "Aucune erreur enregistrée." }}</pre>
+          </div>
+        </div>
+
+        <div class="job-status__result-shell" data-job-result-shell>
+          {% if sections %}
+            {% include "_run_result.html" %}
+          {% else %}
+            <p class="empty">Le dossier généré apparaîtra ici une fois la génération terminée.</p>
+          {% endif %}
+        </div>
 
         {% if run_url %}
-          <div class="job-status__result">
-            <h2>Result</h2>
-            <a href="{{ run_url }}">Open generated run</a>
+          <div class="job-status__secondary-link">
+            <a href="{{ run_url }}">Ouvrir aussi le résultat complet</a>
           </div>
         {% endif %}
       </section>

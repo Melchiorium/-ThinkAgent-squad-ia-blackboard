@@ -18,6 +18,7 @@ coding_rules:
 web_rules:
   - The web access token is a POC shared-link guard. Do not expand it into full auth, accounts, roles, or OAuth unless explicitly requested.
   - Keep the Render deployment as a single-process POC unless a real external queue and shared job store are introduced.
+  - Keep the web UI generation-first: users should be able to submit a brief and read the generated dossier without understanding internal run/job paths.
 
 prompt_rules:
   - Preserve V3 as the validated prompt baseline unless explicitly working on another version.

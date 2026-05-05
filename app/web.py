@@ -123,6 +123,14 @@ def index():
     )
 
 
+@app.get("/api/jobs/<job_id>")
+def job_status_api(job_id: str):
+    job = get_job(job_id, jobs_root=_jobs_root())
+    if job is None:
+        abort(404)
+    return jsonify(_build_job_status_payload(job))
+
+
 @app.post("/jobs")
 def create_job_route():
     brief_text = request.form.get("brief", "").strip()
@@ -142,16 +150,20 @@ def job_status(job_id: str):
     if job is None:
         abort(404)
     run_url = None
+    sections = None
     if job.get("status") == "done" and job.get("run_project") and job.get("run_version"):
         run_url = url_for(
             "run_detail",
             project=job["run_project"],
             version=job["run_version"],
         )
+        run = get_run(job["run_project"], job["run_version"], outputs_root=_outputs_root())
+        if run is not None:
+            sections = _build_job_result_sections(Path(run["path"]))
     return render_template(
         "job_status.html",
         job=_build_job_view(job),
-        refresh=job.get("status") in {"queued", "running"},
+        sections=sections,
         run_url=run_url,
     )
 
@@ -162,7 +174,7 @@ def run_detail(project: str, version: str):
     if run is None:
         abort(404)
     run_path = Path(run["path"])
-    sections = _build_detail_sections(project, version, run_path)
+    sections = _build_run_detail_sections(run_path)
     return render_template(
         "run_detail.html",
         run=_build_run_view(run),
@@ -248,7 +260,9 @@ def _build_run_view(run: dict) -> dict:
 
 def _build_job_view(job: dict) -> dict:
     view = dict(job)
+    view["status_label"] = _status_label(job.get("status", ""))
     view["status_url"] = url_for("job_status", job_id=job["job_id"])
+    view["status_api_url"] = url_for("job_status_api", job_id=job["job_id"])
     if job.get("status") == "done" and job.get("run_project") and job.get("run_version"):
         view["run_url"] = url_for(
             "run_detail",
@@ -260,17 +274,76 @@ def _build_job_view(job: dict) -> dict:
     return view
 
 
-def _build_detail_sections(project: str, version: str, run_path: Path) -> list[dict]:
-    sections = [
-        _build_text_section("Brief", "project-brief.md", run_path),
-        _build_text_section("PRD", "prd.md", run_path),
-        _build_text_section("Architecture", "architecture.md", run_path),
-        _build_mermaid_section(project, version, run_path),
-        _build_text_section("GTM", "gtm.md", run_path),
-        _build_text_section("Blackboard", "blackboard.md", run_path),
-        _build_text_section("Activity Log", "activity_log.txt", run_path),
-    ]
-    return sections
+def _status_label(status: str) -> str:
+    labels = {
+        "queued": "En attente",
+        "running": "En cours",
+        "done": "Terminé",
+        "failed": "Échec",
+    }
+    return labels.get(status, status)
+
+
+def _build_job_status_payload(job: dict) -> dict:
+    run_url = None
+    if job.get("status") == "done" and job.get("run_project") and job.get("run_version"):
+        run_url = url_for(
+            "run_detail",
+            project=job["run_project"],
+            version=job["run_version"],
+        )
+    return {
+        "job_id": job["job_id"],
+        "status": job["status"],
+        "created_at": job["created_at"],
+        "updated_at": job["updated_at"],
+        "brief_preview": job.get("brief_preview", ""),
+        "error": job.get("error", ""),
+        "run_url": run_url,
+    }
+
+
+def _build_run_detail_sections(run_path: Path) -> list[dict]:
+    return _build_sections(
+        run_path,
+        order=[
+            "Brief",
+            "PRD",
+            "Architecture",
+            "Diagramme Mermaid",
+            "GTM",
+            "Blackboard",
+            "Activity Log",
+        ],
+    )
+
+
+def _build_job_result_sections(run_path: Path) -> list[dict]:
+    return _build_sections(
+        run_path,
+        order=[
+            "PRD",
+            "Architecture",
+            "Diagramme Mermaid",
+            "GTM",
+            "Brief",
+            "Blackboard",
+            "Activity Log",
+        ],
+    )
+
+
+def _build_sections(run_path: Path, order: list[str]) -> list[dict]:
+    all_sections = {
+        "Brief": _build_text_section("Brief", "project-brief.md", run_path),
+        "PRD": _build_text_section("PRD", "prd.md", run_path),
+        "Architecture": _build_text_section("Architecture", "architecture.md", run_path),
+        "Diagramme Mermaid": _build_mermaid_section(run_path),
+        "GTM": _build_text_section("GTM", "gtm.md", run_path),
+        "Blackboard": _build_text_section("Blackboard", "blackboard.md", run_path),
+        "Activity Log": _build_text_section("Activity Log", "activity_log.txt", run_path),
+    }
+    return [all_sections[title] for title in order]
 
 
 def _build_text_section(title: str, filename: str, run_path: Path) -> dict:
@@ -284,7 +357,7 @@ def _build_text_section(title: str, filename: str, run_path: Path) -> dict:
     }
 
 
-def _build_mermaid_section(project: str, version: str, run_path: Path) -> dict:
+def _build_mermaid_section(run_path: Path) -> dict:
     filename = "architecture-diagram.mmd"
     content = _read_text_file(run_path / filename)
     png_filename = "architecture-diagram.png"

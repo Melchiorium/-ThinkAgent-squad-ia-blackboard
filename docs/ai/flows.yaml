@@ -186,6 +186,23 @@ web_render_poc_deployment_flow:
     - no horizontal scaling
     - POC audit deployment only
 
+web_unified_generation_ui_flow:
+  owner: app/web.py and app/templates/
+  status: poc_ui
+  steps:
+    - render generation-first home page
+    - accept a brief from the user
+    - create a session-scoped generation job
+    - show queued/running/done/failed status
+    - poll job status when JavaScript is available
+    - display generated artifacts inline when the job is done
+    - keep existing run detail pages available
+  limitations:
+    - no full authentication
+    - no multi-user accounts
+    - no distributed queue
+    - no fine-grained agent step telemetry yet
+
 recommended_change_discipline:
   - prefer one small workflow or prompt change at a time
   - validate first on CareSync and LocalLoop when changing behavior

@@ -1,0 +1,33 @@
+<div class="run-result" data-run-result>
+  {% for section in sections %}
+    {% set emphasis = "run-result__section--high" if section.title in ["PRD", "Architecture", "Diagramme Mermaid", "GTM"] else "run-result__section--low" %}
+    <article class="run-result__section {{ emphasis }}">
+      <div class="section__header">
+        <h2>{{ section.title }}</h2>
+        {% if section.artifact_url %}
+          <a href="{{ section.artifact_url }}">Ouvrir le fichier</a>
+        {% endif %}
+      </div>
+
+      {% if section.filename == "architecture-diagram.mmd" %}
+        <div class="section__image">
+          {% if section.png_present %}
+            <img
+              class="artifact-image"
+              src="{{ section.png_url }}"
+              alt="Diagramme d'architecture"
+            >
+          {% else %}
+            <p class="empty">Image Mermaid absente.</p>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if section.present %}
+        <pre class="section__content">{{ section.content }}</pre>
+      {% else %}
+        <p class="empty">Fichier absent.</p>
+      {% endif %}
+    </article>
+  {% endfor %}
+</div>

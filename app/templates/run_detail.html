@@ -9,42 +9,13 @@
   <body>
     <main class="page page--detail">
       <header class="header">
-        <a class="back-link" href="{{ url_for('index') }}">Back to inventory</a>
+        <a class="back-link" href="{{ url_for('index') }}">Retour à l'accueil</a>
         <h1>{{ run.project }}</h1>
         <p>{{ run.version }}</p>
       </header>
 
-      <section class="detail-stack">
-        {% for section in sections %}
-          <article class="section">
-            <div class="section__header">
-              <h2>{{ section.title }}</h2>
-              {% if section.artifact_url %}
-                <a href="{{ section.artifact_url }}">Open file</a>
-              {% endif %}
-            </div>
-
-            {% if section.filename == "architecture-diagram.mmd" %}
-              <div class="section__image">
-                {% if section.png_present %}
-                  <img
-                    class="artifact-image"
-                    src="{{ section.png_url }}"
-                    alt="Architecture diagram"
-                  >
-                {% else %}
-                  <p class="empty">Image Mermaid absente.</p>
-                {% endif %}
-              </div>
-            {% endif %}
-
-            {% if section.present %}
-              <pre class="section__content">{{ section.content }}</pre>
-            {% else %}
-              <p class="empty">Fichier absent.</p>
-            {% endif %}
-          </article>
-        {% endfor %}
+      <section class="panel">
+        {% include "_run_result.html" %}
       </section>
     </main>
   </body>

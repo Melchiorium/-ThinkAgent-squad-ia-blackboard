@@ -177,10 +177,12 @@ modules:
       Flask server for the POC viewer, job flow, and shared-link access gate.
       Runs locally with the Flask dev server or on Render via Gunicorn. Lists
       runs on /, accepts briefs on POST /jobs, shows session jobs on /,
-      renders job status on /jobs/<job_id>, renders run details on
-      /runs/<project>/<version>, serves allowlisted artifacts on
-      /runs/<project>/<version>/artifacts/<filename>, exposes /healthz, and
-      protects the application routes with WEB_ACCESS_TOKEN when configured.
+      renders job status on /jobs/<job_id>, exposes JSON status on
+      /api/jobs/<job_id>, renders run details on /runs/<project>/<version>,
+      serves allowlisted artifacts on /runs/<project>/<version>/artifacts/<filename>,
+      reuses _run_result.html for inline generated dossiers, loads web.js for
+      polling, exposes /healthz, and protects the application routes with
+      WEB_ACCESS_TOKEN when configured.
     read_when:
       - changing Flask routes
       - changing templates
@@ -191,9 +193,11 @@ modules:
       - changing access control behavior
       - changing deployment or healthcheck behavior
       - changing persistent storage defaults
+      - changing generation-first home layout
     key_functions:
       - app
       - index
+      - job_status_api
       - create_job_route
       - job_status
       - run_detail
@@ -203,6 +207,11 @@ modules:
       - _outputs_root
       - _jobs_root
       - _run_generation_runner
+      - _build_job_status_payload
+      - _build_run_detail_sections
+      - _build_job_result_sections
+      - _build_sections
+      - _status_label
 
   - name: web_jobs
     path: app/web_jobs.py

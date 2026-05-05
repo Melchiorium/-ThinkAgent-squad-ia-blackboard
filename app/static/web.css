@@ -11,8 +11,17 @@ body {
   padding: 40px 24px 56px;
 }
 
+.page--job,
+.page--detail {
+  max-width: 1100px;
+}
+
 .header {
   margin-bottom: 24px;
+}
+
+.header--hero {
+  margin-bottom: 20px;
 }
 
 .header h1 {
@@ -26,12 +35,42 @@ body {
   color: #4b5563;
 }
 
+.technical-id {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 8px !important;
+  color: #1d4ed8 !important;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header--hero h1 {
+  font-size: 34px;
+}
+
 .panel {
   margin-bottom: 20px;
   padding: 18px;
   border: 1px solid #d7dbe0;
   border-radius: 8px;
   background: #ffffff;
+  animation: panel-enter 320ms ease-out both;
+}
+
+.panel--primary {
+  border-color: #bfd4ff;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.panel--status {
+  position: relative;
 }
 
 .panel__header {
@@ -116,6 +155,13 @@ body {
   border: 1px solid #d7dbe0;
   border-radius: 8px;
   background: #fefefe;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.job-card:hover {
+  transform: translateY(-1px);
+  border-color: #c7d2fe;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .job-card__header,
@@ -166,6 +212,7 @@ body {
   letter-spacing: 0.04em;
   background: #e5e7eb;
   color: #374151;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
 }
 
 .status-badge--queued {
@@ -188,6 +235,11 @@ body {
   color: #b91c1c;
 }
 
+.status-badge--queued,
+.status-badge--running {
+  animation: status-pulse 1.8s ease-in-out infinite;
+}
+
 .job-preview {
   margin: 12px 0 0;
   padding: 12px;
@@ -202,6 +254,27 @@ body {
 
 .job-preview--full {
   max-height: 260px;
+}
+
+.job-status__statusline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.job-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #cbd5e1;
+  border-top-color: #1d4ed8;
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.job-spinner.is-active {
+  opacity: 1;
+  animation: spin 0.8s linear infinite;
 }
 
 .job-status__grid {
@@ -240,6 +313,39 @@ body {
   word-break: break-word;
 }
 
+.job-status__live {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.job-status__message {
+  color: #4b5563;
+}
+
+.job-status__result-shell {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.job-status__secondary-link {
+  margin-top: 12px;
+}
+
+.job-status__secondary-link a {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.job-status__secondary-link a:hover {
+  text-decoration: underline;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
 .job-status__result a {
   color: #1d4ed8;
   text-decoration: none;
@@ -263,6 +369,30 @@ body {
   color: #4b5563;
 }
 
+.run-result {
+  display: grid;
+  gap: 12px;
+}
+
+.run-result__section {
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.run-result__section--high {
+  background: #ffffff;
+}
+
+.run-result__section--low {
+  background: #fbfbfc;
+}
+
+.run-result__section .section__content {
+  max-height: 460px;
+}
+
 .runs {
   display: grid;
   gap: 12px;
@@ -276,6 +406,13 @@ body {
   border: 1px solid #d7dbe0;
   border-radius: 8px;
   background: #ffffff;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.run:hover {
+  transform: translateY(-1px);
+  border-color: #c7d2fe;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .run__meta h2 {
@@ -396,4 +533,44 @@ body {
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   background: #fff;
+}
+
+@keyframes panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes status-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .job-card,
+  .run,
+  .status-badge--queued,
+  .status-badge--running,
+  .job-spinner.is-active {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 }

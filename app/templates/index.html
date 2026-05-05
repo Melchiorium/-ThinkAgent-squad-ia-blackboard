@@ -3,26 +3,27 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Run inventory</title>
+    <title>Générer un dossier projet</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='web.css') }}">
   </head>
   <body>
     <main class="page">
-      <header class="header">
-        <h1>Inventory of generated runs</h1>
-        <p>{{ run_count }} run{{ "s" if run_count != 1 else "" }} available.</p>
+      <header class="header header--hero">
+        <p class="eyebrow">POC de génération</p>
+        <h1>Générer un dossier projet</h1>
+        <p>Collez un brief, lancez la génération, puis suivez le résultat plus bas.</p>
       </header>
 
-      <section class="panel">
+      <section class="panel panel--primary">
         <div class="panel__header">
           <div>
-            <h2>Submit a brief</h2>
-            <p>Create a web job for this browser session.</p>
+            <h2>Brief projet</h2>
+            <p>Action principale de cette page.</p>
           </div>
         </div>
 
         <form class="brief-form" method="post" action="{{ url_for('create_job_route') }}">
-          <label for="brief">Brief</label>
+          <label for="brief">Collez le brief</label>
           <textarea
             id="brief"
             name="brief"
@@ -32,7 +33,7 @@
           ></textarea>
           <div class="brief-form__actions">
             <p>{{ max_brief_characters }} characters max.</p>
-            <button type="submit">Create job</button>
+            <button type="submit">Lancer la génération</button>
           </div>
         </form>
       </section>
@@ -40,8 +41,8 @@
       <section class="panel">
         <div class="panel__header">
           <div>
-            <h2>Mes jobs</h2>
-            <p>{{ job_count }} job{{ "s" if job_count != 1 else "" }} for this session.</p>
+            <h2>Mes générations</h2>
+            <p>{{ job_count }} génération{{ "s" if job_count != 1 else "" }} pour cette session.</p>
           </div>
         </div>
 
@@ -51,25 +52,26 @@
               <article class="job-card">
                 <div class="job-card__header">
                   <div>
-                    <h3>{{ job.job_id }}</h3>
+                    <h3>Génération</h3>
+                    <p class="technical-id">ID technique : {{ job.job_id }}</p>
                     <p>{{ job.created_at }}</p>
                   </div>
-                  <span class="status-badge status-badge--{{ job.status }}">{{ job.status }}</span>
+                  <span class="status-badge status-badge--{{ job.status }}">{{ job.status_label }}</span>
                 </div>
 
                 <pre class="job-preview">{{ job.brief_preview }}</pre>
 
                 <div class="job-card__links">
-                  <a href="{{ job.status_url }}">Open status</a>
+                  <a href="{{ job.status_url }}">Ouvrir le suivi</a>
                   {% if job.run_url %}
-                    <a href="{{ job.run_url }}">Open result</a>
+                    <a href="{{ job.run_url }}">Ouvrir le résultat</a>
                   {% endif %}
                 </div>
               </article>
             {% endfor %}
           </div>
         {% else %}
-          <p class="empty">No jobs for this session.</p>
+          <p class="empty">Aucune génération pour cette session.</p>
         {% endif %}
       </section>
 
@@ -77,8 +79,8 @@
         <section class="panel">
           <div class="panel__header">
             <div>
-              <h2>Run inventory</h2>
-              <p>Generated runs discovered under outputs/tests/.</p>
+              <h2>Dossiers générés existants</h2>
+              <p>Résultats déjà générés, accessibles en dessous.</p>
             </div>
           </div>
 
@@ -92,20 +94,20 @@
 
               <div class="run__details">
                 <p class="run__summary">
-                  {{ run.present_file_count }} / {{ run.total_file_count }} files present
+                  {{ run.present_file_count }} / {{ run.total_file_count }} fichiers présents
                 </p>
                 {% if run.missing_files %}
                   <p class="run__missing">
-                    Missing: {{ run.missing_files | join(", ") }}
+                    Manquants : {{ run.missing_files | join(", ") }}
                   </p>
                 {% else %}
-                  <p class="run__missing run__missing--ok">All expected files present.</p>
+                  <p class="run__missing run__missing--ok">Tous les fichiers attendus sont présents.</p>
                 {% endif %}
                 <a
                   class="run__link"
                   href="{{ url_for('run_detail', project=run.project, version=run.version) }}"
                 >
-                  Open run detail
+                  Ouvrir le dossier
                 </a>
               </div>
             </article>
@@ -113,7 +115,7 @@
           </div>
         </section>
       {% else %}
-        <p class="empty">No generated runs found.</p>
+        <p class="empty">Aucun dossier généré trouvé.</p>
       {% endif %}
     </main>
   </body>
