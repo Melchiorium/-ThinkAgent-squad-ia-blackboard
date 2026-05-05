@@ -270,3 +270,13 @@ modules:
       - changing local web launch behavior
       - changing .env loading
       - changing local default environment variables
+
+  - name: render_poc_deployment_doc
+    path: docs/render-poc-deployment.md
+    role: >
+      Operational checklist for creating, smoke-testing, and persisting the
+      Render web POC.
+    read_when:
+      - configuring the Render service manually
+      - documenting smoke-test results
+      - verifying persistent disk behavior

@@ -186,6 +186,16 @@ Si `WEB_ACCESS_TOKEN` est défini, ouvrir le viewer avec
 un cookie local `web_access_granted`. Ce mécanisme n'est pas une authentification
 complète et le lien ne doit pas être partagé publiquement.
 
+La checklist Render détaillée est dans
+[docs/render-poc-deployment.md](docs/render-poc-deployment.md).
+
+### Tester en ligne
+
+L'app Render se teste via l'URL du service, puis avec
+`?access_token=<token>`. Le test utilisateur consiste à saisir un titre de
+projet, coller un brief, lancer la génération et lire le résultat inline.
+Ne publiez jamais le token.
+
 ### Déploiement Render POC
 
 Render démarre l'app via `Procfile` et Gunicorn, avec un seul worker.

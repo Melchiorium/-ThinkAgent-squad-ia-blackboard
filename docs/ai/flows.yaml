@@ -180,12 +180,30 @@ web_render_poc_deployment_flow:
     - use WEB_OUTPUTS_ROOT and WEB_JOBS_ROOT on persistent disk
     - when WEB_OUTPUTS_ROOT is unset and repository outputs are not writable, fall back to ephemeral /tmp storage for free-host tests
     - expose /healthz for service healthcheck
+    - run the deployed smoke test against the Render URL and document the result
   limitations:
     - no full authentication
     - no user accounts
     - no distributed job queue
     - no horizontal scaling
     - POC audit deployment only
+
+web_render_smoke_test_flow:
+  owner: docs/render-poc-deployment.md
+  status: smoke_test
+  steps:
+    - open /healthz and confirm 200
+    - open the home page without token and confirm access is denied
+    - open the home page with ?access_token=<token> and confirm the viewer loads
+    - submit a project title and brief
+    - wait for the generation to finish
+    - verify PRD, Architecture, Mermaid, GTM and logs are visible inline
+    - verify the run appears in the session list and existing runs list
+  limitations:
+    - no persistence guarantee without a mounted disk
+    - no full authentication
+    - no user accounts
+    - no distributed job queue
 
 web_local_launcher_flow:
   owner: scripts/run_web.sh
