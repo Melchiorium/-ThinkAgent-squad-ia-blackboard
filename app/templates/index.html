@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Run inventory</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='web.css') }}">
+  </head>
+  <body>
+    <main class="page">
+      <header class="header">
+        <h1>Inventory of generated runs</h1>
+        <p>{{ run_count }} run{{ "s" if run_count != 1 else "" }} available.</p>
+      </header>
+
+      {% if runs %}
+        <section class="runs">
+          {% for run in runs %}
+            <article class="run">
+              <div class="run__meta">
+                <h2>{{ run.project }}</h2>
+                <p>{{ run.version }}</p>
+              </div>
+
+              <div class="run__details">
+                <p class="run__summary">
+                  {{ run.present_file_count }} / {{ run.total_file_count }} files present
+                </p>
+                {% if run.missing_files %}
+                  <p class="run__missing">
+                    Missing: {{ run.missing_files | join(", ") }}
+                  </p>
+                {% else %}
+                  <p class="run__missing run__missing--ok">All expected files present.</p>
+                {% endif %}
+                <a
+                  class="run__link"
+                  href="{{ url_for('run_detail', project=run.project, version=run.version) }}"
+                >
+                  Open run detail
+                </a>
+              </div>
+            </article>
+          {% endfor %}
+        </section>
+      {% else %}
+        <p class="empty">No generated runs found.</p>
+      {% endif %}
+    </main>
+  </body>
+</html>

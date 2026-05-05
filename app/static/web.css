@@ -1,0 +1,162 @@
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1f2937;
+  background: #f7f7f8;
+}
+
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 24px 56px;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  margin: 0 0 8px;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.header p {
+  margin: 0;
+  color: #4b5563;
+}
+
+.runs {
+  display: grid;
+  gap: 12px;
+}
+
+.run {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 18px;
+  border: 1px solid #d7dbe0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.run__meta h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+
+.run__meta p,
+.run__summary,
+.run__missing {
+  margin: 0;
+  color: #6b7280;
+}
+
+.run__details {
+  text-align: right;
+}
+
+.run__summary {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.run__missing {
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.run__missing--ok {
+  color: #047857;
+}
+
+.run__link {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.run__link:hover {
+  text-decoration: underline;
+}
+
+.empty {
+  margin: 0;
+  color: #4b5563;
+}
+
+.page--detail {
+  max-width: 1100px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
+.detail-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.section {
+  padding: 18px;
+  border: 1px solid #d7dbe0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.section__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.section__header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.section__header a {
+  color: #1d4ed8;
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.section__header a:hover {
+  text-decoration: underline;
+}
+
+.section__content {
+  margin: 0;
+  padding: 14px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 560px;
+}
+
+.section__image {
+  margin-bottom: 12px;
+}
+
+.artifact-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
