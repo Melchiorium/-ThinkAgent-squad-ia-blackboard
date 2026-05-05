@@ -1,0 +1,95 @@
+version: 1
+
+system:
+  name: squad-ia-blackboard
+  type: local_python_generation_pipeline
+  purpose: >
+    Turn one project brief into a multi-agent startup dossier: PRD,
+    architecture notes, Mermaid architecture diagram, GTM plan, blackboard
+    trace, and activity log.
+
+architecture:
+  style: explicit_orchestration_with_shared_blackboard
+  runtime: python_script
+  entrypoint: app/main.py
+  orchestrator: app/orchestrator.py
+  shared_state: app/blackboard.py
+  llm_layer: app/llm.py
+  diagram_renderer: app/architecture_render.py
+  outputs_root: outputs/tests/
+
+agent_model:
+  agents:
+    - Product
+    - Growth
+    - Tech
+  collaboration_model: >
+    Agents do not communicate directly. They read and write the shared
+    blackboard. Product is the final arbiter of Tech and Growth input.
+  standard_order:
+    - Product initial draft
+    - Growth review
+    - Tech review
+    - Product revision and arbitration
+    - Readiness aggregation
+    - Targeted correction loop when global readiness is LIMITED
+    - Product locking pass
+    - Artifact writing
+
+validated_baseline:
+  workflow: "validated standard workflow"
+  prompt_version: V3
+  important_note: >
+    The Python code defaults to prompt version V2. Validated runs should set
+    BLACKBOARD_PROMPT_VERSION=V3 unless the task explicitly concerns another
+    prompt generation.
+  deployment_assumption: >
+    V3 prompts assume projects are implemented in Paris, France unless a brief
+    explicitly contradicts that context.
+
+external_dependencies:
+  python:
+    package_manager: pip
+    requirements: requirements.txt
+    key_dependency: openai
+  node:
+    package_manager: npm
+    package_manifest: package.json
+    key_dependency: "@mermaid-js/mermaid-cli"
+    purpose: render Mermaid diagrams to PNG through mmdc
+
+llm_configuration:
+  openai_compatible:
+    env:
+      - OPENAI_API_KEY
+      - OPENAI_BASE_URL
+      - OPENAI_MODEL
+  gemini_openai_compat:
+    env:
+      - GEMINI_API_KEY
+      - GEMINI_BASE_URL
+      - GEMINI_MODEL
+  behavior: >
+    app/llm.py prefers OpenAI env vars when OPENAI_API_KEY exists, otherwise
+    falls back to Gemini-compatible env vars, otherwise raises for missing API key.
+
+non_core_areas:
+  experimental_workflows:
+    - second_pass_revision
+    - solution_proposal_experiments
+  experimental_note: >
+    Second-pass revision exists in code but is hardcoded and should be treated
+    as historical/experimental unless a task explicitly asks to revive it.
+  generated_history:
+    - outputs/tests/
+    - outputs/tests_preliminaires/
+    - outputs/dev-steps/
+  development_agent_prompts:
+    - dev-agents/
+    - outputs/architecte-dev.md
+  historical_prompt_sets:
+    - app/prompts/
+    - app/prompts V2/
+  note: >
+    These areas are useful for audits and history. Do not read them by default
+    when implementing runtime changes.

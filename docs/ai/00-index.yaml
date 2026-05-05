@@ -1,0 +1,107 @@
+version: 1
+
+purpose: >
+  Navigation entry point for coding agents. Read this file first, then load only
+  the memory files needed for the task. Do not explore the repository blindly.
+
+entrypoints:
+  system: docs/ai/system.yaml
+  modules: docs/ai/modules.yaml
+  contracts: docs/ai/contracts.yaml
+  flows: docs/ai/flows.yaml
+  rules: docs/ai/rules.yaml
+
+read_order:
+  - system
+  - modules
+  - contracts
+  - flows
+  - rules
+
+key_paths:
+  runtime_entry: app/main.py
+  orchestration: app/orchestrator.py
+  shared_memory_schema: app/blackboard.py
+  llm_client: app/llm.py
+  readiness_parser: app/readiness.py
+  architecture_renderer: app/architecture_render.py
+  active_prompts: app/prompts V3/
+  historical_prompts:
+    - app/prompts/
+    - app/prompts V2/
+  project_briefs: outputs/projects/
+  generated_runs: outputs/tests/
+  preliminary_runs: outputs/tests_preliminaires/
+  workflow_doc: outputs/workflow.md
+  final_report: outputs/rapport_final.md
+  package_manifest: package.json
+  python_requirements: requirements.txt
+
+task_routing:
+  run_generation:
+    read:
+      - system
+      - flows
+      - modules
+      - contracts
+    primary_files:
+      - app/main.py
+      - app/orchestrator.py
+      - app/agents/product_agent.py
+      - app/agents/growth_agent.py
+      - app/agents/tech_agent.py
+  modify_agent_behavior:
+    read:
+      - system
+      - modules
+      - contracts
+      - flows
+      - rules
+    primary_files:
+      - app/agents/
+      - app/prompts V3/
+      - app/readiness.py
+  modify_blackboard_or_contracts:
+    read:
+      - contracts
+      - flows
+      - rules
+    primary_files:
+      - app/blackboard.py
+      - app/main.py
+      - app/orchestrator.py
+      - app/readiness.py
+  modify_outputs_or_rendering:
+    read:
+      - contracts
+      - flows
+    primary_files:
+      - app/main.py
+      - app/architecture_render.py
+      - package.json
+      - mermaid-puppeteer-config.json
+  audit_or_quality_review:
+    read:
+      - system
+      - modules
+      - contracts
+      - flows
+      - rules
+    primary_files:
+      - README.md
+      - outputs/workflow.md
+      - app/
+
+rules:
+  no_repo_scan: true
+  must_use_index: true
+  read_outputs_selectively: true
+  prefer_active_prompts_v3: true
+  preserve_generated_history: true
+
+notes:
+  - "Use README.md for human overview, but use docs/ai/*.yaml for deterministic agent navigation."
+  - "Generated output folders are large; read only the specific project/version needed."
+  - "Code default prompt version is V2, but the validated baseline uses BLACKBOARD_PROMPT_VERSION=V3."
+  - "Use the name validated standard workflow in docs; run_v0_flow is the code function name."
+  - "Second pass is historical/experimental unless a task explicitly asks to revive it."

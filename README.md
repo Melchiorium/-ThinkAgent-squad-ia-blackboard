@@ -166,6 +166,26 @@ python3 app/main.py
 
 Selon le modèle utilisé, il faut aussi configurer les variables de connexion LLM attendues par `app/llm.py`.
 
+## Viewer Web POC
+
+Le viewer web POC permet de consulter les runs existants sous
+`outputs/tests/<Project>/version X/` depuis un navigateur.
+
+Il ne lance aucune génération, aucun appel LLM et aucun formulaire de brief.
+
+Pour le démarrer localement :
+
+```bash
+python3 app/web.py
+```
+
+Par défaut, le serveur écoute sur `http://127.0.0.1:8000`.
+Pour un POC contrôlé sur le réseau local, utiliser :
+
+```bash
+WEB_HOST=0.0.0.0 python3 app/web.py
+```
+
 ## Documents À Lire En Priorité
 
 Pour auditer rapidement :

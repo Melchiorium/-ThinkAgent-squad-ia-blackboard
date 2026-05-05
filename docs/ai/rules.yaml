@@ -1,0 +1,54 @@
+version: 1
+
+navigation_rules:
+  - Read docs/ai/00-index.yaml before coding.
+  - Use task_routing from the index to choose memory and source files.
+  - Do not scan outputs/ broadly. Read only the specific generated run needed.
+  - Do not infer active prompts from folder names. The validated prompt set is app/prompts V3/.
+  - Use README.md and outputs/workflow.md for context, but keep docs/ai as the deterministic entry point.
+
+coding_rules:
+  - Keep code simple and readable for a developer with moderate experience.
+  - Prefer modular changes that match existing file responsibilities.
+  - Respect the blackboard schema as a contract across modules.
+  - Do not introduce new workflow concepts without updating flows.yaml and contracts.yaml.
+  - Do not change prompt output headings without updating parsers and contracts.yaml.
+  - Do not add broad abstractions unless they remove real duplication or clarify ownership.
+
+prompt_rules:
+  - Preserve V3 as the validated prompt baseline unless explicitly working on another version.
+  - Keep the V3 Paris/France deployment assumption as a global baseline rule unless a brief explicitly contradicts it.
+  - Keep Product focused on MVP scope, arbitration, and final locking.
+  - Keep Growth focused on launch realism and market access.
+  - Keep Tech focused on feasibility, architecture, controls, and Mermaid output.
+  - Do not let Growth add architecture content.
+  - Do not let Tech add GTM content except direct technical or operational constraints.
+
+output_rules:
+  - Treat outputs/tests/ and outputs/tests_preliminaires/ as generated history.
+  - Do not overwrite generated runs manually unless the task explicitly requires it.
+  - New normal runs should create a new version directory through app/main.py.
+  - architecture-diagram.png is conditional on Mermaid CLI availability.
+  - Treat second-pass outputs as experimental history, not the normal output path.
+
+quality_rules:
+  - If changing runtime code, run python3 -m compileall app when feasible.
+  - If changing Mermaid rendering, verify mmdc availability or run a targeted render.
+  - If changing prompt contracts, inspect parser expectations before editing prompts.
+  - If changing correction loop logic, verify ownership and max-loop behavior.
+  - If information is missing and cannot be recovered from docs/ai or targeted source reads, stop and ask the user.
+
+forbidden:
+  - blind repository scanning after memory exists
+  - unvalidated breaking changes to blackboard keys
+  - broad rewrites of generated output history
+  - silent changes to the validated baseline assumption
+  - adding dependencies without clear runtime need
+
+memory_update_protocol:
+  new_module: update docs/ai/modules.yaml
+  changed_contract: update docs/ai/contracts.yaml
+  changed_workflow: update docs/ai/flows.yaml
+  new_guardrail_or_bug_prevention: update docs/ai/rules.yaml
+  changed_navigation_or_entrypoint: update docs/ai/00-index.yaml
+  changed_architecture_baseline: update docs/ai/system.yaml

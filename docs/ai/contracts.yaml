@@ -1,0 +1,173 @@
+version: 1
+
+blackboard_contract:
+  source: app/blackboard.py
+  created_by: create_blackboard
+  rule: >
+    Treat blackboard keys as a cross-module contract. If a key changes, update
+    all producers, consumers, renderers, and docs/ai memory.
+  core_fields:
+    input:
+      - project_brief
+      - project_brief_source
+      - source_version
+      - source_artifacts
+      - executive_evaluation
+    drafts:
+      - prd_draft
+      - prd_draft_initial
+      - product_initial_draft
+      - product_revised_draft
+      - product_post_correction_drafts
+      - product_locked_draft
+      - architecture_notes
+      - mermaid_diagram
+      - gtm_notes
+    expert_state:
+      - expert_contributions
+      - expert_decisions
+      - requested_changes
+      - review_summaries
+    decision_state:
+      - arbitration
+      - product_locking
+      - retained_decisions
+      - deferred_decisions
+      - rejected_changes
+      - open_points
+      - unresolved_tensions
+      - applied_changes
+      - decisions
+    readiness_and_trace:
+      - readiness
+      - workflow_trace
+      - activity_log
+    artifacts:
+      - artifacts
+      - risks
+      - conflicts
+
+readiness_contract:
+  source: app/readiness.py
+  allowed_statuses:
+    - READY
+    - LIMITED
+    - INSUFFICIENT
+  parsed_shape:
+    status: string
+    blocking_gaps: "list of {tag, text}"
+    required_improvements: "list of {tag, text}"
+    known_tags: "list of snake_case strings"
+    tag_registry: object
+    parse_warning: string
+  required_markdown_shape: |
+    Status: READY / LIMITED / INSUFFICIENT
+
+    Blocking Gaps:
+    - [tag_name] gap text
+
+    Required Improvements:
+    - [tag_name] improvement text
+  aggregation_rule: >
+    Any INSUFFICIENT makes global readiness INSUFFICIENT. Otherwise any LIMITED
+    makes global readiness LIMITED. All READY makes global readiness READY.
+
+agent_output_contracts:
+  product:
+    active_prompt: app/prompts V3/product_prompt.md
+    parsed_sections:
+      readiness_headings:
+        - "## Product Readiness"
+        - "## Investment Readiness"
+      arbitration_heading: "## Product Arbitration"
+      locking_heading: "## Product Locking"
+    important_subsections:
+      product_readiness:
+        - Status
+        - Blocking Gaps
+        - Required Improvements
+      product_arbitration:
+        - Retained
+        - Deferred
+        - Rejected
+        - Open Points
+        - Rationales
+      product_locking:
+        - Confirmed In Scope
+        - Confirmed Deferred
+        - Confirmed Out Of Scope
+        - Locking Note
+
+  growth:
+    active_prompt: app/prompts V3/growth_prompt.md
+    parsed_sections:
+      summary: "## Review Summary"
+      decisions: "### 2 to 3 Structural GTM Decisions"
+      requested_changes: "## Requested Changes"
+      risks: "## Risks"
+      open_questions: "## Open Questions"
+      readiness: "## GTM Readiness"
+    fallback: >
+      If structural GTM decisions are missing, first requested changes are used
+      as decisions.
+
+  tech:
+    active_prompt: app/prompts V3/tech_prompt.md
+    parsed_sections:
+      summary: "## Review Summary"
+      decisions: "### Structural Technical Decisions"
+      requested_changes: "## Requested Changes"
+      risks: "## Risks"
+      open_questions: "## Open Questions"
+      readiness: "## Technical Readiness"
+      mermaid: "### Mermaid Diagram"
+    fallback: >
+      If structural technical decisions are missing, first requested changes are
+      used as decisions.
+
+output_artifacts_contract:
+  written_by: app/main.py
+  normal_output_dir: "outputs/tests/<Project Name>/version X/"
+  files:
+    required:
+      - project-brief.md
+      - prd.md
+      - architecture.md
+      - gtm.md
+      - blackboard.md
+      - activity_log.txt
+    conditional:
+      - architecture-diagram.mmd
+      - architecture-diagram.png
+      - evaluator-report.md
+  rule: >
+    Do not edit generated history casually. New runs should create a new version
+    directory through app/main.py unless the task explicitly asks to patch an
+    existing output.
+
+environment_contract:
+  project_selection:
+    - BLACKBOARD_PROJECT_NAME
+    - BLACKBOARD_PROJECT_BRIEF
+  prompt_selection:
+    variable: BLACKBOARD_PROMPT_VERSION
+    code_default: V2
+    validated_value: V3
+  workflow_mode:
+    variable: BLACKBOARD_WORKFLOW_MODE
+    supported_values:
+      - second_pass
+    caveat: >
+      Second pass is a historical/experimental mode and is currently partly
+      hardcoded in app/main.py. It is not part of the validated standard flow.
+  evaluator_report:
+    - BLACKBOARD_EVALUATOR_REPORT
+  llm:
+    openai:
+      - OPENAI_API_KEY
+      - OPENAI_BASE_URL
+      - OPENAI_MODEL
+    gemini:
+      - GEMINI_API_KEY
+      - GEMINI_BASE_URL
+      - GEMINI_MODEL

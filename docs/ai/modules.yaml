@@ -1,0 +1,183 @@
+version: 1
+
+modules:
+  - name: main
+    path: app/main.py
+    role: >
+      Runtime entrypoint. Selects the project brief, chooses first-pass or
+      second-pass flow, writes final artifacts, and renders blackboard.md.
+    read_when:
+      - changing input selection
+      - changing output files
+      - changing run modes
+      - debugging artifact writing
+    key_functions:
+      - main
+      - _load_project_brief
+      - _select_project_brief_path
+      - _write_run_artifacts
+      - _next_project_version_outputs_dir
+      - _load_second_pass_sources
+
+  - name: orchestrator
+    path: app/orchestrator.py
+    role: >
+      Defines the deterministic agent execution order, readiness aggregation,
+      and bounded correction loop.
+    read_when:
+      - changing workflow order
+      - changing correction loop behavior
+      - changing readiness task ownership
+    key_functions:
+      - run_v0_flow
+      - run_v2_flow
+      - _finalize_readiness
+      - _run_targeted_correction_loop
+      - _build_correction_plan
+
+  - name: blackboard
+    path: app/blackboard.py
+    role: >
+      Defines the shared in-memory state schema passed between agents.
+    read_when:
+      - adding or renaming blackboard fields
+      - modifying artifact state
+      - modifying readiness state
+      - modifying trace fields
+    key_functions:
+      - create_blackboard
+
+  - name: product_agent
+    path: app/agents/product_agent.py
+    role: >
+      Produces initial PRD, second-pass PRD, final PRD revision, arbitration,
+      and final Product locking pass.
+    read_when:
+      - changing PRD behavior
+      - changing Product arbitration parsing
+      - changing final MVP locking behavior
+    key_functions:
+      - run_product_agent
+      - run_product_second_pass_initial
+      - run_product_revision
+      - run_product_locking_pass
+
+  - name: growth_agent
+    path: app/agents/growth_agent.py
+    role: >
+      Reviews the PRD from launch, market access, and GTM perspective. Writes
+      GTM notes and structured Growth contribution into the blackboard.
+    read_when:
+      - changing GTM review behavior
+      - changing Growth output parsing
+      - changing correction task handling for Growth
+    key_functions:
+      - run_growth_agent
+
+  - name: tech_agent
+    path: app/agents/tech_agent.py
+    role: >
+      Reviews the PRD from architecture and feasibility perspective. Writes
+      architecture notes, extracts Mermaid source, and stores Tech contribution.
+    read_when:
+      - changing architecture review behavior
+      - changing Mermaid extraction
+      - changing Tech output parsing
+    key_functions:
+      - run_tech_agent
+
+  - name: readiness
+    path: app/readiness.py
+    role: >
+      Parses Product, Tech, and Growth readiness sections, infers reusable
+      tags, deduplicates items, and aggregates global readiness.
+    read_when:
+      - changing readiness statuses
+      - changing tag inference
+      - changing correction loop inputs
+    key_functions:
+      - parse_readiness_block
+      - aggregate_global_readiness
+      - group_tagged_items
+      - render_tagged_item
+
+  - name: llm
+    path: app/llm.py
+    role: >
+      Thin OpenAI-compatible client wrapper. Resolves provider, base URL, model,
+      and handles common API errors.
+    read_when:
+      - changing model provider behavior
+      - changing error handling
+      - debugging connection failures
+    key_functions:
+      - call_llm
+      - _resolve_llm_config
+
+  - name: architecture_render
+    path: app/architecture_render.py
+    role: >
+      Writes architecture-diagram.mmd and optionally renders
+      architecture-diagram.png with Mermaid CLI.
+    read_when:
+      - changing diagram output
+      - changing mmdc invocation
+      - debugging missing PNGs
+    key_functions:
+      - render_architecture_diagram
+
+  - name: prompts_v3
+    path: app/prompts V3/
+    role: >
+      Active prompt set for validated runs. Defines expected Markdown contracts
+      consumed by parsing code.
+    files:
+      - product_prompt.md
+      - growth_prompt.md
+      - tech_prompt.md
+
+  - name: solution_workflow
+    path: app/solution_workflow.py
+    role: >
+      Parser helpers for solution proposal experiments. Not part of the main
+      current workflow according to outputs/workflow.md.
+    read_when:
+      - task explicitly concerns solution proposal experiments
+
+  - name: test_agent
+    path: app/agents/test_agent.py
+    role: >
+      Minimal legacy/test agent that writes a PRD draft only. Not part of the
+      normal Product/Growth/Tech flow.
+    read_when:
+      - task explicitly mentions test_agent
+
+  - name: web_runs
+    path: app/web_runs.py
+    role: >
+      Lightweight inventory helper for generated runs under outputs/tests/.
+      Lists projects and version folders without reading file contents.
+    read_when:
+      - adding or changing run inventory logic
+      - changing the web viewer's data source
+      - debugging run discovery in outputs/tests/
+    key_functions:
+      - list_runs
+      - get_run
+
+  - name: web
+    path: app/web.py
+    role: >
+      Flask server for the POC viewer. Lists runs on /, renders run details on
+      /runs/<project>/<version>, and serves allowlisted artifacts on
+      /runs/<project>/<version>/artifacts/<filename>.
+    read_when:
+      - changing Flask routes
+      - changing templates
+      - changing artifact display
+      - changing file-serving guardrails
+    key_functions:
+      - app
+      - index
+      - run_detail
+      - run_artifact

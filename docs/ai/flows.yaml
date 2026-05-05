@@ -1,0 +1,126 @@
+version: 1
+
+brief_selection_flow:
+  owner: app/main.py
+  steps:
+    - read outputs/projects/
+    - prefer BLACKBOARD_PROJECT_BRIEF when set
+    - otherwise match BLACKBOARD_PROJECT_NAME against project name or filename
+    - if exactly one brief exists, use it
+    - if multiple briefs exist with no selector, fail explicitly
+  project_name_resolution:
+    - first "Project name:" line in brief
+    - otherwise project filename stem without project- prefix
+
+validated_standard_flow:
+  owner: app/orchestrator.py
+  function: run_v0_flow
+  note: >
+    run_v0_flow is the code name. In documentation, call this the validated
+    standard workflow.
+  steps:
+    - create_blackboard(project_brief, project_brief_source)
+    - run_product_agent
+    - run_growth_agent
+    - run_tech_agent
+    - run_product_revision
+    - finalize_readiness
+    - run_targeted_correction_loop
+    - run_product_locking_pass
+    - finalize_readiness
+  invariant: >
+    Product is the final arbiter. Growth and Tech challenge the current PRD but
+    do not directly author the final PRD.
+
+experimental_second_pass_flow:
+  owner: app/orchestrator.py and app/main.py
+  function: run_v2_flow
+  activation: "BLACKBOARD_WORKFLOW_MODE=second_pass"
+  status: historical_experiment
+  current_limitations:
+    - app/main.py still hardcodes outputs/version 13 and outputs/evaluation-version-13.md
+    - output is written back into the source version directory
+  handling_rule: >
+    Treat second_pass as historical/experimental, not part of the current
+    validated baseline. Change it only when a task explicitly asks to revive or
+    generalize it, and validate source/output paths before relying on it.
+
+targeted_correction_loop:
+  owner: app/orchestrator.py
+  trigger: "global readiness == LIMITED"
+  max_loops: 2
+  task_limit_per_loop: 3
+  steps:
+    - collect readiness blocking gaps and required improvements from Product, Tech, Growth
+    - normalize, dedupe, classify, and rank gaps
+    - assign owner by theme
+    - build targeted correction tasks with expected outputs
+    - rerun Tech only when Tech owns tasks
+    - rerun Growth only when Growth owns tasks
+    - rerun Product when correction tasks exist
+    - finalize readiness after each loop
+  stop_conditions:
+    - global readiness becomes READY
+    - global readiness becomes INSUFFICIENT
+    - max_loops reached
+  caveat: >
+    This is a bounded gap-reduction loop, not a guarantee that all issues are
+    resolved.
+
+artifact_generation_flow:
+  owner: app/main.py
+  function: _write_run_artifacts
+  output_dir: "outputs/tests/<Project Name>/version X/"
+  steps:
+    - write project-brief.md
+    - write prd.md from blackboard.prd_draft
+    - write architecture.md from blackboard.architecture_notes
+    - render Mermaid artifacts with app/architecture_render.py
+    - write gtm.md from blackboard.gtm_notes
+    - render blackboard.md from blackboard state
+    - write activity_log.txt
+    - optionally write evaluator-report.md
+
+diagram_rendering_flow:
+  owner: app/architecture_render.py
+  steps:
+    - read blackboard.mermaid_diagram or extract Mermaid from architecture_notes
+    - write architecture-diagram.mmd when source exists
+    - find local node_modules/.bin/mmdc first, then global mmdc
+    - render architecture-diagram.png when mmdc is available
+    - record warnings in blackboard.artifacts and activity_log
+
+validation_flows:
+  no_llm_static_checks:
+    commands:
+      - python3 -m compileall app
+      - npm run mmdc -- -h
+    purpose: syntax and Mermaid CLI availability checks
+  normal_llm_run:
+    command: >
+      set -a; source .env; export BLACKBOARD_PROMPT_VERSION=V3;
+      export BLACKBOARD_PROJECT_NAME=CareSync; set +a; python3 app/main.py
+  purpose: generate a new validated-style run
+  caution: >
+    This calls external LLM APIs and writes a new outputs/tests/<Project>/version X
+    directory.
+
+web_viewer_flow:
+  owner: app/web.py
+  status: poc_viewer
+  steps:
+    - list generated runs from outputs/tests/
+    - render run list on /
+    - render selected run artifacts on /runs/<project>/<version>
+    - serve only allowlisted artifacts from the selected run
+  limitations:
+    - no brief submission
+    - no LLM generation
+    - no background jobs
+    - no authentication
+
+recommended_change_discipline:
+  - prefer one small workflow or prompt change at a time
+  - validate first on CareSync and LocalLoop when changing behavior
+  - do not broadly rewrite prompts and code together unless the task demands it
+  - keep blackboard.md coherent with prd.md, architecture.md, and gtm.md
