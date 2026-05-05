@@ -54,23 +54,12 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
 
 
 def _resolve_llm_config() -> tuple[str | None, str, str, str]:
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    if openai_api_key:
-        base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1/").rstrip("/") + "/"
-        model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        return openai_api_key, base_url, model, "OpenAI"
-
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    if gemini_api_key:
-        base_url = (
-            os.getenv("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
-            .rstrip("/")
-            + "/"
-        )
-        model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        return gemini_api_key, base_url, model, "Gemini"
-
-    return None, "https://api.openai.com/v1/", os.getenv("OPENAI_MODEL", "gpt-4o-mini"), "OpenAI"
+    api_key = os.getenv("OPENAI_API_KEY")
+    base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1/").rstrip("/") + "/"
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    if not api_key and base_url != "https://api.openai.com/v1/":
+        api_key = "local"
+    return api_key, base_url, model, "OpenAI-compatible"
 
 
 def _extract_error_details(error: Exception) -> str:

@@ -59,19 +59,19 @@ external_dependencies:
     purpose: render Mermaid diagrams to PNG through mmdc
 
 llm_configuration:
-  openai_compatible:
+  openai_compatible_only:
     env:
       - OPENAI_API_KEY
       - OPENAI_BASE_URL
       - OPENAI_MODEL
-  gemini_openai_compat:
-    env:
-      - GEMINI_API_KEY
-      - GEMINI_BASE_URL
-      - GEMINI_MODEL
+  local_ollama_note: >
+    Local Ollama or LAN-hosted models should use the same OpenAI-compatible
+    variables, with OPENAI_BASE_URL pointing to the local endpoint and
+    OPENAI_MODEL set to the local model name. OPENAI_API_KEY is required for
+    the official OpenAI endpoint; local endpoints may run without it.
   behavior: >
-    app/llm.py prefers OpenAI env vars when OPENAI_API_KEY exists, otherwise
-    falls back to Gemini-compatible env vars, otherwise raises for missing API key.
+    app/llm.py uses only OpenAI-compatible configuration. Gemini-specific
+    environment variables are intentionally unsupported.
 
 non_core_areas:
   experimental_workflows:

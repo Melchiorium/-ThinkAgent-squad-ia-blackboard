@@ -163,11 +163,12 @@ environment_contract:
   evaluator_report:
     - BLACKBOARD_EVALUATOR_REPORT
   llm:
-    openai:
+    openai_compatible_only:
       - OPENAI_API_KEY
       - OPENAI_BASE_URL
       - OPENAI_MODEL
-    gemini:
-      - GEMINI_API_KEY
-      - GEMINI_BASE_URL
-      - GEMINI_MODEL
+    note: >
+      Use these same variables for OpenAI and OpenAI-compatible local endpoints
+      such as Ollama. OPENAI_API_KEY is required for the official OpenAI
+      endpoint; local endpoints may run without it. Gemini-specific variables
+      are out of scope.
