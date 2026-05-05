@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import os
 import sys
+from io import BytesIO
 from pathlib import Path
 from threading import Lock, Thread
 
@@ -16,7 +17,7 @@ from flask import (
     redirect,
     render_template,
     request,
-    send_from_directory,
+    send_file,
     url_for,
 )
 
@@ -24,6 +25,12 @@ from flask import (
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from app.generation_service import run_generation_from_brief
+    from app.web_presenters import (
+        build_job_status_payload,
+        build_job_view,
+        build_rendered_sections,
+        build_run_view,
+    )
     from app.web_jobs import (
         DEFAULT_WEB_JOBS_DIRNAME,
         create_job,
@@ -32,9 +39,23 @@ if __package__ in {None, ""}:
         list_jobs,
         update_job,
     )
-    from app.web_runs import EXPECTED_RUN_FILES, get_run, list_runs
+    from app.web_runs import get_run, list_runs
+    from app.web_storage import (
+        is_allowed_run_artifact_filename,
+        load_run_sections,
+        prepare_generation_workspace,
+        persist_run_artifacts,
+        read_run_artifact,
+        resolve_web_storage_backend,
+    )
 else:
     from .generation_service import run_generation_from_brief
+    from .web_presenters import (
+        build_job_status_payload,
+        build_job_view,
+        build_rendered_sections,
+        build_run_view,
+    )
     from .web_jobs import (
         DEFAULT_WEB_JOBS_DIRNAME,
         create_job,
@@ -43,7 +64,15 @@ else:
         list_jobs,
         update_job,
     )
-    from .web_runs import EXPECTED_RUN_FILES, get_run, list_runs
+    from .web_runs import get_run, list_runs
+    from .web_storage import (
+        is_allowed_run_artifact_filename,
+        load_run_sections,
+        prepare_generation_workspace,
+        persist_run_artifacts,
+        read_run_artifact,
+        resolve_web_storage_backend,
+    )
 
 
 app = Flask(__name__)
@@ -109,10 +138,33 @@ def _guard_secret_access():
 
 @app.get("/")
 def index():
-    runs = [_build_run_view(run) for run in list_runs(outputs_root=_outputs_root())]
+    runs = [
+        build_run_view(run)
+        for run in list_runs(outputs_root=_outputs_root(), backend=_storage_backend())
+    ]
     session_id = g.web_session_id
     session_jobs = [
-        _build_job_view(job) for job in list_jobs(session_id=session_id, jobs_root=_jobs_root())
+        build_job_view(
+            job,
+            status_url=url_for("job_status", job_id=job["job_id"]),
+            status_api_url=url_for("job_status_api", job_id=job["job_id"]),
+            run_url=(
+                url_for(
+                    "run_detail",
+                    project=job["run_project"],
+                    version=job["run_version"],
+                )
+                if job.get("status") == "done"
+                and job.get("run_project")
+                and job.get("run_version")
+                else None
+            ),
+        )
+        for job in list_jobs(
+            session_id=session_id,
+            jobs_root=_jobs_root(),
+            backend=_storage_backend(),
+        )
     ]
     return render_template(
         "index.html",
@@ -126,10 +178,17 @@ def index():
 
 @app.get("/api/jobs/<job_id>")
 def job_status_api(job_id: str):
-    job = get_job(job_id, jobs_root=_jobs_root())
+    job = get_job(job_id, jobs_root=_jobs_root(), backend=_storage_backend())
     if job is None:
         abort(404)
-    return jsonify(_build_job_status_payload(job))
+    run_url = None
+    if job.get("status") == "done" and job.get("run_project") and job.get("run_version"):
+        run_url = url_for(
+            "run_detail",
+            project=job["run_project"],
+            version=job["run_version"],
+        )
+    return jsonify(build_job_status_payload(job, run_url=run_url))
 
 
 @app.post("/jobs")
@@ -152,6 +211,7 @@ def create_job_route():
         g.web_session_id,
         project_title=project_title,
         jobs_root=_jobs_root(),
+        backend=_storage_backend(),
     )
     Thread(target=_start_generation_job, args=(job["job_id"],), daemon=True).start()
     return redirect(url_for("job_status", job_id=job["job_id"]))
@@ -159,7 +219,7 @@ def create_job_route():
 
 @app.get("/jobs/<job_id>")
 def job_status(job_id: str):
-    job = get_job(job_id, jobs_root=_jobs_root())
+    job = get_job(job_id, jobs_root=_jobs_root(), backend=_storage_backend())
     if job is None:
         abort(404)
     run_url = None
@@ -170,12 +230,29 @@ def job_status(job_id: str):
             project=job["run_project"],
             version=job["run_version"],
         )
-        run = get_run(job["run_project"], job["run_version"], outputs_root=_outputs_root())
-        if run is not None:
-            sections = _build_job_result_sections(Path(run["path"]))
+        run_sections = load_run_sections(
+            job["run_project"],
+            job["run_version"],
+            outputs_root=_outputs_root(),
+            backend=_storage_backend(),
+        )
+        sections = build_rendered_sections(
+            run_sections,
+            artifact_url_builder=lambda filename: url_for(
+                "run_artifact",
+                project=job["run_project"],
+                version=job["run_version"],
+                filename=filename,
+            ),
+        )
     return render_template(
         "job_status.html",
-        job=_build_job_view(job),
+        job=build_job_view(
+            job,
+            status_url=url_for("job_status", job_id=job["job_id"]),
+            status_api_url=url_for("job_status_api", job_id=job["job_id"]),
+            run_url=run_url,
+        ),
         sections=sections,
         run_url=run_url,
     )
@@ -183,14 +260,33 @@ def job_status(job_id: str):
 
 @app.get("/runs/<project>/<version>")
 def run_detail(project: str, version: str):
-    run = get_run(project, version, outputs_root=_outputs_root())
+    run = get_run(
+        project,
+        version,
+        outputs_root=_outputs_root(),
+        backend=_storage_backend(),
+    )
     if run is None:
         abort(404)
-    run_path = Path(run["path"])
-    sections = _build_run_detail_sections(run_path)
+    sections = build_rendered_sections(
+        load_run_sections(
+            project,
+            version,
+            outputs_root=_outputs_root(),
+            backend=_storage_backend(),
+        ),
+        artifact_url_builder=lambda filename: url_for(
+            "run_artifact",
+            project=project,
+            version=version,
+            filename=filename,
+        ),
+    )
+    if sections is None:
+        abort(404)
     return render_template(
         "run_detail.html",
-        run=_build_run_view(run),
+        run=build_run_view(run),
         sections=sections,
         project=project,
         version=version,
@@ -199,14 +295,30 @@ def run_detail(project: str, version: str):
 
 @app.get("/runs/<project>/<version>/artifacts/<filename>")
 def run_artifact(project: str, version: str, filename: str):
-    run = get_run(project, version, outputs_root=_outputs_root())
-    if run is None or not _is_allowed_artifact_filename(filename):
+    if not is_allowed_run_artifact_filename(filename):
         abort(404)
-
-    run_path = Path(run["path"])
-    if not (run_path / filename).is_file():
+    run = get_run(
+        project,
+        version,
+        outputs_root=_outputs_root(),
+        backend=_storage_backend(),
+    )
+    if run is None:
         abort(404)
-    return send_from_directory(run_path, filename)
+    payload = read_run_artifact(
+        project,
+        version,
+        filename,
+        outputs_root=_outputs_root(),
+        backend=_storage_backend(),
+    )
+    if payload is None:
+        abort(404)
+    return send_file(
+        BytesIO(payload["content"]),
+        mimetype=payload["content_type"],
+        download_name=filename,
+    )
 
 
 def _host() -> str:
@@ -234,6 +346,8 @@ def _outputs_root() -> Path:
     configured_root = os.getenv("WEB_OUTPUTS_ROOT", "").strip()
     if configured_root:
         return Path(configured_root)
+    if _storage_backend() == "supabase":
+        return EPHEMERAL_OUTPUTS_ROOT
     repo_outputs_root = Path(__file__).resolve().parent.parent / "outputs"
     if _is_writable_directory(repo_outputs_root):
         return repo_outputs_root
@@ -274,169 +388,14 @@ def _has_valid_access_query_token(token: str) -> bool:
     return hmac.compare_digest(query_token, token)
 
 
-def _build_run_view(run: dict) -> dict:
-    present_file_count = len(run["files"]) - len(run["missing_files"])
-    return {
-        "project": run["project"],
-        "version": run["version"],
-        "present_file_count": present_file_count,
-        "total_file_count": len(run["files"]),
-        "missing_files": run["missing_files"],
-    }
-
-
-def _build_job_view(job: dict) -> dict:
-    view = dict(job)
-    view["display_title"] = _job_display_title(job)
-    view["status_label"] = _status_label(job.get("status", ""))
-    view["status_url"] = url_for("job_status", job_id=job["job_id"])
-    view["status_api_url"] = url_for("job_status_api", job_id=job["job_id"])
-    if job.get("status") == "done" and job.get("run_project") and job.get("run_version"):
-        view["run_url"] = url_for(
-            "run_detail",
-            project=job["run_project"],
-            version=job["run_version"],
-        )
-    else:
-        view["run_url"] = None
-    return view
-
-
-def _status_label(status: str) -> str:
-    labels = {
-        "queued": "En attente",
-        "running": "En cours",
-        "done": "Terminé",
-        "failed": "Échec",
-    }
-    return labels.get(status, status)
-
-
-def _build_job_status_payload(job: dict) -> dict:
-    run_url = None
-    if job.get("status") == "done" and job.get("run_project") and job.get("run_version"):
-        run_url = url_for(
-            "run_detail",
-            project=job["run_project"],
-            version=job["run_version"],
-        )
-    return {
-        "job_id": job["job_id"],
-        "status": job["status"],
-        "created_at": job["created_at"],
-        "updated_at": job["updated_at"],
-        "brief_preview": job.get("brief_preview", ""),
-        "project_title": job.get("project_title", ""),
-        "display_title": _job_display_title(job),
-        "error": job.get("error", ""),
-        "run_url": run_url,
-    }
-
-
-def _build_run_detail_sections(run_path: Path) -> list[dict]:
-    return _build_sections(
-        run_path,
-        order=[
-            "Brief",
-            "PRD",
-            "Architecture",
-            "Diagramme Mermaid",
-            "GTM",
-            "Blackboard",
-            "Activity Log",
-        ],
-    )
-
-
-def _build_job_result_sections(run_path: Path) -> list[dict]:
-    return _build_sections(
-        run_path,
-        order=[
-            "PRD",
-            "Architecture",
-            "Diagramme Mermaid",
-            "GTM",
-            "Brief",
-            "Blackboard",
-            "Activity Log",
-        ],
-    )
-
-
-def _build_sections(run_path: Path, order: list[str]) -> list[dict]:
-    all_sections = {
-        "Brief": _build_text_section("Brief", "project-brief.md", run_path),
-        "PRD": _build_text_section("PRD", "prd.md", run_path),
-        "Architecture": _build_text_section("Architecture", "architecture.md", run_path),
-        "Diagramme Mermaid": _build_mermaid_section(run_path),
-        "GTM": _build_text_section("GTM", "gtm.md", run_path),
-        "Blackboard": _build_text_section("Blackboard", "blackboard.md", run_path),
-        "Activity Log": _build_text_section("Activity Log", "activity_log.txt", run_path),
-    }
-    return [all_sections[title] for title in order]
-
-
-def _build_text_section(title: str, filename: str, run_path: Path) -> dict:
-    content = _read_text_file(run_path / filename)
-    return {
-        "title": title,
-        "filename": filename,
-        "content": content,
-        "present": content is not None,
-        "artifact_url": _artifact_url(run_path, filename) if content is not None else None,
-    }
-
-
-def _build_mermaid_section(run_path: Path) -> dict:
-    filename = "architecture-diagram.mmd"
-    content = _read_text_file(run_path / filename)
-    png_filename = "architecture-diagram.png"
-    png_present = (run_path / png_filename).is_file()
-    return {
-        "title": "Diagramme Mermaid",
-        "filename": filename,
-        "content": content,
-        "present": content is not None,
-        "png_present": png_present,
-        "png_url": _artifact_url(run_path, png_filename) if png_present else None,
-        "artifact_url": _artifact_url(run_path, filename) if content is not None else None,
-    }
-
-
-def _read_text_file(path: Path) -> str | None:
-    if not path.is_file():
-        return None
-    return path.read_text(encoding="utf-8")
-
-
-def _artifact_url(run_path: Path, filename: str) -> str:
-    project = run_path.parent.name
-    version = run_path.name
-    return url_for("run_artifact", project=project, version=version, filename=filename)
-
-
-def _is_allowed_artifact_filename(filename: str) -> bool:
-    if not filename or filename not in EXPECTED_RUN_FILES:
-        return False
-    if "/" in filename or "\\" in filename or ".." in filename:
-        return False
-    return True
-
-
-def _job_display_title(job: dict) -> str:
-    project_title = str(job.get("project_title", "")).strip()
-    if project_title:
-        return project_title
-    project_name = str(job.get("project_name", "")).strip()
-    if project_name:
-        return project_name
-    return "Génération"
-
-
 def _has_invalid_project_title_characters(project_title: str) -> bool:
     if "/" in project_title or "\\" in project_title or ".." in project_title:
         return True
     return any(ord(character) < 32 or ord(character) == 127 for character in project_title)
+
+
+def _storage_backend() -> str:
+    return resolve_web_storage_backend()
 
 
 @app.get("/healthz")
@@ -445,24 +404,31 @@ def healthz():
 
 
 def _start_generation_job(job_id: str) -> None:
-    job = get_job(job_id, jobs_root=_jobs_root())
+    backend = _storage_backend()
+    job = get_job(job_id, jobs_root=_jobs_root(), backend=backend)
     if job is None:
         return
     effective_brief = _build_effective_brief(job)
     project_title = str(job.get("project_title", "")).strip()
 
     with generation_lock:
-        if get_job(job_id, jobs_root=_jobs_root()) is None:
+        if get_job(job_id, jobs_root=_jobs_root(), backend=backend) is None:
             return
 
-        update_job(job_id, {"status": "running"}, jobs_root=_jobs_root())
+        update_job(job_id, {"status": "running"}, jobs_root=_jobs_root(), backend=backend)
         try:
+            prepare_generation_workspace(
+                project_title,
+                _outputs_root(),
+                backend=backend,
+            )
             result = _run_generation_runner(
                 effective_brief,
                 job_id,
                 project_name_override=project_title or None,
             )
             output_dir = Path(result.output_dir)
+            persist_run_artifacts(output_dir, backend=backend)
             update_job(
                 job_id,
                 {
@@ -474,6 +440,7 @@ def _start_generation_job(job_id: str) -> None:
                     "error": "",
                 },
                 jobs_root=_jobs_root(),
+                backend=backend,
             )
         except Exception as error:
             update_job(
@@ -483,6 +450,7 @@ def _start_generation_job(job_id: str) -> None:
                     "error": str(error),
                 },
                 jobs_root=_jobs_root(),
+                backend=backend,
             )
 
 

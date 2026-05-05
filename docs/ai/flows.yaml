@@ -121,7 +121,7 @@ standard_generation_service_flow:
     - no second-pass handling
 
 web_viewer_flow:
-  owner: app/web.py
+  owner: app/web.py, app/web_storage.py, and app/web_presenters.py
   status: poc_viewer
   steps:
     - list generated runs from outputs/tests/
@@ -134,7 +134,7 @@ web_viewer_flow:
     - no authentication
 
 web_generation_job_flow:
-  owner: app/web.py and app/web_jobs.py
+  owner: app/web.py, app/web_jobs.py, and app/web_presenters.py
   status: poc_generation
   steps:
     - ensure a browser session id cookie exists
@@ -169,7 +169,7 @@ web_secret_link_access_flow:
     - shared-token POC only
 
 web_render_poc_deployment_flow:
-  owner: Procfile and app/web.py
+  owner: Procfile, app/web.py, and app/web_storage.py
   status: poc_deployment
   steps:
     - install Python dependencies from requirements.txt
@@ -177,8 +177,8 @@ web_render_poc_deployment_flow:
     - bind to Render PORT
     - keep one web worker for process-local jobs
     - use WEB_ACCESS_TOKEN for shared-link access
-    - use WEB_OUTPUTS_ROOT and WEB_JOBS_ROOT on persistent disk
-    - when WEB_OUTPUTS_ROOT is unset and repository outputs are not writable, fall back to ephemeral /tmp storage for free-host tests
+    - use WEB_STORAGE_BACKEND=file for ephemeral smoke tests
+    - use WEB_STORAGE_BACKEND=supabase with SUPABASE_DATABASE_URL for persistent storage
     - expose /healthz for service healthcheck
     - run the deployed smoke test against the Render URL and document the result
   limitations:
@@ -204,6 +204,40 @@ web_render_smoke_test_flow:
     - no full authentication
     - no user accounts
     - no distributed job queue
+
+web_supabase_persistence_flow:
+  owner: docs/supabase-poc-storage.md and app/web_storage.py
+  status: persistent_storage
+  steps:
+    - create a Supabase project
+    - execute docs/supabase-schema.sql in SQL Editor
+    - configure WEB_STORAGE_BACKEND=supabase
+    - configure SUPABASE_DATABASE_URL from the Session Pooler connection string
+    - redeploy Render
+    - run the storage validation script without LLM
+    - confirm jobs persist in web_jobs
+    - confirm run artifacts persist in web_run_artifacts
+    - before generation, mirror existing Supabase run version directories into the temporary workspace so the next version number does not overwrite persisted runs after restart
+  limitations:
+    - no Supabase Auth
+    - no Supabase Storage
+    - no archived history layer
+    - no automatic cleanup
+
+web_storage_validation_flow:
+  owner: scripts/check_web_storage.py
+  status: validation
+  steps:
+    - detect the active backend from WEB_STORAGE_BACKEND
+    - use a temporary local root when backend is file
+    - create a Storage Check job
+    - transition the job through queued, running, and done
+    - save fake run artifacts without any LLM call
+    - list jobs, list runs, and read back an artifact
+  limitations:
+    - no LLM calls
+    - no generation workflow
+    - no cleanup of Supabase test rows
 
 web_local_launcher_flow:
   owner: scripts/run_web.sh

@@ -160,9 +160,9 @@ modules:
   - name: web_runs
     path: app/web_runs.py
     role: >
-      Lightweight inventory helper for generated runs under outputs/tests/ or a
-      configurable outputs root. Lists projects and version folders without
-      reading file contents.
+      Lightweight inventory helper for generated runs. Delegates to the active
+      storage backend while preserving the run inventory contract for the web
+      viewer.
     read_when:
       - adding or changing run inventory logic
       - changing the web viewer's data source
@@ -171,18 +171,35 @@ modules:
       - list_runs
       - get_run
 
+  - name: web_presenters
+    path: app/web_presenters.py
+    role: >
+      Pure presentation helpers for the web viewer. Builds job and run view
+      models plus rendered section metadata without touching storage or Flask
+      request state.
+    read_when:
+      - changing web job or run view models
+      - changing section rendering metadata
+      - preparing web data for a future API or non-Flask frontend
+    key_functions:
+      - build_run_view
+      - build_job_view
+      - build_job_status_payload
+      - build_rendered_sections
+      - status_label
+      - job_display_title
+
   - name: web
     path: app/web.py
     role: >
-      Flask server for the POC viewer, job flow, and shared-link access gate.
-      Runs locally with the Flask dev server or on Render via Gunicorn. Lists
-      runs on /, accepts a project title plus brief on POST /jobs, shows
-      session generations on /, renders job status on /jobs/<job_id>, exposes JSON status on
-      /api/jobs/<job_id>, renders run details on /runs/<project>/<version>,
-      serves allowlisted artifacts on /runs/<project>/<version>/artifacts/<filename>,
-      reuses _run_result.html for inline generated dossiers, loads web.js for
-      polling, exposes /healthz, and protects the application routes with
-      WEB_ACCESS_TOKEN when configured.
+      Flask server for the POC viewer, job flow orchestration, and shared-link
+      access gate. Runs locally with the Flask dev server or on Render via
+      Gunicorn. Lists runs on /, accepts a project title plus brief on POST
+      /jobs, shows session generations on /, renders job status on
+      /jobs/<job_id>, exposes JSON status on /api/jobs/<job_id>, renders run
+      details on /runs/<project>/<version>, serves allowlisted artifacts on
+      /runs/<project>/<version>/artifacts/<filename>, exposes /healthz, and
+      protects the application routes with WEB_ACCESS_TOKEN when configured.
     read_when:
       - changing Flask routes
       - changing templates
@@ -192,7 +209,7 @@ modules:
       - changing job status display
       - changing access control behavior
       - changing deployment or healthcheck behavior
-      - changing persistent storage defaults
+      - changing persistent storage defaults or backend selection
       - changing generation-first home layout
     key_functions:
       - app
@@ -207,19 +224,14 @@ modules:
       - _outputs_root
       - _jobs_root
       - _run_generation_runner
-      - _build_job_status_payload
-      - _build_run_detail_sections
-      - _build_job_result_sections
-      - _build_sections
-      - _status_label
-      - _job_display_title
 
   - name: web_jobs
     path: app/web_jobs.py
     role: >
-      File-backed job store for the POC web generation flow. Persists submitted
-      briefs, project titles, statuses, session ids, output links, and errors
-      under outputs/web-jobs/ or a configured job storage root.
+      Backend-aware job store for the POC web generation flow. Persists
+      submitted briefs, project titles, statuses, session ids, output links,
+      and errors through the active storage backend while keeping the file
+      backend as default.
     read_when:
       - changing web job persistence
       - changing session job history
@@ -230,6 +242,31 @@ modules:
       - get_job
       - update_job
       - list_jobs
+
+  - name: web_storage
+    path: app/web_storage.py
+    role: >
+      Backend routing and persistence helpers for the web POC. Resolves
+      WEB_STORAGE_BACKEND, keeps the file backend as default, and implements
+      the job and run-artifact persistence contract for file and Supabase
+      storage.
+    read_when:
+      - adding or changing storage backends
+      - changing Supabase persistence behavior
+      - changing run artifact persistence or retrieval
+      - changing the storage validation script
+    key_functions:
+      - resolve_web_storage_backend
+      - create_job
+      - get_job
+      - update_job
+      - list_jobs
+      - list_runs
+      - get_run
+      - load_run_sections
+      - read_run_artifact
+      - persist_run_artifacts
+      - prepare_generation_workspace
 
   - name: artifact_writer
     path: app/artifact_writer.py
@@ -274,9 +311,39 @@ modules:
   - name: render_poc_deployment_doc
     path: docs/render-poc-deployment.md
     role: >
-      Operational checklist for creating, smoke-testing, and persisting the
-      Render web POC.
+      Operational checklist for creating, smoke-testing, and documenting the
+      Render web POC across ephemeral file mode, persistent Supabase mode, and
+      optional paid disk mode.
     read_when:
       - configuring the Render service manually
       - documenting smoke-test results
       - verifying persistent disk behavior
+
+  - name: supabase_poc_storage_doc
+    path: docs/supabase-poc-storage.md
+    role: >
+      Operational guide for the Supabase-backed persistent storage mode used by
+      the Render web POC.
+    read_when:
+      - configuring Supabase persistence
+      - wiring the Render service to Supabase
+      - validating the storage backend contract
+
+  - name: supabase_schema
+    path: docs/supabase-schema.sql
+    role: >
+      SQL schema for the web_jobs and web_run_artifacts tables used by the
+      Supabase storage backend.
+    read_when:
+      - provisioning the Supabase schema
+      - debugging storage migrations
+
+  - name: web_storage_validation_script
+    path: scripts/check_web_storage.py
+    role: >
+      No-LLM storage validation script that exercises the active backend by
+      creating a fake job and fake run artifacts.
+    read_when:
+      - validating file backend behavior
+      - validating Supabase backend behavior
+      - verifying storage tests before deployment

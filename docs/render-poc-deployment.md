@@ -31,7 +31,9 @@ gunicorn app.web:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
 - ne pas créer de Redis ;
 - ne pas ajouter de `render.yaml`.
 
-## Variables d'environnement Render
+## Mode Render éphémère
+
+Ce mode sert au smoke test et au POC gratuit sans mémoire persistante.
 
 Configurer uniquement dans le dashboard Render :
 
@@ -39,9 +41,13 @@ Configurer uniquement dans le dashboard Render :
 OPENAI_API_KEY=<secret>
 BLACKBOARD_PROMPT_VERSION=V3
 WEB_ACCESS_TOKEN=<token fort>
-WEB_OUTPUTS_ROOT=/var/data/outputs
-WEB_JOBS_ROOT=/var/data/web-jobs
 ```
+
+Options de stockage :
+
+- `WEB_STORAGE_BACKEND=file` ;
+- `WEB_OUTPUTS_ROOT` et `WEB_JOBS_ROOT` peuvent rester absentes ;
+- si besoin, les chemins locaux temporaires peuvent rester éphémères.
 
 Règles :
 
@@ -55,15 +61,37 @@ https://<render-host>/?access_token=<WEB_ACCESS_TOKEN>
 
 - `.env` reste réservé au lancement local.
 
-## Disque persistant
+## Mode Render gratuit + Supabase
 
-Créer un persistent disk Render et le monter sur :
+C'est le mode persistant recommandé quand on ne veut pas de disque Render
+payant.
+
+Configurer :
+
+```text
+OPENAI_API_KEY=<secret>
+BLACKBOARD_PROMPT_VERSION=V3
+WEB_ACCESS_TOKEN=<token fort>
+WEB_STORAGE_BACKEND=supabase
+SUPABASE_DATABASE_URL=<connection string>
+```
+
+- `WEB_OUTPUTS_ROOT` et `WEB_JOBS_ROOT` ne sont pas requis ;
+- les jobs vivent dans `web_jobs` ;
+- les artefacts vivent dans `web_run_artifacts` ;
+- la procédure complète est dans
+  [docs/supabase-poc-storage.md](docs/supabase-poc-storage.md).
+
+## Disque persistant Render
+
+Ce mode est payant et n'est pas retenu comme chemin de base du POC gratuit.
+Si on l'utilise malgré tout, monter le disque sur :
 
 ```text
 /var/data
 ```
 
-Configurer ensuite :
+Puis configurer :
 
 ```text
 WEB_OUTPUTS_ROOT=/var/data/outputs
@@ -88,7 +116,8 @@ Test manuel recommandé :
 
 ## Smoke test
 
-Test exécuté le 2026-05-05 sur `https://squadia.onrender.com/`.
+Test exécuté le 2026-05-05 sur `https://squadia.onrender.com/` avec le mode
+Render éphémère.
 
 Résultats :
 

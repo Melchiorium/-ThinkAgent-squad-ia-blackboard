@@ -206,6 +206,11 @@ Ce POC reste en accès partagé, sans comptes ni authentification complète.
 Sur Render, les variables doivent être configurées dans le dashboard du
 service, pas dans `.env`.
 
+Pour un stockage persistant sans disque Render payant, le mode recommandé est
+`WEB_STORAGE_BACKEND=supabase` avec la procédure détaillée dans
+[docs/supabase-poc-storage.md](docs/supabase-poc-storage.md).
+La validation sans LLM se lance avec `python3 scripts/check_web_storage.py`.
+
 Pour le démarrer localement :
 
 ```bash

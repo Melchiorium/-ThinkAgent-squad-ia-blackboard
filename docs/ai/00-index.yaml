@@ -25,6 +25,7 @@ key_paths:
   llm_client: app/llm.py
   readiness_parser: app/readiness.py
   architecture_renderer: app/architecture_render.py
+  web_storage: app/web_storage.py
   active_prompts: app/prompts V3/
   historical_prompts:
     - app/prompts/
@@ -34,6 +35,9 @@ key_paths:
   preliminary_runs: outputs/tests_preliminaires/
   workflow_doc: outputs/workflow.md
   final_report: outputs/rapport_final.md
+  supabase_schema: docs/supabase-schema.sql
+  supabase_storage_doc: docs/supabase-poc-storage.md
+  storage_validation_script: scripts/check_web_storage.py
   package_manifest: package.json
   python_requirements: requirements.txt
   web_local_launcher: scripts/run_web.sh
