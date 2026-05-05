@@ -47,6 +47,8 @@ task_routing:
     primary_files:
       - app/main.py
       - app/orchestrator.py
+      - app/artifact_writer.py
+      - app/generation_service.py
       - app/agents/product_agent.py
       - app/agents/growth_agent.py
       - app/agents/tech_agent.py
@@ -77,6 +79,7 @@ task_routing:
       - flows
     primary_files:
       - app/main.py
+      - app/artifact_writer.py
       - app/architecture_render.py
       - package.json
       - mermaid-puppeteer-config.json

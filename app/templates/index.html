@@ -13,8 +13,76 @@
         <p>{{ run_count }} run{{ "s" if run_count != 1 else "" }} available.</p>
       </header>
 
+      <section class="panel">
+        <div class="panel__header">
+          <div>
+            <h2>Submit a brief</h2>
+            <p>Create a web job for this browser session.</p>
+          </div>
+        </div>
+
+        <form class="brief-form" method="post" action="{{ url_for('create_job_route') }}">
+          <label for="brief">Brief</label>
+          <textarea
+            id="brief"
+            name="brief"
+            rows="10"
+            maxlength="{{ max_brief_characters }}"
+            placeholder="Project name: ..."
+          ></textarea>
+          <div class="brief-form__actions">
+            <p>{{ max_brief_characters }} characters max.</p>
+            <button type="submit">Create job</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <div>
+            <h2>Mes jobs</h2>
+            <p>{{ job_count }} job{{ "s" if job_count != 1 else "" }} for this session.</p>
+          </div>
+        </div>
+
+        {% if jobs %}
+          <div class="job-list">
+            {% for job in jobs %}
+              <article class="job-card">
+                <div class="job-card__header">
+                  <div>
+                    <h3>{{ job.job_id }}</h3>
+                    <p>{{ job.created_at }}</p>
+                  </div>
+                  <span class="status-badge status-badge--{{ job.status }}">{{ job.status }}</span>
+                </div>
+
+                <pre class="job-preview">{{ job.brief_preview }}</pre>
+
+                <div class="job-card__links">
+                  <a href="{{ job.status_url }}">Open status</a>
+                  {% if job.run_url %}
+                    <a href="{{ job.run_url }}">Open result</a>
+                  {% endif %}
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="empty">No jobs for this session.</p>
+        {% endif %}
+      </section>
+
       {% if runs %}
-        <section class="runs">
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <h2>Run inventory</h2>
+              <p>Generated runs discovered under outputs/tests/.</p>
+            </div>
+          </div>
+
+          <div class="runs">
           {% for run in runs %}
             <article class="run">
               <div class="run__meta">
@@ -42,6 +110,7 @@
               </div>
             </article>
           {% endfor %}
+          </div>
         </section>
       {% else %}
         <p class="empty">No generated runs found.</p>

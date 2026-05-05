@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ job.job_id }}</title>
+    {% if refresh %}
+      <meta http-equiv="refresh" content="3">
+    {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='web.css') }}">
+  </head>
+  <body>
+    <main class="page page--job">
+      <header class="header">
+        <a class="back-link" href="{{ url_for('index') }}">Back to inventory</a>
+        <h1>Job status</h1>
+        <p>{{ job.job_id }}</p>
+      </header>
+
+      <section class="panel">
+        <div class="job-status__topline">
+          <span class="status-badge status-badge--{{ job.status }}">{{ job.status }}</span>
+          <a class="job-status__link" href="{{ url_for('index') }}">Back to home</a>
+        </div>
+        <dl class="job-status__grid">
+          <div>
+            <dt>Created</dt>
+            <dd>{{ job.created_at }}</dd>
+          </div>
+          <div>
+            <dt>Updated</dt>
+            <dd>{{ job.updated_at }}</dd>
+          </div>
+          <div>
+            <dt>Brief preview</dt>
+            <dd>
+              <pre class="job-preview job-preview--full">{{ job.brief_preview }}</pre>
+            </dd>
+          </div>
+        </dl>
+
+        {% if job.status == "failed" %}
+          <div class="job-status__error">
+            <h2>Error</h2>
+            <pre>{{ job.error or "No error recorded." }}</pre>
+          </div>
+        {% endif %}
+
+        {% if run_url %}
+          <div class="job-status__result">
+            <h2>Result</h2>
+            <a href="{{ run_url }}">Open generated run</a>
+          </div>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

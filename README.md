@@ -171,7 +171,17 @@ Selon le modèle utilisé, il faut aussi configurer les variables de connexion L
 Le viewer web POC permet de consulter les runs existants sous
 `outputs/tests/<Project>/version X/` depuis un navigateur.
 
-Il ne lance aucune génération, aucun appel LLM et aucun formulaire de brief.
+Il permet aussi de soumettre un brief depuis le navigateur. La génération se
+lance ensuite en background, avec un statut accessible sur `/jobs/<job_id>`.
+Les jobs sont séparés par cookie `web_session_id` pour garder un historique par
+session navigateur.
+
+Il n'y a pas d'authentification, pas de comptes et pas de déploiement public
+prévu à ce stade.
+
+Le CLI standard continue de fonctionner avec `python3 app/main.py`, et la
+logique de génération standard reste exposée par `app/generation_service.py`
+pour réutilisation interne.
 
 Pour le démarrer localement :
 

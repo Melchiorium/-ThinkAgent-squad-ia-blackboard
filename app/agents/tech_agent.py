@@ -1,8 +1,12 @@
 from pathlib import Path
 import os
 
-from llm import call_llm
-from readiness import parse_readiness_block
+if __package__ and __package__.startswith("app"):
+    from ..llm import call_llm
+    from ..readiness import parse_readiness_block
+else:
+    from llm import call_llm
+    from readiness import parse_readiness_block
 
 
 def _load_tech_prompt() -> str:

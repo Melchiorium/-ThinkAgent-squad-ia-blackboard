@@ -4,20 +4,25 @@ modules:
   - name: main
     path: app/main.py
     role: >
-      Runtime entrypoint. Selects the project brief, chooses first-pass or
-      second-pass flow, writes final artifacts, and renders blackboard.md.
+      Runtime entrypoint. Selects the CLI brief, delegates the standard
+      generation path to generation_service, and preserves the experimental
+      second-pass flow.
     read_when:
       - changing input selection
-      - changing output files
+      - changing CLI-to-service handoff
       - changing run modes
-      - debugging artifact writing
+      - changing second-pass behavior
+      - debugging runtime entrypoint behavior
     key_functions:
       - main
       - _load_project_brief
       - _select_project_brief_path
-      - _write_run_artifacts
-      - _next_project_version_outputs_dir
+      - _extract_project_name
+      - _normalize_name
+      - _outputs_root
       - _load_second_pass_sources
+      - _load_evaluator_report_if_any
+      - _read_text_file
 
   - name: orchestrator
     path: app/orchestrator.py
@@ -168,16 +173,65 @@ modules:
   - name: web
     path: app/web.py
     role: >
-      Flask server for the POC viewer. Lists runs on /, renders run details on
-      /runs/<project>/<version>, and serves allowlisted artifacts on
-      /runs/<project>/<version>/artifacts/<filename>.
+      Flask server for the POC viewer and job flow. Lists runs on /, accepts
+      briefs on POST /jobs, shows session jobs on /, renders job status on
+      /jobs/<job_id>, renders run details on /runs/<project>/<version>, and
+      serves allowlisted artifacts on /runs/<project>/<version>/artifacts/<filename>.
     read_when:
       - changing Flask routes
       - changing templates
       - changing artifact display
       - changing file-serving guardrails
+      - changing web brief submission
+      - changing job status display
     key_functions:
       - app
       - index
+      - create_job_route
+      - job_status
       - run_detail
       - run_artifact
+
+  - name: web_jobs
+    path: app/web_jobs.py
+    role: >
+      File-backed job store for the POC web generation flow. Persists submitted
+      briefs, statuses, session ids, output links, and errors under outputs/web-jobs/.
+    read_when:
+      - changing web job persistence
+      - changing session job history
+      - debugging queued/running/done/failed state
+    key_functions:
+      - create_session_id
+      - create_job
+      - get_job
+      - update_job
+      - list_jobs
+
+  - name: artifact_writer
+    path: app/artifact_writer.py
+    role: >
+      Writes run artifacts from a completed blackboard into an output
+      directory: project brief, PRD, architecture, Mermaid artifacts, GTM,
+      blackboard, and activity log.
+    read_when:
+      - changing generated artifact files
+      - changing blackboard.md rendering
+      - debugging Mermaid artifact writing
+    key_functions:
+      - write_run_artifacts
+
+  - name: generation_service
+    path: app/generation_service.py
+    role: >
+      Reusable standard-generation service. Runs the validated standard
+      workflow from an in-memory brief and writes a new
+      outputs/tests/<Project>/version X/ directory.
+    read_when:
+      - adding non-CLI generation entrypoints
+      - changing standard run creation from in-memory briefs
+      - debugging output version directory creation
+    key_functions:
+      - run_generation_from_brief
+      - extract_project_name
+      - next_project_version_outputs_dir

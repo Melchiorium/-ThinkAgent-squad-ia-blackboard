@@ -68,8 +68,8 @@ targeted_correction_loop:
     resolved.
 
 artifact_generation_flow:
-  owner: app/main.py
-  function: _write_run_artifacts
+  owner: app/artifact_writer.py
+  function: write_run_artifacts
   output_dir: "outputs/tests/<Project Name>/version X/"
   steps:
     - write project-brief.md
@@ -105,6 +105,21 @@ validation_flows:
     This calls external LLM APIs and writes a new outputs/tests/<Project>/version X
     directory.
 
+standard_generation_service_flow:
+  owner: app/generation_service.py
+  status: internal_service
+  steps:
+    - receive an in-memory project brief
+    - extract or receive the project name
+    - create the next outputs/tests/<Project>/version X/ directory
+    - run the validated standard workflow
+    - write run artifacts through app/artifact_writer.py
+  limitations:
+    - no web form integration yet
+    - no background jobs
+    - no authentication
+    - no second-pass handling
+
 web_viewer_flow:
   owner: app/web.py
   status: poc_viewer
@@ -114,10 +129,27 @@ web_viewer_flow:
     - render selected run artifacts on /runs/<project>/<version>
     - serve only allowlisted artifacts from the selected run
   limitations:
-    - no brief submission
-    - no LLM generation
+    - read-only viewer for generated runs
     - no background jobs
     - no authentication
+
+web_generation_job_flow:
+  owner: app/web.py and app/web_jobs.py
+  status: poc_generation
+  steps:
+    - ensure a browser session id cookie exists
+    - accept a project brief from the web form
+    - create a queued JSON job under outputs/web-jobs/
+    - start a daemon thread for generation
+    - run one generation at a time with a process-local lock
+    - update the job to running, done, or failed
+    - link done jobs to /runs/<project>/<version>
+  limitations:
+    - no authentication
+    - no user accounts
+    - no persistent distributed queue
+    - no retry system
+    - one-process POC only
 
 recommended_change_discipline:
   - prefer one small workflow or prompt change at a time

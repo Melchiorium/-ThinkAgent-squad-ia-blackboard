@@ -1,16 +1,28 @@
 import re
 from pathlib import Path
 
-from blackboard import create_blackboard
-from agents.product_agent import (
-    run_product_agent,
-    run_product_locking_pass,
-    run_product_revision,
-    run_product_second_pass_initial,
-)
-from agents.tech_agent import run_tech_agent
-from agents.growth_agent import run_growth_agent
-from readiness import aggregate_global_readiness
+if __package__ and __package__.startswith("app"):
+    from .blackboard import create_blackboard
+    from .agents.product_agent import (
+        run_product_agent,
+        run_product_locking_pass,
+        run_product_revision,
+        run_product_second_pass_initial,
+    )
+    from .agents.tech_agent import run_tech_agent
+    from .agents.growth_agent import run_growth_agent
+    from .readiness import aggregate_global_readiness
+else:
+    from blackboard import create_blackboard
+    from agents.product_agent import (
+        run_product_agent,
+        run_product_locking_pass,
+        run_product_revision,
+        run_product_second_pass_initial,
+    )
+    from agents.tech_agent import run_tech_agent
+    from agents.growth_agent import run_growth_agent
+    from readiness import aggregate_global_readiness
 
 
 def run_v0_flow(project_brief: str, project_brief_source: str) -> dict:
