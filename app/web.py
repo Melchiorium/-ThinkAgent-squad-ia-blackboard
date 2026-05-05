@@ -54,6 +54,7 @@ WEB_ACCESS_COOKIE_NAME = "web_access_granted"
 generation_lock = Lock()
 generation_runner = run_generation_from_brief
 jobs_root: Path | None = None
+EPHEMERAL_OUTPUTS_ROOT = Path("/tmp/squad-ia-blackboard/outputs")
 
 
 @app.before_request
@@ -233,7 +234,21 @@ def _outputs_root() -> Path:
     configured_root = os.getenv("WEB_OUTPUTS_ROOT", "").strip()
     if configured_root:
         return Path(configured_root)
-    return Path(__file__).resolve().parent.parent / "outputs"
+    repo_outputs_root = Path(__file__).resolve().parent.parent / "outputs"
+    if _is_writable_directory(repo_outputs_root):
+        return repo_outputs_root
+    return EPHEMERAL_OUTPUTS_ROOT
+
+
+def _is_writable_directory(path: Path) -> bool:
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe_path = path / ".web-write-check"
+        probe_path.write_text("ok", encoding="utf-8")
+        probe_path.unlink(missing_ok=True)
+    except OSError:
+        return False
+    return True
 
 
 def _access_token() -> str:

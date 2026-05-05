@@ -178,6 +178,7 @@ web_render_poc_deployment_flow:
     - keep one web worker for process-local jobs
     - use WEB_ACCESS_TOKEN for shared-link access
     - use WEB_OUTPUTS_ROOT and WEB_JOBS_ROOT on persistent disk
+    - when WEB_OUTPUTS_ROOT is unset and repository outputs are not writable, fall back to ephemeral /tmp storage for free-host tests
     - expose /healthz for service healthcheck
   limitations:
     - no full authentication
