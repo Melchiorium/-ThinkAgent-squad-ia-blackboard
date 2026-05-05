@@ -183,6 +183,11 @@ Le CLI standard continue de fonctionner avec `python3 app/main.py`, et la
 logique de génération standard reste exposée par `app/generation_service.py`
 pour réutilisation interne.
 
+Si `WEB_ACCESS_TOKEN` est défini, ouvrir le viewer avec
+`/?access_token=<token>` sur l'hôte visé. Après validation, l'application pose
+un cookie local `web_access_granted`. Ce mécanisme n'est pas une authentification
+complète et le lien ne doit pas être partagé publiquement.
+
 Pour le démarrer localement :
 
 ```bash

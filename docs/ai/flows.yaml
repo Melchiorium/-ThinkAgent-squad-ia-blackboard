@@ -151,6 +151,23 @@ web_generation_job_flow:
     - no retry system
     - one-process POC only
 
+web_secret_link_access_flow:
+  owner: app/web.py
+  status: poc_access_control
+  steps:
+    - read WEB_ACCESS_TOKEN
+    - allow all requests when the token is unset
+    - allow static assets
+    - accept access_token query parameter when it matches the configured token
+    - store a non-raw-token access cookie after successful validation
+    - allow later requests with a valid access cookie
+    - reject other application requests with 403
+  limitations:
+    - not full authentication
+    - no user accounts
+    - no roles or permissions
+    - shared-token POC only
+
 recommended_change_discipline:
   - prefer one small workflow or prompt change at a time
   - validate first on CareSync and LocalLoop when changing behavior

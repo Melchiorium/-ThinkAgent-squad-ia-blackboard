@@ -15,6 +15,9 @@ coding_rules:
   - Do not change prompt output headings without updating parsers and contracts.yaml.
   - Do not add broad abstractions unless they remove real duplication or clarify ownership.
 
+web_rules:
+  - The web access token is a POC shared-link guard. Do not expand it into full auth, accounts, roles, or OAuth unless explicitly requested.
+
 prompt_rules:
   - Preserve V3 as the validated prompt baseline unless explicitly working on another version.
   - Keep the V3 Paris/France deployment assumption as a global baseline rule unless a brief explicitly contradicts it.

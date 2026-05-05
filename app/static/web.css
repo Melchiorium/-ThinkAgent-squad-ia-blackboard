@@ -249,6 +249,20 @@ body {
   text-decoration: underline;
 }
 
+.access-denied {
+  max-width: 560px;
+}
+
+.access-denied h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.access-denied p {
+  margin: 0;
+  color: #4b5563;
+}
+
 .runs {
   display: grid;
   gap: 12px;

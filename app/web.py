@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import sys
+import hashlib
+import hmac
 from pathlib import Path
 from threading import Lock, Thread
 
@@ -45,6 +47,7 @@ else:
 app = Flask(__name__)
 MAX_BRIEF_CHARACTERS = 50_000
 WEB_SESSION_COOKIE_NAME = "web_session_id"
+WEB_ACCESS_COOKIE_NAME = "web_access_granted"
 
 generation_lock = Lock()
 generation_runner = run_generation_from_brief
@@ -74,7 +77,31 @@ def _attach_session_cookie(response):
             samesite="Lax",
             path="/",
         )
+    if getattr(g, "web_access_cookie_is_new", False):
+        response.set_cookie(
+            WEB_ACCESS_COOKIE_NAME,
+            _access_cookie_value(_access_token()),
+            httponly=True,
+            samesite="Lax",
+            path="/",
+        )
     return response
+
+
+@app.before_request
+def _guard_secret_access():
+    token = _access_token()
+    if not token or request.endpoint == "static":
+        return None
+
+    if _has_valid_access_query_token(token):
+        g.web_access_cookie_is_new = True
+        return None
+
+    if _has_valid_access_cookie(token):
+        return None
+
+    return render_template("access_denied.html"), 403
 
 
 @app.get("/")
@@ -171,6 +198,29 @@ def _jobs_root() -> Path:
     if configured_root:
         return Path(configured_root)
     return Path(__file__).resolve().parent.parent / "outputs" / DEFAULT_WEB_JOBS_DIRNAME
+
+
+def _access_token() -> str:
+    return os.getenv("WEB_ACCESS_TOKEN", "").strip()
+
+
+def _access_cookie_value(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _has_valid_access_cookie(token: str) -> bool:
+    cookie_value = request.cookies.get(WEB_ACCESS_COOKIE_NAME, "").strip()
+    if not cookie_value:
+        return False
+    expected_value = _access_cookie_value(token)
+    return hmac.compare_digest(cookie_value, expected_value)
+
+
+def _has_valid_access_query_token(token: str) -> bool:
+    query_token = request.args.get("access_token", "").strip()
+    if not query_token:
+        return False
+    return hmac.compare_digest(query_token, token)
 
 
 def _build_run_view(run: dict) -> dict:

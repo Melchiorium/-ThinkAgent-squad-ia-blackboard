@@ -173,10 +173,12 @@ modules:
   - name: web
     path: app/web.py
     role: >
-      Flask server for the POC viewer and job flow. Lists runs on /, accepts
-      briefs on POST /jobs, shows session jobs on /, renders job status on
-      /jobs/<job_id>, renders run details on /runs/<project>/<version>, and
-      serves allowlisted artifacts on /runs/<project>/<version>/artifacts/<filename>.
+      Flask server for the POC viewer, job flow, and shared-link access gate.
+      Lists runs on /, accepts briefs on POST /jobs, shows session jobs on /,
+      renders job status on /jobs/<job_id>, renders run details on
+      /runs/<project>/<version>, serves allowlisted artifacts on
+      /runs/<project>/<version>/artifacts/<filename>, and protects the
+      application routes with WEB_ACCESS_TOKEN when configured.
     read_when:
       - changing Flask routes
       - changing templates
@@ -184,6 +186,7 @@ modules:
       - changing file-serving guardrails
       - changing web brief submission
       - changing job status display
+      - changing access control behavior
     key_functions:
       - app
       - index
@@ -191,6 +194,7 @@ modules:
       - job_status
       - run_detail
       - run_artifact
+      - _guard_secret_access
 
   - name: web_jobs
     path: app/web_jobs.py
