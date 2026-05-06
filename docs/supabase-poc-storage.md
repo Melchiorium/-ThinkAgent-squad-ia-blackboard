@@ -46,6 +46,21 @@ WEB_ACCESS_TOKEN=<token fort>
 9. redeployer à nouveau ;
 10. vérifier que le run et ses artefacts restent visibles.
 
+Avant redeploy, vérifier :
+
+- `WEB_STORAGE_BACKEND=supabase` ;
+- `SUPABASE_DATABASE_URL` ;
+- `WEB_ACCESS_TOKEN` ;
+- absence de `WEB_OUTPUTS_ROOT` ;
+- absence de `WEB_JOBS_ROOT`.
+
+Après redeploy, vérifier :
+
+- `/readyz` avec token renvoie `200` ;
+- le run récent reste listé ;
+- les artefacts restent lisibles ;
+- aucun secret n'apparaît dans l'UI ou les logs.
+
 ## Détails opérationnels
 
 - Le backend fichier reste le comportement par défaut pour le local.
@@ -67,6 +82,20 @@ scripts/check_web_storage.py
 
 Il crée un job `Storage Check`, passe par les états `queued`, `running`, `done`,
 sauve des artefacts fake et relit ensuite le job, les runs et un artefact.
+
+## Préflight production
+
+Avant un déploiement durable, vérifier dans cet ordre :
+
+1. `WEB_STORAGE_BACKEND=supabase` est bien défini ;
+2. `SUPABASE_DATABASE_URL` est présente ;
+3. `python3 scripts/check_web_storage.py` renvoie `Storage validation passed.`
+   ;
+4. `GET /readyz` renvoie `200` avec le même `WEB_ACCESS_TOKEN` que
+   l'application et confirme que `web_jobs` et `web_run_artifacts` sont
+   accessibles ;
+5. aucun secret n'apparaît dans les logs, dans la page de readiness ou dans la
+   documentation.
 
 ## Notes de sécurité
 

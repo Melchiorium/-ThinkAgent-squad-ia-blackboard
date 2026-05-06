@@ -209,6 +209,9 @@ service, pas dans `.env`.
 Pour un stockage persistant sans disque Render payant, le mode recommandé est
 `WEB_STORAGE_BACKEND=supabase` avec la procédure détaillée dans
 [docs/supabase-poc-storage.md](docs/supabase-poc-storage.md).
+Le runbook d'audit est [docs/production-audit-runbook.md](docs/production-audit-runbook.md).
+Quand `WEB_ACCESS_TOKEN` est configuré, `/readyz` est protégé par le même
+token que l'application.
 La validation sans LLM se lance avec `python3 scripts/check_web_storage.py`.
 
 Pour le démarrer localement :

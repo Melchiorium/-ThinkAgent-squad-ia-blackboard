@@ -25,6 +25,10 @@ gunicorn app.web:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
 /healthz
 ```
 
+- utiliser `GET /readyz` pour le contrôle manuel de readiness avant audit ;
+- quand `WEB_ACCESS_TOKEN` est défini, ouvrir `/readyz` avec le même token que
+  l'application ;
+
 - garder un seul process / worker pour ce POC ;
 - ne pas activer de scaling horizontal ;
 - ne pas créer de base de données ;
@@ -77,10 +81,29 @@ SUPABASE_DATABASE_URL=<connection string>
 ```
 
 - `WEB_OUTPUTS_ROOT` et `WEB_JOBS_ROOT` ne sont pas requis ;
+- ne pas définir `WEB_OUTPUTS_ROOT` ;
+- ne pas définir `WEB_JOBS_ROOT` ;
 - les jobs vivent dans `web_jobs` ;
 - les artefacts vivent dans `web_run_artifacts` ;
 - la procédure complète est dans
   [docs/supabase-poc-storage.md](docs/supabase-poc-storage.md).
+
+### Avant redeploy
+
+1. vérifier que `WEB_STORAGE_BACKEND=supabase` est bien défini ;
+2. vérifier que `SUPABASE_DATABASE_URL` pointe vers la Session Pooler ;
+3. vérifier que `WEB_ACCESS_TOKEN` est présent ;
+4. vérifier que `WEB_OUTPUTS_ROOT` et `WEB_JOBS_ROOT` ne sont pas définis ;
+5. lancer `python3 scripts/check_web_storage.py` si un contrôle local est
+   nécessaire.
+
+### Après redeploy
+
+1. ouvrir `/healthz` ;
+2. ouvrir `/readyz` avec le token configuré ;
+3. vérifier que le run le plus récent reste listé ;
+4. rouvrir le run et vérifier que le contenu inline reste lisible ;
+5. noter tout écart sans documenter de secret.
 
 ## Disque persistant Render
 
@@ -122,6 +145,7 @@ Render éphémère.
 Résultats :
 
 - `/healthz` : `200 OK` ;
+- `/readyz` : `200 OK` avec backend `file` ;
 - `/` sans token : refusé avec `403` ;
 - `/` avec `?access_token=<token>` : home visible ;
 - run créé : `Yoyo Web Test` ;

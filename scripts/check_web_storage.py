@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import os
 import sys
 import tempfile
 from pathlib import Path
@@ -19,8 +18,13 @@ from app.web_storage import (  # noqa: E402
     list_jobs,
     list_runs,
     load_run_sections,
+    check_storage_readiness,
     persist_run_artifacts,
     read_run_artifact,
+    WebStorageConfigurationError,
+    WebStorageConnectionError,
+    WebStorageDependencyError,
+    WebStorageSchemaError,
     resolve_web_storage_backend,
     update_job,
 )
@@ -31,17 +35,11 @@ VERSION_NAME = "version 1"
 BRIEF_TEXT = "Storage validation brief."
 
 
-class StorageConfigurationError(RuntimeError):
-    pass
-
-
 def main() -> int:
     backend = resolve_web_storage_backend()
     print(f"Storage backend: {backend}")
-    if backend == "supabase" and not os.getenv("SUPABASE_DATABASE_URL", "").strip():
-        raise StorageConfigurationError(
-            "WEB_STORAGE_BACKEND=supabase requires SUPABASE_DATABASE_URL."
-        )
+    readiness = check_storage_readiness(backend)
+    print(readiness["message"])
 
     with tempfile.TemporaryDirectory(prefix="squad-web-storage-") as temp_dir:
         temp_root = Path(temp_dir)
@@ -143,8 +141,20 @@ def _assert(condition: bool, message: str) -> None:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except StorageConfigurationError as error:
-        print(f"Storage validation failed: {error}", file=sys.stderr)
+    except WebStorageDependencyError as error:
+        print(f"Storage validation failed [dependency]: {error}", file=sys.stderr)
+        raise SystemExit(1)
+    except WebStorageConfigurationError as error:
+        print(f"Storage validation failed [configuration]: {error}", file=sys.stderr)
+        raise SystemExit(1)
+    except WebStorageConnectionError as error:
+        print(f"Storage validation failed [connection]: {error}", file=sys.stderr)
+        raise SystemExit(1)
+    except WebStorageSchemaError as error:
+        print(f"Storage validation failed [schema]: {error}", file=sys.stderr)
+        raise SystemExit(1)
+    except ValueError as error:
+        print(f"Storage validation failed [configuration]: {error}", file=sys.stderr)
         raise SystemExit(1)
     except Exception as error:
         print(f"Storage validation failed: {error}", file=sys.stderr)

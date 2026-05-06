@@ -37,6 +37,7 @@ key_paths:
   final_report: outputs/rapport_final.md
   supabase_schema: docs/supabase-schema.sql
   supabase_storage_doc: docs/supabase-poc-storage.md
+  production_audit_runbook: docs/production-audit-runbook.md
   storage_validation_script: scripts/check_web_storage.py
   package_manifest: package.json
   python_requirements: requirements.txt

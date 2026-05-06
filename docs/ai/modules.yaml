@@ -198,8 +198,9 @@ modules:
       /jobs, shows session generations on /, renders job status on
       /jobs/<job_id>, exposes JSON status on /api/jobs/<job_id>, renders run
       details on /runs/<project>/<version>, serves allowlisted artifacts on
-      /runs/<project>/<version>/artifacts/<filename>, exposes /healthz, and
-      protects the application routes with WEB_ACCESS_TOKEN when configured.
+      /runs/<project>/<version>/artifacts/<filename>, exposes /healthz and
+      /readyz, and protects the application routes, including /readyz, with
+      WEB_ACCESS_TOKEN when configured.
     read_when:
       - changing Flask routes
       - changing templates
@@ -220,10 +221,12 @@ modules:
       - run_detail
       - run_artifact
       - healthz
+      - readyz
       - _guard_secret_access
       - _outputs_root
       - _jobs_root
       - _run_generation_runner
+      - _readyz_error_payload
 
   - name: web_jobs
     path: app/web_jobs.py
@@ -257,6 +260,7 @@ modules:
       - changing the storage validation script
     key_functions:
       - resolve_web_storage_backend
+      - check_storage_readiness
       - create_job
       - get_job
       - update_job
@@ -313,7 +317,7 @@ modules:
     role: >
       Operational checklist for creating, smoke-testing, and documenting the
       Render web POC across ephemeral file mode, persistent Supabase mode, and
-      optional paid disk mode.
+      optional paid disk mode. Includes the manual /readyz check.
     read_when:
       - configuring the Render service manually
       - documenting smoke-test results
@@ -338,11 +342,22 @@ modules:
       - provisioning the Supabase schema
       - debugging storage migrations
 
+  - name: production_audit_runbook
+    path: docs/production-audit-runbook.md
+    role: >
+      Short human-auditable checklist for the durable Render + Supabase web
+      deployment, including readiness checks and post-redeploy verification.
+    read_when:
+      - auditing the production web deployment
+      - verifying durable storage after redeploy
+      - diagnosing readiness or smoke-test issues
+
   - name: web_storage_validation_script
     path: scripts/check_web_storage.py
     role: >
       No-LLM storage validation script that exercises the active backend by
-      creating a fake job and fake run artifacts.
+      creating a fake job and fake run artifacts, and by probing the active
+      storage readiness before the fake run.
     read_when:
       - validating file backend behavior
       - validating Supabase backend behavior

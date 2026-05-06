@@ -180,6 +180,7 @@ web_render_poc_deployment_flow:
     - use WEB_STORAGE_BACKEND=file for ephemeral smoke tests
     - use WEB_STORAGE_BACKEND=supabase with SUPABASE_DATABASE_URL for persistent storage
     - expose /healthz for service healthcheck
+    - expose /readyz for manual readiness checks
     - run the deployed smoke test against the Render URL and document the result
   limitations:
     - no full authentication
@@ -193,6 +194,7 @@ web_render_smoke_test_flow:
   status: smoke_test
   steps:
     - open /healthz and confirm 200
+    - open /readyz and confirm 200
     - open the home page without token and confirm access is denied
     - open the home page with ?access_token=<token> and confirm the viewer loads
     - submit a project title and brief
@@ -213,6 +215,7 @@ web_supabase_persistence_flow:
     - execute docs/supabase-schema.sql in SQL Editor
     - configure WEB_STORAGE_BACKEND=supabase
     - configure SUPABASE_DATABASE_URL from the Session Pooler connection string
+    - confirm /readyz returns 200 with the durable backend
     - redeploy Render
     - run the storage validation script without LLM
     - confirm jobs persist in web_jobs
@@ -229,6 +232,7 @@ web_storage_validation_flow:
   status: validation
   steps:
     - detect the active backend from WEB_STORAGE_BACKEND
+    - probe storage readiness before creating the fake job
     - use a temporary local root when backend is file
     - create a Storage Check job
     - transition the job through queued, running, and done
@@ -238,6 +242,21 @@ web_storage_validation_flow:
     - no LLM calls
     - no generation workflow
     - no cleanup of Supabase test rows
+
+web_readiness_probe_flow:
+  owner: app/web.py and app/web_storage.py
+  status: readiness
+  steps:
+    - resolve the active storage backend
+    - require the shared token for /readyz when WEB_ACCESS_TOKEN is configured
+    - return file backend as local and ephemeral
+    - verify SUPABASE_DATABASE_URL in supabase mode
+    - verify connection to Postgres in supabase mode
+    - verify web_jobs and web_run_artifacts are accessible in supabase mode
+  limitations:
+    - no LLM calls
+    - no generation workflow
+    - no secret exposure
 
 web_local_launcher_flow:
   owner: scripts/run_web.sh

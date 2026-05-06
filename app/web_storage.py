@@ -54,6 +54,26 @@ _BINARY_ARTIFACT_CONTENT_TYPES = {
 }
 
 
+class WebStorageError(RuntimeError):
+    pass
+
+
+class WebStorageDependencyError(WebStorageError):
+    pass
+
+
+class WebStorageConfigurationError(WebStorageError):
+    pass
+
+
+class WebStorageConnectionError(WebStorageError):
+    pass
+
+
+class WebStorageSchemaError(WebStorageError):
+    pass
+
+
 def create_session_id() -> str:
     return _build_short_id()
 
@@ -197,6 +217,18 @@ def prepare_generation_workspace(
         if run["project"] != project_name:
             continue
         (project_dir / run["version"]).mkdir(parents=True, exist_ok=True)
+
+
+def check_storage_readiness(backend: str | None = None) -> dict:
+    storage_backend = resolve_web_storage_backend(backend)
+    if storage_backend == "file":
+        return {
+            "status": "ok",
+            "backend": "file",
+            "mode": "local_ephemeral",
+            "message": "File backend active; persistence is local and ephemeral.",
+        }
+    return _supabase_check_storage_readiness()
 
 
 def is_allowed_run_artifact_filename(filename: str) -> bool:
@@ -1001,27 +1033,28 @@ def _format_timestamp(value: Any) -> str:
 def _supabase_database_url() -> str:
     database_url = os.getenv("SUPABASE_DATABASE_URL", "").strip()
     if not database_url:
-        raise RuntimeError(
+        raise WebStorageConfigurationError(
             "WEB_STORAGE_BACKEND=supabase requires SUPABASE_DATABASE_URL."
         )
     return database_url
 
 
 def _supabase_connection():
+    database_url = _supabase_database_url()
     try:
         import psycopg
     except ModuleNotFoundError as error:
-        raise RuntimeError(
+        raise WebStorageDependencyError(
             "Supabase storage requires psycopg[binary] to be installed."
         ) from error
-    return psycopg.connect(_supabase_database_url())
+    return psycopg.connect(database_url)
 
 
 def _supabase_fetch_all(query: str, params: tuple[Any, ...] | None = None) -> list[dict]:
     try:
         from psycopg.rows import dict_row
     except ModuleNotFoundError as error:
-        raise RuntimeError(
+        raise WebStorageDependencyError(
             "Supabase storage requires psycopg[binary] to be installed."
         ) from error
 
@@ -1045,3 +1078,66 @@ def _supabase_execute(
                     cursor.execute(query, item)
                 return
             cursor.execute(query, params or ())
+
+
+def _supabase_check_storage_readiness() -> dict:
+    try:
+        with _supabase_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    select
+                      to_regclass('public.web_jobs'),
+                      to_regclass('public.web_run_artifacts')
+                    """
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    raise WebStorageConnectionError(
+                        "Supabase readiness probe returned no result."
+                    )
+                missing_tables: list[str] = []
+                if row[0] is None:
+                    missing_tables.append("web_jobs")
+                if row[1] is None:
+                    missing_tables.append("web_run_artifacts")
+                if missing_tables:
+                    missing_list = ", ".join(missing_tables)
+                    raise WebStorageSchemaError(
+                        f"Supabase schema missing or inaccessible: {missing_list}."
+                    )
+                _supabase_probe_table_access(cursor, "web_jobs")
+                _supabase_probe_table_access(cursor, "web_run_artifacts")
+    except WebStorageDependencyError:
+        raise
+    except WebStorageConfigurationError:
+        raise
+    except WebStorageConnectionError:
+        raise
+    except WebStorageSchemaError:
+        raise
+    except Exception as error:
+        raise WebStorageConnectionError(
+            "Supabase database connection failed."
+        ) from error
+
+    return {
+        "status": "ok",
+        "backend": "supabase",
+        "mode": "persistent",
+        "message": "Supabase backend ready; table access verified.",
+        "tables": ["web_jobs", "web_run_artifacts"],
+    }
+
+
+def _supabase_probe_table_access(cursor, table_name: str) -> None:
+    cursor.execute(f"select 1 from {table_name} limit 1")
+    row = cursor.fetchone()
+    if row is not None:
+        return
+    cursor.execute(f"select count(*) from {table_name}")
+    count_row = cursor.fetchone()
+    if count_row is None:
+        raise WebStorageConnectionError(
+            f"Supabase readiness probe could not read {table_name}."
+        )

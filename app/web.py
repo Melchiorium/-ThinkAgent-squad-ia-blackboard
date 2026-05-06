@@ -41,6 +41,11 @@ if __package__ in {None, ""}:
     )
     from app.web_runs import get_run, list_runs
     from app.web_storage import (
+        WebStorageConfigurationError,
+        WebStorageConnectionError,
+        WebStorageDependencyError,
+        WebStorageSchemaError,
+        check_storage_readiness,
         is_allowed_run_artifact_filename,
         load_run_sections,
         prepare_generation_workspace,
@@ -66,6 +71,11 @@ else:
     )
     from .web_runs import get_run, list_runs
     from .web_storage import (
+        WebStorageConfigurationError,
+        WebStorageConnectionError,
+        WebStorageDependencyError,
+        WebStorageSchemaError,
+        check_storage_readiness,
         is_allowed_run_artifact_filename,
         load_run_sections,
         prepare_generation_workspace,
@@ -398,9 +408,47 @@ def _storage_backend() -> str:
     return resolve_web_storage_backend()
 
 
+def _readyz_error_payload(error_type: str, message: str, backend: str) -> dict:
+    return {
+        "status": "error",
+        "backend": backend,
+        "error_type": error_type,
+        "message": message,
+    }
+
+
 @app.get("/healthz")
 def healthz():
     return jsonify({"status": "ok"})
+
+
+@app.get("/readyz")
+def readyz():
+    try:
+        backend = _storage_backend()
+        readiness = check_storage_readiness(backend)
+    except ValueError as error:
+        return (
+            jsonify(
+                {
+                    "status": "error",
+                    "backend": "unknown",
+                    "error_type": "invalid_backend",
+                    "message": str(error),
+                }
+            ),
+            503,
+        )
+    except WebStorageDependencyError as error:
+        return jsonify(_readyz_error_payload("dependency_error", str(error), backend)), 503
+    except WebStorageConfigurationError as error:
+        return jsonify(_readyz_error_payload("configuration_error", str(error), backend)), 503
+    except WebStorageConnectionError as error:
+        return jsonify(_readyz_error_payload("connection_error", str(error), backend)), 503
+    except WebStorageSchemaError as error:
+        return jsonify(_readyz_error_payload("schema_error", str(error), backend)), 503
+
+    return jsonify(readiness)
 
 
 def _start_generation_job(job_id: str) -> None:
