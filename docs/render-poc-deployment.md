@@ -31,7 +31,7 @@ gunicorn app.web:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
 
 - garder un seul process / worker pour ce POC ;
 - ne pas activer de scaling horizontal ;
-- ne pas créer de base de données ;
+- ne pas créer de base de données Render managée ;
 - ne pas créer de Redis ;
 - ne pas ajouter de `render.yaml`.
 
@@ -154,6 +154,21 @@ Résultats :
 - résultat inline : PRD, Architecture, Mermaid, GTM, Brief, Blackboard et Activity Log visibles ;
 - artefact Mermaid PNG : absent, avec source `.mmd` disponible ;
 - le run apparaît dans la liste des générations de session et dans les dossiers générés existants.
+
+Statut observé le 2026-05-06 :
+
+- le probe live `/readyz?access_token=<token>` renvoie encore le backend
+  `file` ;
+- le mode durable Supabase n'est donc pas actif sur cette instance live au
+  moment de ce contrôle.
+
+### Statut du smoke test durable
+
+- non validé à ce stade ;
+- critères restants : `/readyz?access_token=<token>` doit renvoyer
+  `backend: supabase`, une génération réelle doit se terminer, puis le run
+  doit rester visible après redeploy ;
+- tant que le backend reste `file`, le test durable reste bloqué.
 
 ## Limites POC
 

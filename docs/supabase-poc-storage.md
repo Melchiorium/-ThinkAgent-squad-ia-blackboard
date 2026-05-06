@@ -97,6 +97,19 @@ Avant un déploiement durable, vérifier dans cet ordre :
 5. aucun secret n'apparaît dans les logs, dans la page de readiness ou dans la
    documentation.
 
+## Avertissement RLS
+
+Supabase affiche parfois le warning `New tables will not have Row Level
+Security enabled` après la création des tables. C'est attendu pour ce POC
+backend-only.
+
+- l'application utilise une connexion Postgres serveur via
+  `SUPABASE_DATABASE_URL` ;
+- elle n'utilise pas les clés frontend `anon` ou `authenticated` ;
+- `SUPABASE_DATABASE_URL` ne doit jamais être exposée au navigateur ;
+- ne pas activer ni modifier RLS sans lot dédié et sans valider d'abord
+  `/readyz` et `python3 scripts/check_web_storage.py`.
+
 ## Notes de sécurité
 
 - Ne pas écrire la vraie connection string dans cette documentation.

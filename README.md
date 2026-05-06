@@ -199,7 +199,8 @@ Ne publiez jamais le token.
 ### Déploiement Render POC
 
 Render démarre l'app via `Procfile` et Gunicorn, avec un seul worker.
-Le disque persistant doit fournir `WEB_OUTPUTS_ROOT` et `WEB_JOBS_ROOT`.
+Si on choisit le mode disque Render payant, il doit fournir
+`WEB_OUTPUTS_ROOT` et `WEB_JOBS_ROOT`.
 Si `WEB_ACCESS_TOKEN` est défini, l'URL d'accès initiale est
 `https://<render-host>/?access_token=<token>`.
 Ce POC reste en accès partagé, sans comptes ni authentification complète.
@@ -212,6 +213,8 @@ Pour un stockage persistant sans disque Render payant, le mode recommandé est
 Le runbook d'audit est [docs/production-audit-runbook.md](docs/production-audit-runbook.md).
 Quand `WEB_ACCESS_TOKEN` est configuré, `/readyz` est protégé par le même
 token que l'application.
+Le smoke test durable Supabase reste à valider tant que `/readyz` renvoie
+`backend: file` sur l'instance live.
 La validation sans LLM se lance avec `python3 scripts/check_web_storage.py`.
 
 Pour le démarrer localement :

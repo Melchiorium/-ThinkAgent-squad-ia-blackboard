@@ -206,6 +206,7 @@ web_render_smoke_test_flow:
     - no full authentication
     - no user accounts
     - no distributed job queue
+    - durable Supabase smoke test remains blocked until /readyz reports backend supabase on the live instance
 
 web_supabase_persistence_flow:
   owner: docs/supabase-poc-storage.md and app/web_storage.py
@@ -226,6 +227,7 @@ web_supabase_persistence_flow:
     - no Supabase Storage
     - no archived history layer
     - no automatic cleanup
+    - not validated until the live instance reports backend supabase on /readyz and a real generation survives redeploy
 
 web_storage_validation_flow:
   owner: scripts/check_web_storage.py

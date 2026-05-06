@@ -83,6 +83,10 @@ Requises :
   démarrage ;
 - `/readyz` échoue : vérifier `WEB_STORAGE_BACKEND`, `SUPABASE_DATABASE_URL`
   et l'existence / accessibilité des tables `web_jobs` / `web_run_artifacts` ;
+- `/readyz` renvoie `backend: file` sur l'instance durable attendue :
+  le mode Supabase n'est pas encore actif sur cette instance ;
+- le warning RLS Supabase apparaît : vérifier qu'aucune clé frontend Supabase
+  n'est utilisée par l'application avant de modifier le schéma ;
 - accès sans token refusé : attendu ;
 - génération en échec OpenAI : vérifier `OPENAI_API_KEY` et les logs du job ;
 - schéma Supabase absent : exécuter `docs/supabase-schema.sql` ;

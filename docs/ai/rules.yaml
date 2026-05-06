@@ -22,6 +22,7 @@ web_rules:
   - Keep the web UI generation-first: users should be able to submit a brief and read the generated dossier without understanding internal run/job paths.
   - Do not commit or print Supabase connection strings or other storage secrets in code, docs, logs, or prompts.
   - Readiness endpoints and storage preflight checks must report status without exposing connection strings, passwords, or token values.
+  - Treat Supabase RLS warnings as expected until a dedicated lot validates an RLS strategy; do not enable or modify RLS or policies casually.
 
 prompt_rules:
   - Preserve V3 as the validated prompt baseline unless explicitly working on another version.
