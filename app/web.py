@@ -4,6 +4,7 @@ import inspect
 import hashlib
 import hmac
 import os
+import re
 import sys
 from io import BytesIO
 from pathlib import Path
@@ -45,6 +46,7 @@ if __package__ in {None, ""}:
         WebStorageConnectionError,
         WebStorageDependencyError,
         WebStorageSchemaError,
+        delete_run,
         check_storage_readiness,
         is_allowed_run_artifact_filename,
         load_run_sections,
@@ -52,6 +54,11 @@ if __package__ in {None, ""}:
         persist_run_artifacts,
         read_run_artifact,
         resolve_web_storage_backend,
+    )
+    from app.web_progress import (
+        DEFAULT_PROGRESS_TIMEOUT_SECONDS,
+        apply_progress_update,
+        normalize_progress_state,
     )
 else:
     from .generation_service import run_generation_from_brief
@@ -75,6 +82,7 @@ else:
         WebStorageConnectionError,
         WebStorageDependencyError,
         WebStorageSchemaError,
+        delete_run,
         check_storage_readiness,
         is_allowed_run_artifact_filename,
         load_run_sections,
@@ -82,6 +90,11 @@ else:
         persist_run_artifacts,
         read_run_artifact,
         resolve_web_storage_backend,
+    )
+    from .web_progress import (
+        DEFAULT_PROGRESS_TIMEOUT_SECONDS,
+        apply_progress_update,
+        normalize_progress_state,
     )
 
 
@@ -152,23 +165,14 @@ def index():
         build_run_view(run)
         for run in list_runs(outputs_root=_outputs_root(), backend=_storage_backend())
     ]
+    deletion_notice = bool(request.args.get("deleted", "").strip())
     session_id = g.web_session_id
     session_jobs = [
         build_job_view(
             job,
             status_url=url_for("job_status", job_id=job["job_id"]),
             status_api_url=url_for("job_status_api", job_id=job["job_id"]),
-            run_url=(
-                url_for(
-                    "run_detail",
-                    project=job["run_project"],
-                    version=job["run_version"],
-                )
-                if job.get("status") == "done"
-                and job.get("run_project")
-                and job.get("run_version")
-                else None
-            ),
+            run_url=_job_run_url(job),
         )
         for job in list_jobs(
             session_id=session_id,
@@ -183,6 +187,7 @@ def index():
         jobs=session_jobs,
         job_count=len(session_jobs),
         max_brief_characters=MAX_BRIEF_CHARACTERS,
+        deletion_notice=deletion_notice,
     )
 
 
@@ -191,14 +196,7 @@ def job_status_api(job_id: str):
     job = get_job(job_id, jobs_root=_jobs_root(), backend=_storage_backend())
     if job is None:
         abort(404)
-    run_url = None
-    if job.get("status") == "done" and job.get("run_project") and job.get("run_version"):
-        run_url = url_for(
-            "run_detail",
-            project=job["run_project"],
-            version=job["run_version"],
-        )
-    return jsonify(build_job_status_payload(job, run_url=run_url))
+    return jsonify(build_job_status_payload(job, run_url=_job_run_url(job)))
 
 
 @app.post("/jobs")
@@ -223,6 +221,14 @@ def create_job_route():
         jobs_root=_jobs_root(),
         backend=_storage_backend(),
     )
+    _update_job_progress(
+        job["job_id"],
+        stage="brief_received",
+        label="Brief reçu",
+        detail="Le brief a été soumis et peut être traité.",
+        done_blocks=["brief_received"],
+        set_started=False,
+    )
     Thread(target=_start_generation_job, args=(job["job_id"],), daemon=True).start()
     return redirect(url_for("job_status", job_id=job["job_id"]))
 
@@ -232,14 +238,9 @@ def job_status(job_id: str):
     job = get_job(job_id, jobs_root=_jobs_root(), backend=_storage_backend())
     if job is None:
         abort(404)
-    run_url = None
+    run_url = _job_run_url(job)
     sections = None
-    if job.get("status") == "done" and job.get("run_project") and job.get("run_version"):
-        run_url = url_for(
-            "run_detail",
-            project=job["run_project"],
-            version=job["run_version"],
-        )
+    if run_url:
         run_sections = load_run_sections(
             job["run_project"],
             job["run_version"],
@@ -331,6 +332,35 @@ def run_artifact(project: str, version: str, filename: str):
     )
 
 
+@app.post("/runs/<project>/<version>/delete")
+def delete_run_route(project: str, version: str):
+    run = get_run(
+        project,
+        version,
+        outputs_root=_outputs_root(),
+        backend=_storage_backend(),
+    )
+    if run is None:
+        abort(404)
+
+    try:
+        deleted = delete_run(
+            project,
+            version,
+            outputs_root=_outputs_root(),
+            backend=_storage_backend(),
+        )
+    except ValueError:
+        abort(404)
+    except Exception:
+        return "Suppression du run impossible.", 500
+
+    if not deleted:
+        abort(404)
+
+    return redirect(url_for("index", deleted="1"))
+
+
 def _host() -> str:
     return os.getenv("WEB_HOST", "127.0.0.1").strip() or "127.0.0.1"
 
@@ -408,6 +438,189 @@ def _storage_backend() -> str:
     return resolve_web_storage_backend()
 
 
+def _job_run_url(job: dict) -> str | None:
+    if job.get("status") != "done":
+        return None
+    project = str(job.get("run_project", "")).strip()
+    version = str(job.get("run_version", "")).strip()
+    if not project or not version:
+        return None
+    run = get_run(
+        project,
+        version,
+        outputs_root=_outputs_root(),
+        backend=_storage_backend(),
+    )
+    if run is None:
+        return None
+    return url_for("run_detail", project=project, version=version)
+
+
+def _web_agent_step_timeout_seconds() -> int:
+    raw_value = os.getenv("WEB_AGENT_STEP_TIMEOUT_SECONDS", "").strip()
+    if not raw_value:
+        return DEFAULT_PROGRESS_TIMEOUT_SECONDS
+    try:
+        timeout = int(raw_value)
+    except ValueError:
+        return DEFAULT_PROGRESS_TIMEOUT_SECONDS
+    return timeout if timeout > 0 else DEFAULT_PROGRESS_TIMEOUT_SECONDS
+
+
+def _build_job_progress_callback(job_id: str, backend: str):
+    def _callback(
+        *,
+        stage: str,
+        label: str,
+        detail: str = "",
+        active_blocks: list[str] | None = None,
+        done_blocks: list[str] | None = None,
+        skipped_blocks: list[str] | None = None,
+        failed_blocks: list[str] | None = None,
+    ) -> None:
+        current_job = get_job(job_id, jobs_root=_jobs_root(), backend=backend)
+        if current_job is None:
+            return
+        if current_job.get("status") not in {"queued", "running"}:
+            return
+        updates = _update_job_progress_payload(
+            current_job,
+            stage=stage,
+            label=label,
+            detail=detail,
+            active_blocks=active_blocks or [],
+            done_blocks=done_blocks or [],
+            skipped_blocks=skipped_blocks or [],
+            failed_blocks=failed_blocks or [],
+            set_started=current_job.get("status") == "running"
+            and not current_job.get("progress_started_at"),
+        )
+        update_job(job_id, updates, jobs_root=_jobs_root(), backend=backend)
+
+    return _callback
+
+
+def _update_job_progress(
+    job_id: str,
+    *,
+    stage: str,
+    label: str,
+    detail: str = "",
+    active_blocks: list[str] | None = None,
+    done_blocks: list[str] | None = None,
+    skipped_blocks: list[str] | None = None,
+    failed_blocks: list[str] | None = None,
+    set_started: bool = False,
+) -> dict | None:
+    backend = _storage_backend()
+    current_job = get_job(job_id, jobs_root=_jobs_root(), backend=backend)
+    if current_job is None:
+        return None
+    updates = _update_job_progress_payload(
+        current_job,
+        stage=stage,
+        label=label,
+        detail=detail,
+        active_blocks=active_blocks or [],
+        done_blocks=done_blocks or [],
+        skipped_blocks=skipped_blocks or [],
+        failed_blocks=failed_blocks or [],
+        set_started=set_started,
+    )
+    return update_job(job_id, updates, jobs_root=_jobs_root(), backend=backend)
+
+
+def _update_job_progress_payload(
+    job: dict,
+    *,
+    stage: str,
+    label: str,
+    detail: str = "",
+    active_blocks: list[str] | None = None,
+    done_blocks: list[str] | None = None,
+    skipped_blocks: list[str] | None = None,
+    failed_blocks: list[str] | None = None,
+    set_started: bool = False,
+    error_type: str = "",
+    error_message: str = "",
+) -> dict:
+    timeout_seconds = _web_agent_step_timeout_seconds()
+    return apply_progress_update(
+        job,
+        stage=stage,
+        label=label,
+        detail=detail,
+        active_blocks=active_blocks or [],
+        done_blocks=done_blocks or [],
+        skipped_blocks=skipped_blocks or [],
+        failed_blocks=failed_blocks or [],
+        set_started=set_started,
+        timeout_seconds=timeout_seconds,
+        error_type=error_type,
+        error_message=error_message,
+    )
+
+
+def _mark_generation_job_failed(job_id: str, error: Exception, *, backend: str) -> None:
+    current_job = get_job(job_id, jobs_root=_jobs_root(), backend=backend)
+    if current_job is None:
+        return
+
+    normalized_progress = normalize_progress_state(current_job)
+    active_blocks = [
+        block.get("id", "")
+        for block in normalized_progress.get("progress_blocks", [])
+        if block.get("status") == "active"
+    ]
+    error_type, error_message = _classify_progress_error(error)
+    if not error_message:
+        error_message = "Une erreur est survenue pendant la génération."
+    updates = _update_job_progress_payload(
+        current_job,
+        stage=normalized_progress.get("progress_stage", "") or "failed",
+        label=normalized_progress.get("progress_label", "") or "Génération interrompue",
+        detail=error_message,
+        active_blocks=[],
+        done_blocks=[],
+        skipped_blocks=[],
+        failed_blocks=active_blocks,
+        error_type=error_type,
+        error_message=error_message,
+    )
+    updates["status"] = "failed"
+    updates["error"] = error_message
+    update_job(job_id, updates, jobs_root=_jobs_root(), backend=backend)
+
+
+def _classify_progress_error(error: Exception) -> tuple[str, str]:
+    message = _sanitize_progress_error_message(str(error))
+    lowered = message.lower()
+    if isinstance(error, TimeoutError) or "timed out" in lowered or "dépassé" in lowered:
+        return "timeout", message
+    if "llm request failed" in lowered or "model" in lowered and "not found" in lowered:
+        return "llm", message
+    if any(keyword in lowered for keyword in ("cannot reach", "connection", "network", "dns", "http")):
+        return "network", message
+    if any(keyword in lowered for keyword in ("supabase", "storage", "database")):
+        return "storage", message
+    return "unknown", message
+
+
+def _sanitize_progress_error_message(message: str) -> str:
+    sanitized = re.sub(r"(access_token=)[^&\s]+", r"\1***", message)
+    sanitized = re.sub(
+        r"(postgres(?:ql)?://)([^:@\s]+):([^@\s]+)@",
+        r"\1***:***@",
+        sanitized,
+        flags=re.IGNORECASE,
+    )
+    sanitized = re.sub(r"(https?://)[^\s]+", r"\1…", sanitized)
+    sanitized = " ".join(sanitized.split())
+    if len(sanitized) > 220:
+        sanitized = sanitized[:217].rstrip() + "..."
+    return sanitized
+
+
 def _readyz_error_payload(error_type: str, message: str, backend: str) -> dict:
     return {
         "status": "error",
@@ -464,6 +677,20 @@ def _start_generation_job(job_id: str) -> None:
             return
 
         update_job(job_id, {"status": "running"}, jobs_root=_jobs_root(), backend=backend)
+        _update_job_progress(
+            job_id,
+            stage="product_initial",
+            label="Product structure le PRD initial",
+            detail="Analyse du brief, problème cible, utilisateurs et objectifs MVP.",
+            active_blocks=[
+                "product_brief_analysis",
+                "product_problem",
+                "product_users_goals",
+                "product_user_stories",
+            ],
+            done_blocks=["brief_received"],
+            set_started=True,
+        )
         try:
             prepare_generation_workspace(
                 project_title,
@@ -474,9 +701,25 @@ def _start_generation_job(job_id: str) -> None:
                 effective_brief,
                 job_id,
                 project_name_override=project_title or None,
+                progress_callback=_build_job_progress_callback(job_id, backend),
+                step_timeout_seconds=_web_agent_step_timeout_seconds(),
             )
             output_dir = Path(result.output_dir)
+            _update_job_progress(
+                job_id,
+                stage="artifacts_persistence",
+                label="Persistance des artefacts",
+                detail="Les artefacts du run sont en cours de persistance.",
+                active_blocks=["artifacts_persistence"],
+            )
             persist_run_artifacts(output_dir, backend=backend)
+            _update_job_progress(
+                job_id,
+                stage="done",
+                label="Génération terminée",
+                detail="Les artefacts ont été persistés avec succès.",
+                done_blocks=["artifacts_persistence", "done"],
+            )
             update_job(
                 job_id,
                 {
@@ -491,13 +734,9 @@ def _start_generation_job(job_id: str) -> None:
                 backend=backend,
             )
         except Exception as error:
-            update_job(
+            _mark_generation_job_failed(
                 job_id,
-                {
-                    "status": "failed",
-                    "error": str(error),
-                },
-                jobs_root=_jobs_root(),
+                error,
                 backend=backend,
             )
 
@@ -514,9 +753,15 @@ def _run_generation_runner(
     brief_text: str,
     job_id: str,
     project_name_override: str | None = None,
+    progress_callback=None,
+    step_timeout_seconds: int | None = None,
 ):
     runner = generation_runner
-    kwargs = {"project_brief_source": f"web://job/{job_id}"}
+    kwargs = {
+        "project_brief_source": f"web://job/{job_id}",
+        "progress_callback": progress_callback,
+        "step_timeout_seconds": step_timeout_seconds,
+    }
     try:
         signature = inspect.signature(runner)
     except (TypeError, ValueError):
@@ -540,6 +785,15 @@ def _run_generation_runner(
         )
     ):
         kwargs["project_name_override"] = project_name_override
+    accepts_var_kwargs = any(
+        parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in signature.parameters.values()
+    )
+    if not accepts_var_kwargs:
+        if "progress_callback" not in signature.parameters:
+            kwargs.pop("progress_callback", None)
+        if "step_timeout_seconds" not in signature.parameters:
+            kwargs.pop("step_timeout_seconds", None)
     return runner(brief_text, **kwargs)
 
 

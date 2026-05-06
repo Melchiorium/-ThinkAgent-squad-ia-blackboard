@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
 import re
@@ -30,6 +31,8 @@ def run_generation_from_brief(
     evaluator_report_text: str = "",
     flow_runner: Callable[[str, str], dict] | None = None,
     project_name_override: str | None = None,
+    progress_callback: Callable[..., None] | None = None,
+    step_timeout_seconds: int | None = None,
 ) -> GenerationResult:
     brief_text = brief_text.strip()
     if not brief_text:
@@ -42,7 +45,13 @@ def run_generation_from_brief(
     )
     output_dir = next_project_version_outputs_dir(project_name, outputs_root)
     runner = flow_runner or run_v0_flow
-    blackboard = runner(brief_text, project_brief_source)
+    blackboard = _call_flow_runner(
+        runner,
+        brief_text,
+        project_brief_source,
+        progress_callback=progress_callback,
+        step_timeout_seconds=step_timeout_seconds,
+    )
     write_run_artifacts(output_dir, blackboard, brief_text, evaluator_report_text)
     return GenerationResult(
         project_name=project_name,
@@ -96,3 +105,32 @@ def _normalize_project_name(project_name: str) -> str:
     if "/" in normalized or "\\" in normalized or ".." in normalized:
         raise ValueError(f"Invalid project name: {project_name!r}")
     return normalized
+
+
+def _call_flow_runner(
+    runner: Callable[..., dict],
+    brief_text: str,
+    project_brief_source: str,
+    *,
+    progress_callback: Callable[..., None] | None,
+    step_timeout_seconds: int | None,
+) -> dict:
+    try:
+        signature = inspect.signature(runner)
+    except (TypeError, ValueError):
+        signature = None
+
+    kwargs = {}
+    if signature is None or _accepts_keyword(signature, "progress_callback"):
+        kwargs["progress_callback"] = progress_callback
+    if signature is None or _accepts_keyword(signature, "step_timeout_seconds"):
+        kwargs["step_timeout_seconds"] = step_timeout_seconds
+
+    return runner(brief_text, project_brief_source, **kwargs)
+
+
+def _accepts_keyword(signature: inspect.Signature, name: str) -> bool:
+    return name in signature.parameters or any(
+        parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in signature.parameters.values()
+    )

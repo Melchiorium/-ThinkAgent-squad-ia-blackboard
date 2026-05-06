@@ -26,6 +26,7 @@ key_paths:
   readiness_parser: app/readiness.py
   architecture_renderer: app/architecture_render.py
   web_storage: app/web_storage.py
+  web_progress: app/web_progress.py
   active_prompts: app/prompts V3/
   historical_prompts:
     - app/prompts/

@@ -18,8 +18,11 @@ coding_rules:
 web_rules:
   - The web access token is a POC shared-link guard. Do not expand it into full auth, accounts, roles, or OAuth unless explicitly requested.
   - Protect /readyz with the same WEB_ACCESS_TOKEN guard as the rest of the app when the token is configured.
+  - Manual run deletion must go through the run inventory and POST routes only; never accept a raw filesystem path from the user.
+  - WEB_AGENT_STEP_TIMEOUT_SECONDS is a UI stale-step threshold only; do not use it to cancel agent work or release the generation lock early.
   - Keep the Render deployment as a single-process POC unless a real external queue and shared job store are introduced.
   - Keep the web UI generation-first: users should be able to submit a brief and read the generated dossier without understanding internal run/job paths.
+  - The web-only step timeout is controlled by WEB_AGENT_STEP_TIMEOUT_SECONDS and must not change the CLI execution path.
   - When Render should produce architecture-diagram.png, the build step must install the Node devDependencies and a Chromium browser into the repo cache so @mermaid-js/mermaid-cli can run before Gunicorn starts and at runtime.
   - Do not commit or print Supabase connection strings or other storage secrets in code, docs, logs, or prompts.
   - Readiness endpoints and storage preflight checks must report status without exposing connection strings, passwords, or token values.

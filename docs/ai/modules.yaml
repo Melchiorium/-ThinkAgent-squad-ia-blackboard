@@ -176,7 +176,9 @@ modules:
     role: >
       Pure presentation helpers for the web viewer. Builds job and run view
       models plus rendered section metadata without touching storage or Flask
-      request state.
+      request state. Also normalizes the web progress contract for API and
+      server-rendered fallbacks. Link validity is still resolved by the Flask
+      layer against the live run inventory.
     read_when:
       - changing web job or run view models
       - changing section rendering metadata
@@ -189,6 +191,28 @@ modules:
       - status_label
       - job_display_title
 
+  - name: web_progress
+    path: app/web_progress.py
+    role: >
+      Shared pure helpers for the web generation progress contract. Defines
+      the allowed blocks, default state, event trimming, and block-status
+      normalization used by the storage layer, workflow instrumentation, and
+      browser polling UI.
+    read_when:
+      - changing web job progress fields
+      - changing progress block definitions
+      - changing web progress event structure
+      - implementing or debugging the waiting-page progress UI
+    key_functions:
+      - build_empty_progress_state
+      - build_default_progress_blocks
+      - normalize_progress_state
+      - normalize_progress_blocks
+      - normalize_progress_events
+      - build_progress_event
+      - apply_progress_update
+      - progress_block_labels
+
   - name: web
     path: app/web.py
     role: >
@@ -196,11 +220,13 @@ modules:
       access gate. Runs locally with the Flask dev server or on Render via
       Gunicorn. Lists runs on /, accepts a project title plus brief on POST
       /jobs, shows session generations on /, renders job status on
-      /jobs/<job_id>, exposes JSON status on /api/jobs/<job_id>, renders run
-      details on /runs/<project>/<version>, serves allowlisted artifacts on
-      /runs/<project>/<version>/artifacts/<filename>, exposes /healthz and
-      /readyz, and protects the application routes, including /readyz, with
-      WEB_ACCESS_TOKEN when configured.
+      /jobs/<job_id>, exposes JSON status on /api/jobs/<job_id> with progress
+      telemetry, renders run details on /runs/<project>/<version>, serves
+      allowlisted artifacts on /runs/<project>/<version>/artifacts/<filename>,
+      exposes /healthz and /readyz, offers manual run deletion through the run
+      inventory, filters done-job result links against the live run inventory,
+      and protects the application routes, including /readyz, with WEB_ACCESS_TOKEN
+      when configured.
     read_when:
       - changing Flask routes
       - changing templates
@@ -208,6 +234,8 @@ modules:
       - changing file-serving guardrails
       - changing web brief submission
       - changing job status display
+      - changing web progress polling or job progress persistence
+      - changing run deletion behavior or inventory actions
       - changing access control behavior
       - changing deployment or healthcheck behavior
       - changing persistent storage defaults or backend selection
@@ -220,6 +248,7 @@ modules:
       - job_status
       - run_detail
       - run_artifact
+      - delete_run_route
       - healthz
       - readyz
       - _guard_secret_access
@@ -232,9 +261,9 @@ modules:
     path: app/web_jobs.py
     role: >
       Backend-aware job store for the POC web generation flow. Persists
-      submitted briefs, project titles, statuses, session ids, output links,
-      and errors through the active storage backend while keeping the file
-      backend as default.
+      submitted briefs, project titles, statuses, progress fields, session
+      ids, output links, and errors through the active storage backend while
+      keeping the file backend as default.
     read_when:
       - changing web job persistence
       - changing session job history
@@ -251,11 +280,13 @@ modules:
     role: >
       Backend routing and persistence helpers for the web POC. Resolves
       WEB_STORAGE_BACKEND, keeps the file backend as default, and implements
-      the job and run-artifact persistence contract for file and Supabase
-      storage.
+      the job, progress, run-deletion, and run-artifact persistence contract
+      for file and Supabase storage.
     read_when:
       - adding or changing storage backends
       - changing Supabase persistence behavior
+      - changing job progress persistence or normalization
+      - changing run deletion behavior
       - changing run artifact persistence or retrieval
       - changing the storage validation script
     key_functions:
@@ -267,6 +298,7 @@ modules:
       - list_jobs
       - list_runs
       - get_run
+      - delete_run
       - load_run_sections
       - read_run_artifact
       - persist_run_artifacts

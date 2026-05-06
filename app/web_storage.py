@@ -4,9 +4,16 @@ import json
 import os
 import re
 import secrets
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from .web_progress import (
+    DEFAULT_PROGRESS_TIMEOUT_SECONDS,
+    build_empty_progress_state,
+    normalize_progress_state,
+)
 
 
 JOB_STATUSES = {"queued", "running", "done", "failed"}
@@ -188,6 +195,18 @@ def read_run_artifact(
     return _file_read_run_artifact(project, version, filename, outputs_root)
 
 
+def delete_run(
+    project: str,
+    version: str,
+    outputs_root: Path | None = None,
+    backend: str | None = None,
+) -> bool:
+    storage_backend = resolve_web_storage_backend(backend)
+    if storage_backend == "supabase":
+        return _supabase_delete_run(project, version)
+    return _file_delete_run(project, version, outputs_root)
+
+
 def persist_run_artifacts(
     output_dir: Path,
     backend: str | None = None,
@@ -261,6 +280,7 @@ def _file_create_job(
         "run_project": "",
         "run_version": "",
         "error": "",
+        **build_empty_progress_state(),
     }
     _file_write_job(job, jobs_root)
     return job
@@ -273,7 +293,7 @@ def _file_get_job(job_id: str, jobs_root: Path | None = None) -> dict | None:
     if not job_path.is_file():
         return None
     with job_path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        return _normalize_job_record(json.load(handle))
 
 
 def _file_update_job(
@@ -303,6 +323,7 @@ def _file_update_job(
             updated["brief_preview"] = value[:200]
         updated[key] = _coerce_value(value)
 
+    updated = _normalize_job_record(updated)
     updated["updated_at"] = _utc_now()
     _file_write_job(updated, jobs_root)
     return updated
@@ -319,7 +340,7 @@ def _file_list_jobs(
     jobs: list[dict] = []
     for job_path in sorted(root.glob("*.json")):
         with job_path.open("r", encoding="utf-8") as handle:
-            job = json.load(handle)
+            job = _normalize_job_record(json.load(handle))
         if session_id is not None and job.get("session_id") != session_id:
             continue
         jobs.append(job)
@@ -390,6 +411,27 @@ def _file_read_run_artifact(
     }
 
 
+def _file_delete_run(
+    project: str,
+    version: str,
+    outputs_root: Path | None = None,
+) -> bool:
+    _validate_run_coordinates(project, version)
+    tests_root = _resolve_tests_root(outputs_root).resolve()
+    run_path = _file_run_path(project, version, outputs_root)
+    resolved_run_path = run_path.resolve(strict=False)
+    if not resolved_run_path.is_dir():
+        return False
+    if not _path_is_within(resolved_run_path, tests_root):
+        return False
+
+    shutil.rmtree(resolved_run_path)
+    project_dir = resolved_run_path.parent
+    if project_dir.is_dir() and not any(project_dir.iterdir()):
+        project_dir.rmdir()
+    return True
+
+
 def _file_collect_project_runs(project_dir: Path) -> list[dict]:
     runs: list[dict] = []
     for version_dir in sorted(
@@ -441,6 +483,7 @@ def _supabase_create_job(
         "run_project": "",
         "run_version": "",
         "error": "",
+        **build_empty_progress_state(),
     }
     _supabase_execute(
         """
@@ -457,7 +500,19 @@ def _supabase_create_job(
           output_dir,
           run_project,
           run_version,
-          error
+          error,
+          progress_stage,
+          progress_label,
+          progress_detail,
+          progress_order,
+          progress_total,
+          progress_blocks,
+          progress_events,
+          progress_started_at,
+          progress_last_event_at,
+          progress_timeout_seconds,
+          progress_error_type,
+          progress_error_message
         ) values (
           %(job_id)s,
           %(session_id)s,
@@ -471,10 +526,22 @@ def _supabase_create_job(
           %(output_dir)s,
           %(run_project)s,
           %(run_version)s,
-          %(error)s
+          %(error)s,
+          %(progress_stage)s,
+          %(progress_label)s,
+          %(progress_detail)s,
+          %(progress_order)s,
+          %(progress_total)s,
+          %(progress_blocks)s,
+          %(progress_events)s,
+          %(progress_started_at)s,
+          %(progress_last_event_at)s,
+          %(progress_timeout_seconds)s,
+          %(progress_error_type)s,
+          %(progress_error_message)s
         )
         """,
-        job,
+        _prepare_supabase_job_payload(job),
     )
     return job
 
@@ -497,7 +564,19 @@ def _supabase_get_job(job_id: str) -> dict | None:
           output_dir,
           run_project,
           run_version,
-          error
+          error,
+          progress_stage,
+          progress_label,
+          progress_detail,
+          progress_order,
+          progress_total,
+          progress_blocks,
+          progress_events,
+          progress_started_at,
+          progress_last_event_at,
+          progress_timeout_seconds,
+          progress_error_type,
+          progress_error_message
         from web_jobs
         where job_id = %s
         """,
@@ -505,7 +584,7 @@ def _supabase_get_job(job_id: str) -> dict | None:
     )
     if not rows:
         return None
-    return _normalize_supabase_job_row(rows[0])
+    return _normalize_job_record(_normalize_supabase_job_row(rows[0]))
 
 
 def _supabase_update_job(job_id: str, updates: dict) -> dict:
@@ -531,6 +610,7 @@ def _supabase_update_job(job_id: str, updates: dict) -> dict:
             updated["brief_preview"] = value[:200]
         updated[key] = _coerce_value(value)
 
+    updated = _normalize_job_record(updated)
     updated["updated_at"] = _utc_now()
     _supabase_execute(
         """
@@ -547,10 +627,22 @@ def _supabase_update_job(job_id: str, updates: dict) -> dict:
           output_dir = %(output_dir)s,
           run_project = %(run_project)s,
           run_version = %(run_version)s,
-          error = %(error)s
+          error = %(error)s,
+          progress_stage = %(progress_stage)s,
+          progress_label = %(progress_label)s,
+          progress_detail = %(progress_detail)s,
+          progress_order = %(progress_order)s,
+          progress_total = %(progress_total)s,
+          progress_blocks = %(progress_blocks)s,
+          progress_events = %(progress_events)s,
+          progress_started_at = %(progress_started_at)s,
+          progress_last_event_at = %(progress_last_event_at)s,
+          progress_timeout_seconds = %(progress_timeout_seconds)s,
+          progress_error_type = %(progress_error_type)s,
+          progress_error_message = %(progress_error_message)s
         where job_id = %(job_id)s
         """,
-        updated,
+        _prepare_supabase_job_payload(updated),
     )
     return updated
 
@@ -572,7 +664,19 @@ def _supabase_list_jobs(session_id: str | None = None) -> list[dict]:
               output_dir,
               run_project,
               run_version,
-              error
+              error,
+              progress_stage,
+              progress_label,
+              progress_detail,
+              progress_order,
+              progress_total,
+              progress_blocks,
+              progress_events,
+              progress_started_at,
+              progress_last_event_at,
+              progress_timeout_seconds,
+              progress_error_type,
+              progress_error_message
             from web_jobs
             order by created_at desc, job_id desc
             """
@@ -593,14 +697,26 @@ def _supabase_list_jobs(session_id: str | None = None) -> list[dict]:
               output_dir,
               run_project,
               run_version,
-              error
+              error,
+              progress_stage,
+              progress_label,
+              progress_detail,
+              progress_order,
+              progress_total,
+              progress_blocks,
+              progress_events,
+              progress_started_at,
+              progress_last_event_at,
+              progress_timeout_seconds,
+              progress_error_type,
+              progress_error_message
             from web_jobs
             where session_id = %s
             order by created_at desc, job_id desc
             """,
             (session_id,),
         )
-    return [_normalize_supabase_job_row(row) for row in rows]
+    return [_normalize_job_record(_normalize_supabase_job_row(row)) for row in rows]
 
 
 def _supabase_list_runs() -> list[dict]:
@@ -733,6 +849,30 @@ def _supabase_read_run_artifact(
             "content_type": content_type,
         }
     return None
+
+
+def _supabase_delete_run(project: str, version: str) -> bool:
+    _validate_run_coordinates(project, version)
+    rows = _supabase_fetch_all(
+        """
+        select 1
+        from web_run_artifacts
+        where run_project = %s and run_version = %s
+        limit 1
+        """,
+        (project, version),
+    )
+    if not rows:
+        return False
+
+    _supabase_execute(
+        """
+        delete from web_run_artifacts
+        where run_project = %s and run_version = %s
+        """,
+        (project, version),
+    )
+    return True
 
 
 def _supabase_persist_run_artifacts(output_dir: Path) -> None:
@@ -973,6 +1113,22 @@ def _resolve_outputs_root(outputs_root: Path | None) -> Path:
     return outputs_root.resolve()
 
 
+def _validate_run_coordinates(project: str, version: str) -> None:
+    if not project or not version:
+        raise ValueError("Run coordinates must not be empty.")
+    for value in (project, version):
+        if "/" in value or "\\" in value or ".." in value:
+            raise ValueError(f"Invalid run coordinates: {project!r} / {version!r}")
+
+
+def _path_is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def _file_job_path(job_id: str, jobs_root: Path | None = None) -> Path:
     return _resolve_jobs_root(jobs_root) / f"{job_id}.json"
 
@@ -1037,9 +1193,98 @@ def _normalize_supabase_job_row(row: dict[str, Any]) -> dict:
     normalized = dict(row)
     normalized["created_at"] = _format_timestamp(normalized["created_at"])
     normalized["updated_at"] = _format_timestamp(normalized["updated_at"])
-    for key in ("session_id", "status", "brief_text", "brief_preview", "project_title", "project_name", "output_dir", "run_project", "run_version", "error", "job_id"):
+    for key in (
+        "session_id",
+        "status",
+        "brief_text",
+        "brief_preview",
+        "project_title",
+        "project_name",
+        "output_dir",
+        "run_project",
+        "run_version",
+        "error",
+        "job_id",
+        "progress_stage",
+        "progress_label",
+        "progress_detail",
+        "progress_started_at",
+        "progress_last_event_at",
+        "progress_error_type",
+        "progress_error_message",
+    ):
         normalized[key] = str(normalized.get(key, ""))
+    normalized["progress_order"] = _coerce_int(normalized.get("progress_order", 0))
+    normalized["progress_total"] = _coerce_int(normalized.get("progress_total", 0))
+    normalized["progress_timeout_seconds"] = _coerce_int(
+        normalized.get("progress_timeout_seconds", DEFAULT_PROGRESS_TIMEOUT_SECONDS)
+    )
+    normalized["progress_blocks"] = _coerce_json_list(normalized.get("progress_blocks", []))
+    normalized["progress_events"] = _coerce_json_list(normalized.get("progress_events", []))
     return normalized
+
+
+def _normalize_job_record(job: dict[str, Any]) -> dict:
+    normalized = dict(job)
+    defaults = build_empty_progress_state()
+    for key, value in defaults.items():
+        normalized.setdefault(key, value)
+
+    normalized["progress_stage"] = str(normalized.get("progress_stage", "")).strip()
+    normalized["progress_label"] = str(normalized.get("progress_label", "")).strip()
+    normalized["progress_detail"] = str(normalized.get("progress_detail", "")).strip()
+    normalized["progress_order"] = _coerce_int(normalized.get("progress_order", 0))
+    normalized["progress_total"] = _coerce_int(normalized.get("progress_total", 0))
+    normalized["progress_blocks"] = _coerce_json_list(normalized.get("progress_blocks", []))
+    normalized["progress_events"] = _coerce_json_list(normalized.get("progress_events", []))
+    normalized["progress_started_at"] = str(normalized.get("progress_started_at", "")).strip()
+    normalized["progress_last_event_at"] = str(normalized.get("progress_last_event_at", "")).strip()
+    normalized["progress_timeout_seconds"] = _coerce_int(
+        normalized.get("progress_timeout_seconds", DEFAULT_PROGRESS_TIMEOUT_SECONDS)
+    )
+    if normalized["progress_timeout_seconds"] <= 0:
+        normalized["progress_timeout_seconds"] = DEFAULT_PROGRESS_TIMEOUT_SECONDS
+    normalized["progress_error_type"] = str(normalized.get("progress_error_type", "")).strip()
+    normalized["progress_error_message"] = str(normalized.get("progress_error_message", "")).strip()
+    return normalized
+
+
+def _prepare_supabase_job_payload(job: dict[str, Any]) -> dict:
+    payload = dict(job)
+    payload["progress_blocks"] = _jsonb_value(payload.get("progress_blocks", []))
+    payload["progress_events"] = _jsonb_value(payload.get("progress_events", []))
+    return payload
+
+
+def _coerce_int(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _coerce_json_list(value: Any) -> list:
+    if isinstance(value, list):
+        return value
+    if value is None:
+        return []
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+        return parsed if isinstance(parsed, list) else []
+    if isinstance(value, tuple):
+        return list(value)
+    return list(value) if isinstance(value, (set, frozenset)) else []
+
+
+def _jsonb_value(value: Any) -> Any:
+    try:
+        from psycopg.types.json import Jsonb
+    except ModuleNotFoundError:
+        return value
+    return Jsonb(value)
 
 
 def _format_timestamp(value: Any) -> str:
@@ -1128,7 +1373,25 @@ def _supabase_check_storage_readiness() -> dict:
                     raise WebStorageSchemaError(
                         f"Supabase schema missing or inaccessible: {missing_list}."
                     )
-                _supabase_probe_table_access(cursor, "web_jobs")
+                _supabase_probe_table_access(
+                    cursor,
+                    "web_jobs",
+                    columns=(
+                        "job_id",
+                        "progress_stage",
+                        "progress_label",
+                        "progress_detail",
+                        "progress_order",
+                        "progress_total",
+                        "progress_blocks",
+                        "progress_events",
+                        "progress_started_at",
+                        "progress_last_event_at",
+                        "progress_timeout_seconds",
+                        "progress_error_type",
+                        "progress_error_message",
+                    ),
+                )
                 _supabase_probe_table_access(cursor, "web_run_artifacts")
     except WebStorageDependencyError:
         raise
@@ -1152,8 +1415,14 @@ def _supabase_check_storage_readiness() -> dict:
     }
 
 
-def _supabase_probe_table_access(cursor, table_name: str) -> None:
-    cursor.execute(f"select 1 from {table_name} limit 1")
+def _supabase_probe_table_access(
+    cursor,
+    table_name: str,
+    *,
+    columns: tuple[str, ...] | None = None,
+) -> None:
+    select_clause = ", ".join(columns) if columns else "1"
+    cursor.execute(f"select {select_clause} from {table_name} limit 1")
     row = cursor.fetchone()
     if row is not None:
         return

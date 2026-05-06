@@ -25,21 +25,280 @@ else:
     from readiness import aggregate_global_readiness
 
 
-def run_v0_flow(project_brief: str, project_brief_source: str) -> dict:
+def run_v0_flow(
+    project_brief: str,
+    project_brief_source: str,
+    progress_callback=None,
+    step_timeout_seconds: int | None = None,
+) -> dict:
     """Run the staged collaboration flow and return the updated blackboard."""
     blackboard = create_blackboard(project_brief, project_brief_source)
-    # Product establishes the initial framing.
-    blackboard = run_product_agent(blackboard)
-    # Growth challenges the framing through adoption and GTM.
-    blackboard = run_growth_agent(blackboard)
-    # Tech challenges the framing through feasibility and architecture.
-    blackboard = run_tech_agent(blackboard)
-    # Product arbitrates the expert input and produces the final PRD.
-    blackboard = run_product_revision(blackboard)
+    blackboard = _run_stage(
+        blackboard,
+        progress_callback,
+        step_timeout_seconds,
+        stage="product_initial",
+        label="Product structure le PRD initial",
+        detail="Analyse du brief, problème cible, utilisateurs et objectifs MVP.",
+        active_blocks=[
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+        ],
+        done_blocks=["brief_received"],
+        runner=lambda current_blackboard: run_product_agent(current_blackboard),
+        timeout_message="Product initial a dépassé 10 minutes.",
+        success_label="Product a terminé le cadrage initial",
+        success_detail="Le PRD initial est prêt pour Growth.",
+        success_done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+        ],
+    )
+    blackboard = _run_stage(
+        blackboard,
+        progress_callback,
+        step_timeout_seconds,
+        stage="growth_review",
+        label="Growth travaille le GTM initial",
+        detail="Analyse des segments, du positionnement, des canaux et des objections.",
+        active_blocks=[
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+        ],
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+        ],
+        runner=lambda current_blackboard: run_growth_agent(current_blackboard),
+        timeout_message="Growth a dépassé 10 minutes.",
+        success_label="Growth a terminé le GTM initial",
+        success_detail="Les signaux marché ont été arbitréés pour le PRD.",
+        success_done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+        ],
+    )
+    blackboard = _run_stage(
+        blackboard,
+        progress_callback,
+        step_timeout_seconds,
+        stage="tech_review",
+        label="Tech prépare l'architecture initiale",
+        detail="Analyse des contraintes, composants, diagramme Mermaid et risques.",
+        active_blocks=[
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+        ],
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+        ],
+        runner=lambda current_blackboard: run_tech_agent(current_blackboard),
+        timeout_message="Tech a dépassé 10 minutes.",
+        success_label="Tech a terminé l'architecture initiale",
+        success_detail="Les contraintes techniques et le diagramme sont prêts.",
+        success_done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+        ],
+    )
+    blackboard = _run_stage(
+        blackboard,
+        progress_callback,
+        step_timeout_seconds,
+        stage="product_revision",
+        label="Product consolide le PRD",
+        detail="Arbitrage final entre les retours Growth et Tech.",
+        active_blocks=["product_revision"],
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+        ],
+        runner=lambda current_blackboard: run_product_revision(current_blackboard),
+        timeout_message="Product revision a dépassé 10 minutes.",
+        success_label="Product a consolidé le PRD",
+        success_detail="Le PRD est prêt pour la vérification readiness.",
+        success_done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+            "product_revision",
+        ],
+    )
     blackboard = _finalize_readiness(blackboard)
-    blackboard = _run_targeted_correction_loop(blackboard)
-    blackboard = run_product_locking_pass(blackboard)
+    _emit_progress(
+        progress_callback,
+        stage="readiness_check",
+        label="Vérification readiness",
+        detail=f"Statut global: {blackboard['readiness'].get('global_status') or 'inconnu'}.",
+        active_blocks=["readiness_check"],
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+            "product_revision",
+        ],
+    )
+    blackboard = _run_targeted_correction_loop(
+        blackboard,
+        progress_callback=progress_callback,
+        step_timeout_seconds=step_timeout_seconds,
+    )
+    _emit_progress(
+        progress_callback,
+        stage="correction_loop",
+        label="Boucle de correction ciblée",
+        detail=(
+            "Boucle déclenchée."
+            if blackboard["readiness"].get("loop_triggered")
+            else "Aucune boucle de correction nécessaire."
+        ),
+        done_blocks=["correction_loop"],
+    )
+    blackboard = _run_stage(
+        blackboard,
+        progress_callback,
+        step_timeout_seconds,
+        stage="product_locking",
+        label="Product verrouille la version finale",
+        detail="Verrouillage du scope MVP avant la persistance des artefacts.",
+        active_blocks=["product_locking"],
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+            "product_revision",
+            "readiness_check",
+            "correction_loop",
+        ],
+        runner=lambda current_blackboard: run_product_locking_pass(current_blackboard),
+        timeout_message="Product locking a dépassé 10 minutes.",
+        success_label="Product a verrouillé la version finale",
+        success_detail="La version finale du PRD est figée.",
+        success_done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+            "product_revision",
+            "readiness_check",
+            "correction_loop",
+            "product_locking",
+        ],
+    )
     blackboard = _finalize_readiness(blackboard)
+    _emit_progress(
+        progress_callback,
+        stage="readiness_check",
+        label="Vérification readiness finale",
+        detail=f"Statut global: {blackboard['readiness'].get('global_status') or 'inconnu'}.",
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+            "product_revision",
+            "readiness_check",
+            "correction_loop",
+            "product_locking",
+        ],
+    )
     return blackboard
 
 
@@ -99,13 +358,25 @@ def _finalize_readiness(blackboard: dict) -> dict:
     return blackboard
 
 
-def _run_targeted_correction_loop(blackboard: dict) -> dict:
+def _run_targeted_correction_loop(
+    blackboard: dict,
+    progress_callback=None,
+    step_timeout_seconds: int | None = None,
+) -> dict:
     readiness = blackboard["readiness"]
     readiness["loop_triggered"] = readiness["global_status"] == "LIMITED"
     readiness["final_outcome"] = readiness["global_status"]
 
     if readiness["global_status"] != "LIMITED":
         return blackboard
+
+    _emit_progress(
+        progress_callback,
+        stage="correction_loop",
+        label="Boucle de correction ciblée",
+        detail="La readiness globale nécessite des corrections ciblées.",
+        active_blocks=["correction_loop"],
+    )
 
     while readiness["loop_count"] < readiness["max_loops"]:
         correction_tasks = _build_correction_plan(blackboard)
@@ -134,11 +405,69 @@ def _run_targeted_correction_loop(blackboard: dict) -> dict:
         )
 
         if tasks_by_owner["tech"]:
-            blackboard = run_tech_agent(blackboard, tasks_by_owner["tech"])
+            blackboard = _run_stage(
+                blackboard,
+                progress_callback,
+                step_timeout_seconds,
+                stage=f"correction_loop_{loop_number}_tech",
+                label="Tech applique les corrections ciblées",
+                detail=f"{len(tasks_by_owner['tech'])} tâche(s) tech à traiter.",
+                active_blocks=["correction_loop", "tech_constraints", "tech_components", "tech_mermaid", "tech_risks"],
+                done_blocks=["readiness_check"],
+                runner=lambda current_blackboard: run_tech_agent(
+                    current_blackboard, tasks_by_owner["tech"]
+                ),
+                timeout_message="Tech a dépassé 10 minutes pendant la boucle de correction.",
+                success_label="Tech a appliqué les corrections ciblées",
+                success_detail="Les corrections tech ciblées sont intégrées.",
+                success_done_blocks=[
+                    "tech_constraints",
+                    "tech_components",
+                    "tech_mermaid",
+                    "tech_risks",
+                ],
+            )
         if tasks_by_owner["growth"]:
-            blackboard = run_growth_agent(blackboard, tasks_by_owner["growth"])
+            blackboard = _run_stage(
+                blackboard,
+                progress_callback,
+                step_timeout_seconds,
+                stage=f"correction_loop_{loop_number}_growth",
+                label="Growth applique les corrections ciblées",
+                detail=f"{len(tasks_by_owner['growth'])} tâche(s) growth à traiter.",
+                active_blocks=["correction_loop", "growth_segments", "growth_positioning", "growth_channels", "growth_objections"],
+                done_blocks=["readiness_check"],
+                runner=lambda current_blackboard: run_growth_agent(
+                    current_blackboard, tasks_by_owner["growth"]
+                ),
+                timeout_message="Growth a dépassé 10 minutes pendant la boucle de correction.",
+                success_label="Growth a appliqué les corrections ciblées",
+                success_detail="Les corrections growth ciblées sont intégrées.",
+                success_done_blocks=[
+                    "growth_segments",
+                    "growth_positioning",
+                    "growth_channels",
+                    "growth_objections",
+                ],
+            )
         if correction_tasks:
-            blackboard = run_product_revision(blackboard, tasks_by_owner["product"])
+            blackboard = _run_stage(
+                blackboard,
+                progress_callback,
+                step_timeout_seconds,
+                stage=f"correction_loop_{loop_number}_product",
+                label="Product arbitre les corrections ciblées",
+                detail=f"{len(tasks_by_owner['product'])} tâche(s) product à traiter.",
+                active_blocks=["correction_loop", "product_revision"],
+                done_blocks=["readiness_check"],
+                runner=lambda current_blackboard: run_product_revision(
+                    current_blackboard, tasks_by_owner["product"]
+                ),
+                timeout_message="Product revision a dépassé 10 minutes pendant la boucle de correction.",
+                success_label="Product a arbitré les corrections ciblées",
+                success_detail="La boucle de correction produit est intégrée.",
+                success_done_blocks=["product_revision"],
+            )
 
         blackboard = _finalize_readiness(blackboard)
         readiness = blackboard["readiness"]
@@ -153,6 +482,77 @@ def _run_targeted_correction_loop(blackboard: dict) -> dict:
 
     readiness["final_outcome"] = readiness["global_status"]
     return blackboard
+
+
+def _run_stage(
+    blackboard: dict,
+    progress_callback,
+    step_timeout_seconds: int | None,
+    *,
+    stage: str,
+    label: str,
+    detail: str,
+    active_blocks: list[str] | None,
+    done_blocks: list[str] | None,
+    runner,
+    timeout_message: str,
+    success_label: str | None = None,
+    success_detail: str | None = None,
+    success_active_blocks: list[str] | None = None,
+    success_done_blocks: list[str] | None = None,
+) -> dict:
+    _emit_progress(
+        progress_callback,
+        stage=stage,
+        label=label,
+        detail=detail,
+        active_blocks=active_blocks,
+        done_blocks=done_blocks,
+    )
+    result = _run_agent_step_with_timeout(
+        runner,
+        timeout_seconds=step_timeout_seconds,
+        timeout_message=timeout_message,
+    )
+    _emit_progress(
+        progress_callback,
+        stage=stage,
+        label=success_label or label,
+        detail=success_detail or detail,
+        active_blocks=success_active_blocks,
+        done_blocks=success_done_blocks,
+    )
+    return result
+
+
+def _run_agent_step_with_timeout(runner, *, timeout_seconds: int | None, timeout_message: str):
+    # WEB_AGENT_STEP_TIMEOUT_SECONDS is a stale-step alert threshold in the web UI.
+    # Run the agent inline so the generation lock stays held until the step returns.
+    return runner()
+
+
+def _emit_progress(
+    progress_callback,
+    *,
+    stage: str,
+    label: str,
+    detail: str = "",
+    active_blocks: list[str] | None = None,
+    done_blocks: list[str] | None = None,
+    skipped_blocks: list[str] | None = None,
+    failed_blocks: list[str] | None = None,
+) -> None:
+    if progress_callback is None:
+        return
+    progress_callback(
+        stage=stage,
+        label=label,
+        detail=detail,
+        active_blocks=active_blocks or [],
+        done_blocks=done_blocks or [],
+        skipped_blocks=skipped_blocks or [],
+        failed_blocks=failed_blocks or [],
+    )
 
 
 def _build_correction_plan(blackboard: dict) -> list[dict]:

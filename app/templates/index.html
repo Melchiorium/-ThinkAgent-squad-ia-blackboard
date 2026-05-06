@@ -14,6 +14,10 @@
         <p>Collez un brief, lancez la génération, puis suivez le résultat plus bas.</p>
       </header>
 
+      {% if deletion_notice %}
+        <section class="notice" role="status">Run supprimé.</section>
+      {% endif %}
+
       <section class="panel panel--primary">
         <div class="panel__header">
           <div>
@@ -113,12 +117,21 @@
                 {% else %}
                   <p class="run__missing run__missing--ok">Tous les fichiers attendus sont présents.</p>
                 {% endif %}
-                <a
-                  class="run__link"
-                  href="{{ url_for('run_detail', project=run.project, version=run.version) }}"
-                >
-                  Ouvrir le dossier
-                </a>
+                <div class="run__actions">
+                  <a
+                    class="run__link"
+                    href="{{ url_for('run_detail', project=run.project, version=run.version) }}"
+                  >
+                    Ouvrir le dossier
+                  </a>
+                  <form
+                    method="post"
+                    action="{{ url_for('delete_run_route', project=run.project, version=run.version) }}"
+                    onsubmit="return confirm('Supprimer ce run ?');"
+                  >
+                    <button type="submit" class="run-delete-button">Supprimer</button>
+                  </form>
+                </div>
               </div>
             </article>
           {% endfor %}

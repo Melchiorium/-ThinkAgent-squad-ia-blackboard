@@ -24,6 +24,22 @@ Il crée :
 - `web_jobs` pour la file des jobs web ;
 - `web_run_artifacts` pour les artefacts persistés d'un run.
 
+La migration reste additive. Les colonnes de progression sont ajoutées sans
+supprimer les anciennes données et sans casser les jobs déjà présents :
+
+- `progress_stage`
+- `progress_label`
+- `progress_detail`
+- `progress_order`
+- `progress_total`
+- `progress_blocks`
+- `progress_events`
+- `progress_started_at`
+- `progress_last_event_at`
+- `progress_timeout_seconds`
+- `progress_error_type`
+- `progress_error_message`
+
 ## Procédure
 
 1. créer un projet Supabase ;

@@ -10,8 +10,19 @@
     <main class="page page--detail">
       <header class="header">
         <a class="back-link" href="{{ url_for('index') }}">Retour à l'accueil</a>
-        <h1>{{ run.project }}</h1>
-        <p>{{ run.version }}</p>
+        <div class="run-detail__header-row">
+          <div>
+            <h1>{{ run.project }}</h1>
+            <p>{{ run.version }}</p>
+          </div>
+          <form
+            method="post"
+            action="{{ url_for('delete_run_route', project=run.project, version=run.version) }}"
+            onsubmit="return confirm('Supprimer ce run ?');"
+          >
+            <button type="submit" class="run-delete-button">Supprimer</button>
+          </form>
+        </div>
       </header>
 
       <section class="panel">

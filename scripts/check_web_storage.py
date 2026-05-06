@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import tempfile
 from pathlib import Path
+from datetime import datetime, timezone
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -13,6 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 from app.web_storage import (  # noqa: E402
     create_job,
     create_session_id,
+    delete_run,
     get_job,
     get_run,
     list_jobs,
@@ -60,6 +62,58 @@ def main() -> int:
         job = update_job(job["job_id"], {"status": "running"}, jobs_root=jobs_root, backend=backend)
         _assert(job["status"] == "running", "job updates to running")
 
+        progress_timestamp = _utc_now()
+        progress_blocks = [
+            {
+                "id": "brief_received",
+                "group": "Brief",
+                "label": "Brief reçu",
+                "status": "done",
+            },
+            {
+                "id": "product_problem",
+                "group": "Product",
+                "label": "Problème cible",
+                "status": "active",
+            },
+        ]
+        progress_events = [
+            {
+                "timestamp": progress_timestamp,
+                "stage": "brief_received",
+                "label": "Brief reçu",
+                "detail": "Le brief est disponible pour la génération.",
+            },
+            {
+                "timestamp": progress_timestamp,
+                "stage": "product_problem",
+                "label": "Product formule le problème cible",
+                "detail": "Le cadrage produit avance.",
+            },
+        ]
+        job = update_job(
+            job["job_id"],
+            {
+                "progress_stage": "product_problem",
+                "progress_label": "Product formule le problème cible",
+                "progress_detail": "Le cadrage produit avance.",
+                "progress_order": 3,
+                "progress_total": 19,
+                "progress_blocks": progress_blocks,
+                "progress_events": progress_events,
+                "progress_started_at": progress_timestamp,
+                "progress_last_event_at": progress_timestamp,
+                "progress_timeout_seconds": 600,
+                "progress_error_type": "",
+                "progress_error_message": "",
+            },
+            jobs_root=jobs_root,
+            backend=backend,
+        )
+        _assert(job["progress_stage"] == "product_problem", "progress stage is stored")
+        _assert(len(job["progress_blocks"]) == 2, "progress blocks are stored")
+        _assert(len(job["progress_events"]) == 2, "progress events are stored")
+
         persist_run_artifacts(output_dir, backend=backend)
 
         job = update_job(
@@ -81,6 +135,11 @@ def main() -> int:
         _assert(fetched_job is not None, "job can be re-read")
         _assert(fetched_job["job_id"] == job["job_id"], "re-read job id matches")
         _assert(fetched_job["run_project"] == PROJECT_NAME, "re-read job run project matches")
+        _assert(fetched_job["progress_error_type"] == "", "progress error type remains empty")
+        _assert(
+            fetched_job["progress_timeout_seconds"] == 600,
+            "progress timeout is preserved",
+        )
 
         jobs = list_jobs(session_id=session_id, jobs_root=jobs_root, backend=backend)
         _assert(len(jobs) == 1, "session job list has one item")
@@ -112,6 +171,33 @@ def main() -> int:
         _assert(b"Storage Check" in artifact["content"], "PRD artifact contains project name")
         _assert(artifact["content_type"].startswith("text/"), "PRD artifact content type is text")
 
+        _assert(
+            delete_run(PROJECT_NAME, VERSION_NAME, outputs_root=outputs_root, backend=backend),
+            "run delete returns success",
+        )
+        _assert(
+            get_run(PROJECT_NAME, VERSION_NAME, outputs_root=outputs_root, backend=backend) is None,
+            "deleted run can no longer be read",
+        )
+        _assert(
+            not any(
+                run["project"] == PROJECT_NAME and run["version"] == VERSION_NAME
+                for run in list_runs(outputs_root=outputs_root, backend=backend)
+            ),
+            "deleted run disappears from inventory",
+        )
+        try:
+            delete_run(
+                "Bad/Project",
+                VERSION_NAME,
+                outputs_root=outputs_root,
+                backend=backend,
+            )
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("invalid run coordinates were accepted")
+
     print("Storage validation passed.")
     return 0
 
@@ -131,6 +217,10 @@ def _write_fake_output_dir(outputs_root: Path) -> Path:
     for filename, content in files.items():
         (output_dir / filename).write_text(content, encoding="utf-8")
     return output_dir
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _assert(condition: bool, message: str) -> None:

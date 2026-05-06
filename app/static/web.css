@@ -332,6 +332,197 @@ body {
   color: #4b5563;
 }
 
+.job-progress {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #d7dbe0;
+  border-radius: 8px;
+  background: #fbfbfc;
+}
+
+.job-progress__current {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.job-progress__current-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.job-progress__current-label {
+  font-size: 16px;
+}
+
+.job-progress__counter {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.job-progress__detail,
+.job-progress__elapsed,
+.job-progress__stale {
+  margin: 0;
+  color: #4b5563;
+}
+
+.job-progress__elapsed {
+  font-size: 13px;
+}
+
+.job-progress__stale {
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.job-progress__alert {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+}
+
+.job-progress__alert strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.job-progress__blocks,
+.job-progress__events {
+  display: grid;
+  gap: 10px;
+}
+
+.job-progress__group {
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.job-progress__group-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.job-progress__group-header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.job-progress__block-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-progress__block {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #d7dbe0;
+  background: #f9fafb;
+}
+
+.job-progress__block-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: #9ca3af;
+  flex: 0 0 auto;
+}
+
+.job-progress__block--active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.job-progress__block--active .job-progress__block-dot {
+  background: #2563eb;
+}
+
+.job-progress__block--done {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
+.job-progress__block--done .job-progress__block-dot {
+  background: #059669;
+}
+
+.job-progress__block--skipped {
+  background: #fefce8;
+  border-color: #facc15;
+}
+
+.job-progress__block--skipped .job-progress__block-dot {
+  background: #ca8a04;
+}
+
+.job-progress__block--failed {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.job-progress__block--failed .job-progress__block-dot {
+  background: #dc2626;
+}
+
+.job-progress__block--pending {
+  background: #f9fafb;
+}
+
+.job-progress__event-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-progress__event {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.job-progress__event-time {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.job-progress__event-label {
+  font-weight: 600;
+}
+
+.job-progress__event-detail {
+  color: #4b5563;
+}
+
 .job-status__result-shell {
   display: grid;
   gap: 12px;
@@ -440,6 +631,15 @@ body {
   text-align: right;
 }
 
+.run__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
 .run__summary {
   font-weight: 600;
   color: #374151;
@@ -464,6 +664,32 @@ body {
   text-decoration: underline;
 }
 
+.run-delete-button {
+  border: 1px solid #fecaca;
+  background: #fff5f5;
+  color: #b91c1c;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.run-delete-button:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.notice {
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
 .empty {
   margin: 0;
   color: #4b5563;
@@ -482,6 +708,14 @@ body {
 
 .back-link:hover {
   text-decoration: underline;
+}
+
+.run-detail__header-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
 }
 
 .detail-stack {

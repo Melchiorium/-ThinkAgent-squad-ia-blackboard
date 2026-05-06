@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from .web_progress import normalize_progress_state
+
 
 def build_run_view(run: dict) -> dict:
     present_file_count = len(run["files"]) - len(run["missing_files"])
@@ -22,6 +24,7 @@ def build_job_view(
     run_url: str | None = None,
 ) -> dict:
     view = dict(job)
+    view.update(normalize_progress_state(job))
     view["display_title"] = job_display_title(job)
     view["status_label"] = status_label(job.get("status", ""))
     view["status_url"] = status_url
@@ -31,6 +34,7 @@ def build_job_view(
 
 
 def build_job_status_payload(job: dict, *, run_url: str | None = None) -> dict:
+    progress = normalize_progress_state(job)
     return {
         "job_id": job["job_id"],
         "status": job["status"],
@@ -41,6 +45,7 @@ def build_job_status_payload(job: dict, *, run_url: str | None = None) -> dict:
         "display_title": job_display_title(job),
         "error": job.get("error", ""),
         "run_url": run_url,
+        **progress,
     }
 
 

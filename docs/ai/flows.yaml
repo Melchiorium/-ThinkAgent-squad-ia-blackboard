@@ -133,6 +133,21 @@ web_viewer_flow:
     - no background jobs
     - no authentication
 
+web_run_deletion_flow:
+  owner: app/web.py and app/web_storage.py
+  status: run_deletion
+  steps:
+    - resolve the run through the inventory
+    - reject raw or invalid path inputs
+    - delete the selected run with POST only
+    - remove the run from the file inventory or Supabase artifacts table
+    - redirect back to the home inventory after deletion
+  limitations:
+    - no bulk delete
+    - no job deletion
+    - no GET deletion route
+    - no raw filesystem path acceptance
+
 web_generation_job_flow:
   owner: app/web.py, app/web_jobs.py, and app/web_presenters.py
   status: poc_generation
@@ -140,9 +155,12 @@ web_generation_job_flow:
     - ensure a browser session id cookie exists
     - accept a project title and project brief from the web form
     - create a queued JSON job under outputs/web-jobs/
+    - initialize the brief-received progress state
     - start a daemon thread for generation
     - run one generation at a time with a process-local lock
+    - emit progress updates around Product, Growth, and Tech steps
     - update the job to running, done, or failed
+    - use the web-only step timeout as a stale-step alert threshold while keeping the CLI path unchanged
     - link done jobs to /runs/<project>/<version>
   limitations:
     - no authentication
@@ -240,13 +258,14 @@ web_storage_validation_flow:
     - probe storage readiness before creating the fake job
     - use a temporary local root when backend is file
     - create a Storage Check job
+    - write a small progression payload with blocks and events
     - transition the job through queued, running, and done
     - save fake run artifacts without any LLM call
     - list jobs, list runs, and read back an artifact
+    - delete the fake run and confirm the inventory updates
   limitations:
     - no LLM calls
     - no generation workflow
-    - no cleanup of Supabase test rows
 
 web_readiness_probe_flow:
   owner: app/web.py and app/web_storage.py
@@ -288,14 +307,16 @@ web_unified_generation_ui_flow:
     - accept a project title and a brief from the user
     - create a session-scoped generation job
     - show queued/running/done/failed status
+    - display the current progress step, grouped blocks, and recent events
     - poll job status when JavaScript is available
     - display generated artifacts inline when the job is done
     - keep existing run detail pages available
+    - hide done-job result links when the run has already been deleted
   limitations:
     - no full authentication
     - no multi-user accounts
     - no distributed queue
-    - no fine-grained agent step telemetry yet
+    - no fine-grained agent step telemetry beyond the web progress contract
 
 recommended_change_discipline:
   - prefer one small workflow or prompt change at a time

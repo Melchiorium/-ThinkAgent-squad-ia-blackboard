@@ -66,6 +66,137 @@
           </div>
         </div>
 
+        {% set progress_groups = ["Brief", "Product", "Growth / GTM", "Tech", "Finalisation"] %}
+        <section
+          class="job-progress"
+          data-job-progress-shell
+          data-progress-stage="{{ job.progress_stage }}"
+          data-progress-label="{{ job.progress_label }}"
+          data-progress-detail="{{ job.progress_detail }}"
+          data-progress-order="{{ job.progress_order }}"
+          data-progress-total="{{ job.progress_total }}"
+          data-progress-started-at="{{ job.progress_started_at }}"
+          data-progress-last-event-at="{{ job.progress_last_event_at }}"
+          data-progress-timeout-seconds="{{ job.progress_timeout_seconds }}"
+          data-progress-error-type="{{ job.progress_error_type }}"
+          data-progress-error-message="{{ job.progress_error_message }}"
+          data-progress-status="{{ job.status }}"
+        >
+          <div class="job-progress__current" data-progress-current>
+            <div class="job-progress__current-topline">
+              <strong class="job-progress__current-label" data-progress-current-label>
+                {% if job.progress_label %}
+                  {{ job.progress_label }}
+                {% elif job.status == "queued" %}
+                  Brief reçu
+                {% else %}
+                  Génération en cours
+                {% endif %}
+              </strong>
+              {% if job.progress_total %}
+                <span class="job-progress__counter" data-progress-counter>{{ job.progress_order }} / {{ job.progress_total }}</span>
+              {% endif %}
+            </div>
+            <p class="job-progress__detail" data-progress-current-detail>
+              {% if job.progress_detail %}
+                {{ job.progress_detail }}
+              {% elif job.status == "queued" %}
+                Le brief a été soumis et attend le démarrage de la génération.
+              {% elif job.status == "running" %}
+                La génération suit les étapes Product, Growth et Tech.
+              {% elif job.status == "done" %}
+                Les artefacts sont prêts.
+              {% elif job.status == "failed" %}
+                La génération s’est arrêtée avant la fin.
+              {% endif %}
+            </p>
+            <p class="job-progress__elapsed{% if not job.progress_started_at %} is-hidden{% endif %}" data-progress-since>
+              {% if job.progress_started_at %}
+                En cours depuis <span data-progress-elapsed>0 s</span>
+              {% endif %}
+            </p>
+            <p class="job-progress__stale is-hidden" data-progress-stale></p>
+          </div>
+
+          <div
+            class="job-progress__alert{% if not job.progress_error_type and not job.progress_error_message %} is-hidden{% endif %}"
+            data-progress-alert
+          >
+            <strong data-progress-alert-title>
+              {% if job.progress_error_type == "timeout" %}
+                Timeout agent
+              {% elif job.progress_error_type == "network" %}
+                Erreur réseau/API
+              {% elif job.progress_error_type == "llm" %}
+                Erreur LLM
+              {% elif job.progress_error_type == "storage" %}
+                Erreur de stockage
+              {% elif job.progress_error_type %}
+                Erreur de progression
+              {% endif %}
+            </strong>
+            <p data-progress-alert-message>
+              {% if job.progress_error_message %}
+                {{ job.progress_error_message }}
+              {% elif job.progress_error_type == "timeout" %}
+                Une étape a dépassé le délai attendu.
+              {% elif job.progress_error_type == "network" %}
+                Un appel réseau a échoué pendant la génération.
+              {% elif job.progress_error_type == "llm" %}
+                Un appel modèle a échoué pendant la génération.
+              {% elif job.progress_error_type == "storage" %}
+                La persistance des données a échoué.
+              {% endif %}
+            </p>
+          </div>
+
+          <div class="job-progress__blocks" data-progress-blocks>
+            {% if job.progress_total and job.progress_blocks %}
+              {% for group_name in progress_groups %}
+                {% set group_blocks = job.progress_blocks | selectattr("group", "equalto", group_name) | list %}
+                {% if group_blocks %}
+                  <section class="job-progress__group">
+                    <div class="job-progress__group-header">
+                      <h2>{{ group_name }}</h2>
+                    </div>
+                    <ul class="job-progress__block-list">
+                      {% for block in group_blocks %}
+                        <li class="job-progress__block job-progress__block--{{ block.status }}">
+                          <span class="job-progress__block-dot" aria-hidden="true"></span>
+                          <span class="job-progress__block-label">{{ block.label }}</span>
+                        </li>
+                      {% endfor %}
+                    </ul>
+                  </section>
+                {% endif %}
+              {% endfor %}
+            {% else %}
+              <p class="empty">La progression détaillée apparaîtra ici dès le démarrage de la génération.</p>
+            {% endif %}
+          </div>
+
+          <div class="job-progress__events" data-progress-events>
+            <div class="job-progress__group-header">
+              <h2>Derniers événements</h2>
+            </div>
+            {% if job.progress_events %}
+              <ol class="job-progress__event-list">
+                {% for event in job.progress_events[-8:] %}
+                  <li class="job-progress__event">
+                    <span class="job-progress__event-time">{{ event.timestamp }}</span>
+                    <span class="job-progress__event-label">{{ event.label }}</span>
+                    {% if event.detail %}
+                      <span class="job-progress__event-detail">{{ event.detail }}</span>
+                    {% endif %}
+                  </li>
+                {% endfor %}
+              </ol>
+            {% else %}
+              <p class="empty">Aucun événement pour le moment.</p>
+            {% endif %}
+          </div>
+        </section>
+
         <div class="job-status__result-shell" data-job-result-shell>
           {% if sections %}
             {% include "_run_result.html" %}
