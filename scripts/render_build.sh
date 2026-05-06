@@ -17,4 +17,5 @@ fi
 
 python3 -m pip install -r requirements.txt
 npm ci --include=dev --no-fund --no-audit
-npx puppeteer browsers install chrome-headless-shell
+mkdir -p "$repo_root/.cache/puppeteer"
+PUPPETEER_CACHE_DIR="$repo_root/.cache/puppeteer" npx puppeteer browsers install chrome-headless-shell

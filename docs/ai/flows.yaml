@@ -175,7 +175,7 @@ web_render_poc_deployment_flow:
   steps:
     - install Python dependencies from requirements.txt
     - install Node dependencies with devDependencies included so Mermaid CLI is available
-    - install Chrome headless shell for Puppeteer so Mermaid CLI can render PNGs
+    - install Chrome headless shell for Puppeteer into the repo cache so Mermaid CLI can render PNGs at runtime
     - start app.web:app through gunicorn
     - bind to Render PORT
     - keep one web worker for process-local jobs

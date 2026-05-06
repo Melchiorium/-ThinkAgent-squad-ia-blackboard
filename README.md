@@ -163,7 +163,8 @@ bash scripts/render_build.sh
 ```
 
 Ce script installe aussi le navigateur Chromium attendu par Puppeteer, ce qui
-permet de générer `architecture-diagram.png`.
+permet de générer `architecture-diagram.png`. Le navigateur est téléchargé
+dans `.cache/puppeteer` du dépôt pour rester disponible au runtime Render.
 
 Exemple :
 

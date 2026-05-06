@@ -36,9 +36,9 @@ gunicorn app.web:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
 - ne pas ajouter de `render.yaml`.
 
 Le script de build installe les dépendances Python et Node, puis télécharge
-le navigateur Chromium attendu par Puppeteer. C'est ce qui rend
-`architecture-diagram.png` possible sur Render au lieu de laisser seulement
-`architecture-diagram.mmd`.
+le navigateur Chromium attendu par Puppeteer dans `.cache/puppeteer` du
+repo. C'est ce qui rend `architecture-diagram.png` possible sur Render au
+lieu de laisser seulement `architecture-diagram.mmd`.
 
 ## Mode Render éphémère
 

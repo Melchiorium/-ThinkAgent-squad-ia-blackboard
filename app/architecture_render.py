@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import os
 from pathlib import Path
 
 
@@ -52,6 +53,10 @@ def _render_mermaid_image(output_dir: Path, mermaid_source: str) -> dict:
     puppeteer_config = _project_root() / "mermaid-puppeteer-config.json"
     if puppeteer_config.exists():
         command.extend(["-p", str(puppeteer_config)])
+    os.environ.setdefault(
+        "PUPPETEER_CACHE_DIR",
+        str(_project_root() / ".cache" / "puppeteer"),
+    )
     try:
         subprocess.run(command, check=True, capture_output=True, text=True, timeout=45)
     except (OSError, subprocess.SubprocessError) as error:
