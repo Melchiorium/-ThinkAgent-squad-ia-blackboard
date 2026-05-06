@@ -9,7 +9,7 @@ Document court pour créer et vérifier le viewer web sur Render.
 - définir la build command :
 
 ```bash
-pip install -r requirements.txt
+bash scripts/render_build.sh
 ```
 
 - définir la start command via le `Procfile` ;
@@ -34,6 +34,10 @@ gunicorn app.web:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
 - ne pas créer de base de données Render managée ;
 - ne pas créer de Redis ;
 - ne pas ajouter de `render.yaml`.
+
+Le script de build installe les dépendances Python et Node. C'est ce qui
+rend `architecture-diagram.png` possible sur Render au lieu de laisser
+seulement `architecture-diagram.mmd`.
 
 ## Mode Render éphémère
 

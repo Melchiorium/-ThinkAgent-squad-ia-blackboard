@@ -156,6 +156,12 @@ Pour générer les schémas PNG à partir de Mermaid, installer aussi les dépen
 npm install
 ```
 
+Sur Render, utiliser plutôt le script de build du dépôt :
+
+```bash
+bash scripts/render_build.sh
+```
+
 Exemple :
 
 ```bash

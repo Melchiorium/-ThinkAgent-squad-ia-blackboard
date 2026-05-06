@@ -20,6 +20,7 @@ web_rules:
   - Protect /readyz with the same WEB_ACCESS_TOKEN guard as the rest of the app when the token is configured.
   - Keep the Render deployment as a single-process POC unless a real external queue and shared job store are introduced.
   - Keep the web UI generation-first: users should be able to submit a brief and read the generated dossier without understanding internal run/job paths.
+  - When Render should produce architecture-diagram.png, the build step must install the Node devDependencies so @mermaid-js/mermaid-cli is available before Gunicorn starts.
   - Do not commit or print Supabase connection strings or other storage secrets in code, docs, logs, or prompts.
   - Readiness endpoints and storage preflight checks must report status without exposing connection strings, passwords, or token values.
   - Treat Supabase RLS warnings as expected until a dedicated lot validates an RLS strategy; do not enable or modify RLS or policies casually.

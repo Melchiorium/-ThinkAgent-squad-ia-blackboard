@@ -171,8 +171,10 @@ web_secret_link_access_flow:
 web_render_poc_deployment_flow:
   owner: Procfile, app/web.py, and app/web_storage.py
   status: poc_deployment
+  build_hint: "bash scripts/render_build.sh"
   steps:
     - install Python dependencies from requirements.txt
+    - install Node dependencies with devDependencies included so Mermaid CLI is available
     - start app.web:app through gunicorn
     - bind to Render PORT
     - keep one web worker for process-local jobs

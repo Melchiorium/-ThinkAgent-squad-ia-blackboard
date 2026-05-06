@@ -41,6 +41,7 @@ key_paths:
   storage_validation_script: scripts/check_web_storage.py
   package_manifest: package.json
   python_requirements: requirements.txt
+  render_build_script: scripts/render_build.sh
   web_local_launcher: scripts/run_web.sh
   web_deployment_entrypoint: Procfile
 
