@@ -162,6 +162,9 @@ Sur Render, utiliser plutôt le script de build du dépôt :
 bash scripts/render_build.sh
 ```
 
+Ce script installe aussi le navigateur Chromium attendu par Puppeteer, ce qui
+permet de générer `architecture-diagram.png`.
+
 Exemple :
 
 ```bash

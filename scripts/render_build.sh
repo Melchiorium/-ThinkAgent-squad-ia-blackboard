@@ -17,3 +17,4 @@ fi
 
 python3 -m pip install -r requirements.txt
 npm ci --include=dev --no-fund --no-audit
+npx puppeteer browsers install chrome-headless-shell
