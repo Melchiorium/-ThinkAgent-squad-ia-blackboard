@@ -55,7 +55,7 @@ def _render_mermaid_image(output_dir: Path, mermaid_source: str) -> dict:
     try:
         subprocess.run(command, check=True, capture_output=True, text=True, timeout=45)
     except (OSError, subprocess.SubprocessError) as error:
-        state["render_warning"] = f"Mermaid PNG generation failed: {error}"
+        state["render_warning"] = _format_render_failure(error)
         return state
 
     state["image_path"] = str(png_path)
@@ -74,6 +74,19 @@ def _find_mmdc() -> str:
 
 def _project_root() -> Path:
     return Path(__file__).resolve().parent.parent
+
+
+def _format_render_failure(error: BaseException) -> str:
+    if isinstance(error, subprocess.CalledProcessError):
+        stderr = (error.stderr or "").strip()
+        stdout = (error.stdout or "").strip()
+        details = stderr or stdout
+        if details:
+            return (
+                "Mermaid PNG generation failed: "
+                f"{error}. Renderer output: {details}"
+            )
+    return f"Mermaid PNG generation failed: {error}"
 
 
 def _assess_diagram_quality(mermaid_source: str, image_state: dict, blackboard: dict) -> dict:
