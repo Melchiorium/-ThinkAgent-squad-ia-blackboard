@@ -831,6 +831,8 @@ def _build_sections_from_run_path(run_path: Path) -> list[dict]:
 
 
 def _build_sections_from_artifacts(artifacts: dict[str, dict[str, Any]]) -> list[dict]:
+    blackboard_text = _artifact_text(artifacts.get("blackboard.md"))
+    warning_text = _extract_architecture_warning(blackboard_text)
     return [
         _build_text_section(
             "Brief",
@@ -850,6 +852,7 @@ def _build_sections_from_artifacts(artifacts: dict[str, dict[str, Any]]) -> list
         _build_mermaid_section(
             _artifact_text(artifacts.get("architecture-diagram.mmd")),
             bool(artifacts.get("architecture-diagram.png")),
+            warning_text,
         ),
         _build_text_section(
             "GTM",
@@ -878,13 +881,14 @@ def _build_text_section(title: str, filename: str, content: str | None) -> dict:
     }
 
 
-def _build_mermaid_section(content: str | None, png_present: bool) -> dict:
+def _build_mermaid_section(content: str | None, png_present: bool, warning: str = "") -> dict:
     return {
         "title": "Diagramme Mermaid",
         "filename": "architecture-diagram.mmd",
         "content": content,
         "present": content is not None,
         "png_present": png_present,
+        "warning": warning.strip(),
     }
 
 
@@ -896,6 +900,24 @@ def _artifact_text(artifact_row: dict[str, Any] | None) -> str | None:
     if artifact_row.get("content_bytes") is not None:
         return bytes(artifact_row["content_bytes"]).decode("utf-8")
     return None
+
+
+def _extract_architecture_warning(blackboard_text: str | None) -> str:
+    if not blackboard_text:
+        return ""
+
+    match = re.search(
+        r"## Architecture Visual Warning\s*\n\s*\n(?P<warning>.*?)(?:\n## |\Z)",
+        blackboard_text,
+        flags=re.S,
+    )
+    if not match:
+        return ""
+
+    warning = match.group("warning").strip()
+    if warning == "_Aucun contenu._":
+        return ""
+    return warning
 
 
 def _build_artifact_record(file_path: Path, filename: str) -> dict[str, Any]:

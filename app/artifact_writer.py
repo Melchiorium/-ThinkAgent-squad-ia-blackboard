@@ -37,10 +37,7 @@ def write_run_artifacts(
         _format_blackboard_markdown(blackboard),
         encoding="utf-8",
     )
-    activity_log_lines = [
-        f"{entry['agent']} | {entry['event']} | {entry['source']}"
-        for entry in blackboard["activity_log"]
-    ]
+    activity_log_lines = [_format_activity_log_entry(entry) for entry in blackboard["activity_log"]]
     (output_dir / "activity_log.txt").write_text(
         "\n".join(activity_log_lines) + ("\n" if activity_log_lines else ""),
         encoding="utf-8",
@@ -55,6 +52,18 @@ def write_run_artifacts(
 def _format_block(title: str, content: str) -> str:
     body = content.strip() or "_Aucun contenu._"
     return f"## {title}\n\n{body}\n"
+
+
+def _format_activity_log_entry(entry: dict) -> str:
+    parts = [
+        str(entry.get("agent", "")),
+        str(entry.get("event", "")),
+        str(entry.get("source", "")),
+    ]
+    details = str(entry.get("details", "")).strip()
+    if details:
+        parts.append(details)
+    return " | ".join(parts)
 
 
 def _format_list_block(title: str, items: list[str], empty_label: str) -> str:

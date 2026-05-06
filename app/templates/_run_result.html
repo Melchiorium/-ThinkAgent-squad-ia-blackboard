@@ -18,7 +18,14 @@
               alt="Diagramme d'architecture"
             >
           {% else %}
-            <p class="empty">Image Mermaid absente.</p>
+            <div class="warning-box">
+              <strong>Image Mermaid absente.</strong>
+              {% if section.warning %}
+                <pre class="warning-box__detail">{{ section.warning }}</pre>
+              {% else %}
+                <p class="empty">Le PNG n'a pas été généré pour ce run.</p>
+              {% endif %}
+            </div>
           {% endif %}
         </div>
       {% endif %}
