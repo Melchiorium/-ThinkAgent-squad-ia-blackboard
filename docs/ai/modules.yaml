@@ -177,8 +177,9 @@ modules:
       Pure presentation helpers for the web viewer. Builds job and run view
       models plus rendered section metadata without touching storage or Flask
       request state. Also normalizes the web progress contract for API and
-      server-rendered fallbacks. Link validity is still resolved by the Flask
-      layer against the live run inventory.
+      server-rendered fallbacks, including the derived progress graph used by
+      the job-status UI. Link validity is still resolved by the Flask layer
+      against the live run inventory.
     read_when:
       - changing web job or run view models
       - changing section rendering metadata
@@ -196,8 +197,8 @@ modules:
     role: >
       Shared pure helpers for the web generation progress contract. Defines
       the allowed blocks, default state, event trimming, and block-status
-      normalization used by the storage layer, workflow instrumentation, and
-      browser polling UI.
+      normalization used by the storage layer, workflow instrumentation, graph
+      derivation, and browser polling UI.
     read_when:
       - changing web job progress fields
       - changing progress block definitions
@@ -209,6 +210,8 @@ modules:
       - normalize_progress_state
       - normalize_progress_blocks
       - normalize_progress_events
+      - build_agent_exchange_event
+      - build_progress_graph
       - build_progress_event
       - apply_progress_update
       - progress_block_labels

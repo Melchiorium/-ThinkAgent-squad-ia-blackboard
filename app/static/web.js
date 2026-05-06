@@ -21,6 +21,9 @@
   const progressAlert = progressShell?.querySelector("[data-progress-alert]");
   const progressAlertTitle = progressShell?.querySelector("[data-progress-alert-title]");
   const progressAlertMessage = progressShell?.querySelector("[data-progress-alert-message]");
+  const agentFlowShell = progressShell?.querySelector("[data-agent-flow]");
+  const agentFlowTask = progressShell?.querySelector("[data-agent-flow-task]");
+  const agentFlowLoop = progressShell?.querySelector("[data-agent-flow-loop]");
   const progressBlocks = progressShell?.querySelector("[data-progress-blocks]");
   const progressEvents = progressShell?.querySelector("[data-progress-events]");
 
@@ -32,6 +35,23 @@
   };
 
   const progressGroups = ["Brief", "Product", "Growth / GTM", "Tech", "Finalisation"];
+  const agentFlowNodes = [
+    { id: "system", label: "Système / Artefacts" },
+    { id: "product", label: "Product" },
+    { id: "growth", label: "Growth" },
+    { id: "tech", label: "Tech" },
+    { id: "blackboard", label: "Blackboard" },
+  ];
+  const agentFlowFlows = [
+    { id: "system_to_product", from: "system", to: "product", label: "System → Product" },
+    { id: "product_to_blackboard", from: "product", to: "blackboard", label: "Product → Blackboard" },
+    { id: "blackboard_to_growth", from: "blackboard", to: "growth", label: "Blackboard → Growth" },
+    { id: "growth_to_blackboard", from: "growth", to: "blackboard", label: "Growth → Blackboard" },
+    { id: "blackboard_to_tech", from: "blackboard", to: "tech", label: "Blackboard → Tech" },
+    { id: "tech_to_blackboard", from: "tech", to: "blackboard", label: "Tech → Blackboard" },
+    { id: "blackboard_to_product", from: "blackboard", to: "product", label: "Blackboard → Product" },
+    { id: "blackboard_to_system", from: "blackboard", to: "system", label: "Blackboard → System" },
+  ];
 
   let currentPayload = {};
   let finished = false;
@@ -136,9 +156,21 @@
       ),
       progress_error_type: progressShell.dataset.progressErrorType || "",
       progress_error_message: progressShell.dataset.progressErrorMessage || "",
+      progress_graph: readJsonDataAttribute(progressShell.dataset.progressGraph),
       progress_blocks: [],
       progress_events: [],
     };
+  }
+
+  function readJsonDataAttribute(value) {
+    if (!value) {
+      return {};
+    }
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      return {};
+    }
   }
 
   function toNumber(value, fallback = 0) {
@@ -186,6 +218,7 @@
       return;
     }
 
+    renderAgentFlow(payload.progress_graph);
     const blocks = Array.isArray(payload.progress_blocks) ? payload.progress_blocks : [];
     const events = Array.isArray(payload.progress_events) ? payload.progress_events : [];
     const hasProgress = blocks.length > 0 || events.length > 0 || payload.progress_total > 0;
@@ -225,6 +258,74 @@
     renderEvents(events);
     renderAlert(payload);
     updateElapsedLabels();
+  };
+
+  const renderAgentFlow = (progressGraph) => {
+    if (!agentFlowShell) {
+      return;
+    }
+
+    const nodeStatuses = new Map(
+      Array.isArray(progressGraph?.nodes)
+        ? progressGraph.nodes.map((node) => [node.id, node.status || "idle"])
+        : []
+    );
+    const flowStatuses = new Map(
+      Array.isArray(progressGraph?.flows)
+        ? progressGraph.flows.map((flow) => [flow.id, flow.status || "idle"])
+        : []
+    );
+    const currentTask = progressGraph?.current_task || "";
+    const loop = Number.isFinite(Number.parseInt(progressGraph?.loop, 10))
+      ? Number.parseInt(progressGraph.loop, 10)
+      : null;
+
+    agentFlowShell.innerHTML = "";
+
+    const nodesRow = document.createElement("div");
+    nodesRow.className = "agent-flow__nodes";
+    agentFlowNodes.forEach((nodeDef) => {
+      const node = document.createElement("div");
+      const status = nodeStatuses.get(nodeDef.id) || "idle";
+      node.className = `agent-flow__node agent-flow__node--${status}`;
+      node.dataset.agentFlowNode = nodeDef.id;
+
+      const label = document.createElement("span");
+      label.className = "agent-flow__node-label";
+      label.textContent = nodeDef.label;
+
+      node.append(label);
+      nodesRow.append(node);
+    });
+
+    const flowsRow = document.createElement("div");
+    flowsRow.className = "agent-flow__flows";
+    agentFlowFlows.forEach((flowDef) => {
+      const flow = document.createElement("div");
+      const status = flowStatuses.get(flowDef.id) || "idle";
+      flow.className = `agent-flow__arrow agent-flow__arrow--${status}`;
+      flow.dataset.agentFlowFlow = flowDef.id;
+
+      const label = document.createElement("span");
+      label.className = "agent-flow__arrow-label";
+      label.textContent = flowDef.label;
+
+      flow.append(label);
+      flowsRow.append(flow);
+    });
+
+    agentFlowShell.append(nodesRow, flowsRow);
+
+    setText(agentFlowTask, currentTask || "Génération en cours");
+    if (agentFlowLoop) {
+      if (loop !== null && loop > 0) {
+        agentFlowLoop.classList.remove("is-hidden");
+        agentFlowLoop.textContent = `Boucle ${loop}`;
+      } else {
+        agentFlowLoop.classList.add("is-hidden");
+        agentFlowLoop.textContent = "";
+      }
+    }
   };
 
   const renderBlocks = (blocks) => {
@@ -461,6 +562,7 @@
   };
 
   currentPayload = readInitialProgressState();
+  renderAgentFlow(currentPayload.progress_graph);
   const intervalId = window.setInterval(poll, 3000);
   const timerId = window.setInterval(updateElapsedLabels, 1000);
   poll();

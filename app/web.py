@@ -497,6 +497,7 @@ def _build_job_progress_callback(job_id: str, backend: str):
         done_blocks: list[str] | None = None,
         skipped_blocks: list[str] | None = None,
         failed_blocks: list[str] | None = None,
+        event: dict | None = None,
     ) -> None:
         current_job = get_job(job_id, jobs_root=_jobs_root(), backend=backend)
         if current_job is None:
@@ -512,6 +513,7 @@ def _build_job_progress_callback(job_id: str, backend: str):
             done_blocks=done_blocks or [],
             skipped_blocks=skipped_blocks or [],
             failed_blocks=failed_blocks or [],
+            event=event,
             set_started=current_job.get("status") == "running"
             and not current_job.get("progress_started_at"),
         )
@@ -530,6 +532,7 @@ def _update_job_progress(
     done_blocks: list[str] | None = None,
     skipped_blocks: list[str] | None = None,
     failed_blocks: list[str] | None = None,
+    event: dict | None = None,
     set_started: bool = False,
 ) -> dict | None:
     backend = _storage_backend()
@@ -545,6 +548,7 @@ def _update_job_progress(
         done_blocks=done_blocks or [],
         skipped_blocks=skipped_blocks or [],
         failed_blocks=failed_blocks or [],
+        event=event,
         set_started=set_started,
     )
     return update_job(job_id, updates, jobs_root=_jobs_root(), backend=backend)
@@ -560,6 +564,7 @@ def _update_job_progress_payload(
     done_blocks: list[str] | None = None,
     skipped_blocks: list[str] | None = None,
     failed_blocks: list[str] | None = None,
+    event: dict | None = None,
     set_started: bool = False,
     error_type: str = "",
     error_message: str = "",
@@ -574,6 +579,7 @@ def _update_job_progress_payload(
         done_blocks=done_blocks or [],
         skipped_blocks=skipped_blocks or [],
         failed_blocks=failed_blocks or [],
+        event=event,
         set_started=set_started,
         timeout_seconds=timeout_seconds,
         error_type=error_type,

@@ -81,6 +81,7 @@
           data-progress-error-type="{{ job.progress_error_type }}"
           data-progress-error-message="{{ job.progress_error_message }}"
           data-progress-status="{{ job.status }}"
+          data-progress-graph='{{ job.progress_graph | tojson }}'
         >
           <div class="job-progress__current" data-progress-current>
             <div class="job-progress__current-topline">
@@ -149,6 +150,30 @@
               {% endif %}
             </p>
           </div>
+
+          <section class="agent-flow-shell">
+            <div class="agent-flow" data-agent-flow></div>
+            <p class="agent-flow__meta">
+              <strong data-agent-flow-task>
+                {% if job.progress_graph.current_task %}
+                  {{ job.progress_graph.current_task }}
+                {% elif job.status == "queued" %}
+                  Brief transmis à Product
+                {% elif job.status == "running" %}
+                  Génération en cours
+                {% elif job.status == "done" %}
+                  Génération terminée
+                {% elif job.status == "failed" %}
+                  Génération interrompue
+                {% endif %}
+              </strong>
+              <span class="agent-flow__loop{% if job.progress_graph.loop is none %} is-hidden{% endif %}" data-agent-flow-loop>
+                {% if job.progress_graph.loop is not none %}
+                  Boucle {{ job.progress_graph.loop }}
+                {% endif %}
+              </span>
+            </p>
+          </section>
 
           <div class="job-progress__blocks" data-progress-blocks>
             {% if job.progress_total and job.progress_blocks %}

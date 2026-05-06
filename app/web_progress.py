@@ -36,8 +36,31 @@ PROGRESS_BLOCK_DEFINITIONS: list[dict[str, str]] = [
     {"id": "done", "group": "Finalisation", "label": "Terminé"},
 ]
 
+GRAPH_NODE_DEFINITIONS: list[dict[str, str]] = [
+    {"id": "system", "label": "Système / Artefacts"},
+    {"id": "product", "label": "Product"},
+    {"id": "growth", "label": "Growth"},
+    {"id": "tech", "label": "Tech"},
+    {"id": "blackboard", "label": "Blackboard"},
+]
+
+GRAPH_FLOW_DEFINITIONS: list[dict[str, str]] = [
+    {"id": "system_to_product", "from": "system", "to": "product", "label": "System → Product"},
+    {"id": "product_to_blackboard", "from": "product", "to": "blackboard", "label": "Product → Blackboard"},
+    {"id": "blackboard_to_growth", "from": "blackboard", "to": "growth", "label": "Blackboard → Growth"},
+    {"id": "growth_to_blackboard", "from": "growth", "to": "blackboard", "label": "Growth → Blackboard"},
+    {"id": "blackboard_to_tech", "from": "blackboard", "to": "tech", "label": "Blackboard → Tech"},
+    {"id": "tech_to_blackboard", "from": "tech", "to": "blackboard", "label": "Tech → Blackboard"},
+    {"id": "blackboard_to_product", "from": "blackboard", "to": "product", "label": "Blackboard → Product"},
+    {"id": "blackboard_to_system", "from": "blackboard", "to": "system", "label": "Blackboard → System"},
+]
+
 _BLOCK_ORDER = {definition["id"]: index + 1 for index, definition in enumerate(PROGRESS_BLOCK_DEFINITIONS)}
 _BLOCK_DEFINITION_BY_ID = {definition["id"]: definition for definition in PROGRESS_BLOCK_DEFINITIONS}
+_GRAPH_FLOW_BY_ID = {definition["id"]: definition for definition in GRAPH_FLOW_DEFINITIONS}
+_GRAPH_FLOW_BY_PAIR = {
+    (definition["from"], definition["to"]): definition["id"] for definition in GRAPH_FLOW_DEFINITIONS
+}
 
 
 def build_empty_progress_state(timeout_seconds: int = DEFAULT_PROGRESS_TIMEOUT_SECONDS) -> dict:
@@ -154,13 +177,93 @@ def normalize_progress_events(events: Any) -> list[dict]:
     for event in events[-MAX_PROGRESS_EVENTS:]:
         if not isinstance(event, dict):
             continue
-        normalized_event = dict(event)
-        normalized_event["timestamp"] = _clean_text(normalized_event.get("timestamp", ""))
-        normalized_event["stage"] = _clean_text(normalized_event.get("stage", ""))
-        normalized_event["label"] = _clean_text(normalized_event.get("label", ""))
-        normalized_event["detail"] = _clean_text(normalized_event.get("detail", ""))
-        normalized.append(normalized_event)
+        normalized.append(_clean_event_payload(event))
     return normalized[-MAX_PROGRESS_EVENTS:]
+
+
+def build_progress_graph(job: dict | None) -> dict:
+    state = normalize_progress_state(job or {})
+    job_status = _clean_text((job or {}).get("status", ""))
+    nodes = [
+        {
+            "id": definition["id"],
+            "label": definition["label"],
+            "status": "idle",
+        }
+        for definition in GRAPH_NODE_DEFINITIONS
+    ]
+    flows = [
+        {
+            "id": definition["id"],
+            "from": definition["from"],
+            "to": definition["to"],
+            "label": definition["label"],
+            "status": "idle",
+        }
+        for definition in GRAPH_FLOW_DEFINITIONS
+    ]
+    node_map = {node["id"]: node for node in nodes}
+    flow_map = {flow["id"]: flow for flow in flows}
+    seen_nodes: set[str] = set()
+    seen_flows: set[str] = set()
+
+    active_event = _find_latest_exchange_event(state["progress_events"])
+    for event in state["progress_events"]:
+        actor = _clean_text(event.get("actor", ""))
+        target = _clean_text(event.get("target", ""))
+        flow_id = _resolve_flow_id(actor, target, event.get("flow", ""))
+        if actor in node_map:
+            seen_nodes.add(actor)
+        if target in node_map:
+            seen_nodes.add(target)
+        if flow_id in flow_map:
+            seen_flows.add(flow_id)
+
+    for node_id in seen_nodes:
+        node_map[node_id]["status"] = "done"
+    for flow_id in seen_flows:
+        flow_map[flow_id]["status"] = "done"
+
+    active_actor = ""
+    active_target = ""
+    active_flow = ""
+    current_task = state["progress_label"] or state["progress_stage"]
+    loop_value = None
+
+    if active_event is not None:
+        active_actor = _clean_text(active_event.get("actor", ""))
+        active_target = _clean_text(active_event.get("target", ""))
+        active_flow = _resolve_flow_id(active_actor, active_target, active_event.get("flow", ""))
+        current_task = _clean_text(active_event.get("task", "")) or current_task
+        loop_value = _coerce_positive_int(active_event.get("loop"))
+
+        if active_actor in node_map:
+            node_map[active_actor]["status"] = "active" if job_status != "failed" else "failed"
+        if active_target in node_map:
+            node_map[active_target]["status"] = "active" if job_status != "failed" else "failed"
+        if active_flow in flow_map:
+            flow_map[active_flow]["status"] = "active" if job_status != "failed" else "failed"
+
+        if job_status == "done":
+            if active_actor in node_map:
+                node_map[active_actor]["status"] = "done"
+            if active_target in node_map:
+                node_map[active_target]["status"] = "done"
+            if active_flow in flow_map:
+                flow_map[active_flow]["status"] = "done"
+
+    if job_status == "failed" and active_event is None:
+        current_task = state["progress_label"] or state["progress_stage"] or "Échec"
+
+    return {
+        "nodes": nodes,
+        "flows": flows,
+        "active_actor": active_actor,
+        "active_target": active_target,
+        "active_flow": active_flow,
+        "current_task": current_task,
+        "loop": loop_value,
+    }
 
 
 def build_progress_event(
@@ -179,6 +282,44 @@ def build_progress_event(
     }
     if kind:
         event["kind"] = _clean_text(kind)
+    return event
+
+
+def build_agent_exchange_event(
+    *,
+    stage: str,
+    label: str,
+    detail: str = "",
+    actor: str = "",
+    target: str = "",
+    flow: str = "",
+    task: str = "",
+    loop: int | None = None,
+    timestamp: str | None = None,
+    kind: str = "agent_exchange",
+) -> dict:
+    event = build_progress_event(
+        stage=stage,
+        label=label,
+        detail=detail,
+        timestamp=timestamp,
+        kind=kind,
+    )
+    actor = _clean_text(actor)
+    target = _clean_text(target)
+    flow = _clean_text(flow)
+    task = _clean_text(task)
+    if actor:
+        event["actor"] = actor
+    if target:
+        event["target"] = target
+    if flow:
+        event["flow"] = flow
+    if task:
+        event["task"] = task
+    loop_value = _coerce_positive_int(loop)
+    if loop_value is not None:
+        event["loop"] = loop_value
     return event
 
 
@@ -320,8 +461,26 @@ def _clean_event_payload(event: dict[str, Any]) -> dict:
     cleaned["stage"] = _clean_text(cleaned.get("stage", ""))
     cleaned["label"] = _clean_text(cleaned.get("label", ""))
     cleaned["detail"] = _clean_text(cleaned.get("detail", ""))
+    for key in ("actor", "target", "flow", "task"):
+        if key not in cleaned:
+            continue
+        value = _clean_text(cleaned.get(key, ""))
+        if value:
+            cleaned[key] = value
+        else:
+            cleaned.pop(key, None)
+    if "loop" in cleaned:
+        loop_value = _coerce_positive_int(cleaned.get("loop"))
+        if loop_value is None:
+            cleaned.pop("loop", None)
+        else:
+            cleaned["loop"] = loop_value
     if "kind" in cleaned:
-        cleaned["kind"] = _clean_text(cleaned.get("kind", ""))
+        kind_value = _clean_text(cleaned.get("kind", ""))
+        if kind_value:
+            cleaned["kind"] = kind_value
+        else:
+            cleaned.pop("kind", None)
     return cleaned
 
 
@@ -345,6 +504,32 @@ def _coerce_int(value: Any) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def _coerce_positive_int(value: Any) -> int | None:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    if number <= 0:
+        return None
+    return number
+
+
+def _resolve_flow_id(actor: str, target: str, flow: Any) -> str:
+    cleaned_flow = _clean_text(flow)
+    if cleaned_flow in _GRAPH_FLOW_BY_ID:
+        return cleaned_flow
+    if actor and target:
+        return _GRAPH_FLOW_BY_PAIR.get((actor, target), "")
+    return ""
+
+
+def _find_latest_exchange_event(events: list[dict]) -> dict | None:
+    for event in reversed(events):
+        if _clean_text(event.get("actor", "")) or _clean_text(event.get("target", "")) or _clean_text(event.get("flow", "")):
+            return event
+    return None
 
 
 def _clean_text(value: Any) -> str:

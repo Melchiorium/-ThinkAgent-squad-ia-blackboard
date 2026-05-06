@@ -405,6 +405,97 @@ body {
   margin-bottom: 4px;
 }
 
+.agent-flow-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-flow {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.agent-flow__nodes,
+.agent-flow__flows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-flow__node,
+.agent-flow__arrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #d7dbe0;
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+}
+
+.agent-flow__node {
+  min-width: 0;
+}
+
+.agent-flow__node-label,
+.agent-flow__arrow-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.agent-flow__node--active,
+.agent-flow__arrow--active {
+  background: #eff6ff;
+  border-color: #60a5fa;
+  color: #1d4ed8;
+}
+
+.agent-flow__node--done,
+.agent-flow__arrow--done {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+  color: #047857;
+}
+
+.agent-flow__node--failed,
+.agent-flow__arrow--failed {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+.agent-flow__arrow--active {
+  position: relative;
+  animation: agent-flow-pulse 1.6s ease-in-out infinite;
+}
+
+.agent-flow__meta {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin: 0;
+  color: #4b5563;
+}
+
+.agent-flow__meta strong {
+  color: #111827;
+}
+
+.agent-flow__loop {
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .job-progress__blocks,
 .job-progress__events {
   display: grid;
@@ -527,6 +618,24 @@ body {
 
 .job-progress__event-detail {
   color: #4b5563;
+}
+
+@keyframes agent-flow-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.18);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-flow__arrow--active {
+    animation: none;
+  }
 }
 
 .job-status__result-shell {

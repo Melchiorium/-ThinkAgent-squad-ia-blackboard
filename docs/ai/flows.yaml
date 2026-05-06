@@ -159,7 +159,7 @@ web_generation_job_flow:
     - initialize the brief-received progress state
     - start a daemon thread for generation
     - run one generation at a time with a process-local lock
-    - emit progress updates around Product, Growth, and Tech steps
+    - emit progress updates and agent exchange events around Product, Growth, and Tech steps
     - update the job to running, done, or failed
     - use the web-only step timeout as a stale-step alert threshold while keeping the CLI path unchanged
     - link done jobs to /runs/<project>/<version>
@@ -310,6 +310,7 @@ web_unified_generation_ui_flow:
     - create a session-scoped generation job
     - show queued/running/done/failed status
     - display the current progress step, grouped blocks, and recent events
+    - display the derived agent exchange graph with the current task and loop when available
     - poll job status when JavaScript is available
     - display generated artifacts inline when the job is done
     - keep existing run detail pages available

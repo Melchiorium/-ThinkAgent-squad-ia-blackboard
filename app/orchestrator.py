@@ -12,6 +12,7 @@ if __package__ and __package__.startswith("app"):
     from .agents.tech_agent import run_tech_agent
     from .agents.growth_agent import run_growth_agent
     from .readiness import aggregate_global_readiness
+    from .web_progress import build_agent_exchange_event
 else:
     from blackboard import create_blackboard
     from agents.product_agent import (
@@ -23,6 +24,7 @@ else:
     from agents.tech_agent import run_tech_agent
     from agents.growth_agent import run_growth_agent
     from readiness import aggregate_global_readiness
+    from web_progress import build_agent_exchange_event
 
 
 def run_v0_flow(
@@ -33,6 +35,16 @@ def run_v0_flow(
 ) -> dict:
     """Run the staged collaboration flow and return the updated blackboard."""
     blackboard = create_blackboard(project_brief, project_brief_source)
+    _emit_agent_exchange(
+        progress_callback,
+        stage="product_initial",
+        label="Brief transmis à Product",
+        detail="Le brief est remis à Product pour cadrer le MVP.",
+        actor="system",
+        target="product",
+        flow="system_to_product",
+        task="Analyse du brief",
+    )
     blackboard = _run_stage(
         blackboard,
         progress_callback,
@@ -58,6 +70,26 @@ def run_v0_flow(
             "product_users_goals",
             "product_user_stories",
         ],
+    )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="product_initial",
+        label="PRD initial écrit",
+        detail="Product a écrit le premier PRD dans le blackboard.",
+        actor="product",
+        target="blackboard",
+        flow="product_to_blackboard",
+        task="PRD initial",
+    )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="growth_review",
+        label="PRD transmis à Growth",
+        detail="Growth lit le PRD initial avant de proposer le GTM.",
+        actor="blackboard",
+        target="growth",
+        flow="blackboard_to_growth",
+        task="Relecture GTM",
     )
     blackboard = _run_stage(
         blackboard,
@@ -94,6 +126,26 @@ def run_v0_flow(
             "growth_channels",
             "growth_objections",
         ],
+    )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="growth_review",
+        label="GTM écrit",
+        detail="Growth a écrit les signaux marché dans le blackboard.",
+        actor="growth",
+        target="blackboard",
+        flow="growth_to_blackboard",
+        task="GTM initial",
+    )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="tech_review",
+        label="PRD transmis à Tech",
+        detail="Tech lit le PRD avant de produire l'architecture.",
+        actor="blackboard",
+        target="tech",
+        flow="blackboard_to_tech",
+        task="Relecture architecture",
     )
     blackboard = _run_stage(
         blackboard,
@@ -139,6 +191,26 @@ def run_v0_flow(
             "tech_risks",
         ],
     )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="tech_review",
+        label="Architecture écrite",
+        detail="Tech a écrit l'architecture dans le blackboard.",
+        actor="tech",
+        target="blackboard",
+        flow="tech_to_blackboard",
+        task="Architecture initiale",
+    )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="product_revision",
+        label="Product consolide les retours",
+        detail="Product reprend les retours Growth et Tech.",
+        actor="blackboard",
+        target="product",
+        flow="blackboard_to_product",
+        task="Consolidation PRD",
+    )
     blackboard = _run_stage(
         blackboard,
         progress_callback,
@@ -183,6 +255,16 @@ def run_v0_flow(
             "product_revision",
         ],
     )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="product_revision",
+        label="PRD révisé écrit",
+        detail="Product a écrit la version consolidée du PRD.",
+        actor="product",
+        target="blackboard",
+        flow="product_to_blackboard",
+        task="PRD révisé",
+    )
     blackboard = _finalize_readiness(blackboard)
     _emit_progress(
         progress_callback,
@@ -207,6 +289,16 @@ def run_v0_flow(
             "product_revision",
         ],
     )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="readiness_check",
+        label="Readiness vérifiée",
+        detail=f"Statut global: {blackboard['readiness'].get('global_status') or 'inconnu'}.",
+        actor="blackboard",
+        target="system",
+        flow="blackboard_to_system",
+        task="Readiness",
+    )
     blackboard = _run_targeted_correction_loop(
         blackboard,
         progress_callback=progress_callback,
@@ -222,6 +314,16 @@ def run_v0_flow(
             else "Aucune boucle de correction nécessaire."
         ),
         done_blocks=["correction_loop"],
+    )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="product_locking",
+        label="Product verrouille la version finale",
+        detail="Product verrouille la version finale avant la persistance.",
+        actor="blackboard",
+        target="product",
+        flow="blackboard_to_product",
+        task="Verrouillage produit",
     )
     blackboard = _run_stage(
         blackboard,
@@ -273,7 +375,27 @@ def run_v0_flow(
             "product_locking",
         ],
     )
+    _emit_agent_exchange(
+        progress_callback,
+        stage="product_locking",
+        label="PRD final verrouillé",
+        detail="Product a figé la version finale dans le blackboard.",
+        actor="product",
+        target="blackboard",
+        flow="product_to_blackboard",
+        task="PRD final verrouillé",
+    )
     blackboard = _finalize_readiness(blackboard)
+    _emit_agent_exchange(
+        progress_callback,
+        stage="readiness_check",
+        label="Artefacts prêts à persister",
+        detail="Le run est prêt à persister ses artefacts.",
+        actor="blackboard",
+        target="system",
+        flow="blackboard_to_system",
+        task="Persistance des artefacts",
+    )
     _emit_progress(
         progress_callback,
         stage="readiness_check",
@@ -405,6 +527,17 @@ def _run_targeted_correction_loop(
         )
 
         if tasks_by_owner["tech"]:
+            _emit_agent_exchange(
+                progress_callback,
+                stage=f"correction_loop_{loop_number}_tech",
+                label="Correction ciblée Tech",
+                detail=f"{len(tasks_by_owner['tech'])} tâche(s) tech à traiter.",
+                actor="blackboard",
+                target="tech",
+                flow="blackboard_to_tech",
+                task="Correction ciblée Tech",
+                loop=loop_number,
+            )
             blackboard = _run_stage(
                 blackboard,
                 progress_callback,
@@ -427,7 +560,29 @@ def _run_targeted_correction_loop(
                     "tech_risks",
                 ],
             )
+            _emit_agent_exchange(
+                progress_callback,
+                stage=f"correction_loop_{loop_number}_tech",
+                label="Architecture corrigée",
+                detail="Tech a réécrit les éléments techniques dans le blackboard.",
+                actor="tech",
+                target="blackboard",
+                flow="tech_to_blackboard",
+                task="Architecture corrigée",
+                loop=loop_number,
+            )
         if tasks_by_owner["growth"]:
+            _emit_agent_exchange(
+                progress_callback,
+                stage=f"correction_loop_{loop_number}_growth",
+                label="Relecture GTM",
+                detail=f"{len(tasks_by_owner['growth'])} tâche(s) growth à traiter.",
+                actor="blackboard",
+                target="growth",
+                flow="blackboard_to_growth",
+                task="Relecture GTM",
+                loop=loop_number,
+            )
             blackboard = _run_stage(
                 blackboard,
                 progress_callback,
@@ -450,7 +605,29 @@ def _run_targeted_correction_loop(
                     "growth_objections",
                 ],
             )
+            _emit_agent_exchange(
+                progress_callback,
+                stage=f"correction_loop_{loop_number}_growth",
+                label="GTM corrigé",
+                detail="Growth a réécrit les éléments marché dans le blackboard.",
+                actor="growth",
+                target="blackboard",
+                flow="growth_to_blackboard",
+                task="GTM corrigé",
+                loop=loop_number,
+            )
         if correction_tasks:
+            _emit_agent_exchange(
+                progress_callback,
+                stage=f"correction_loop_{loop_number}_product",
+                label="Correction ciblée Product",
+                detail=f"{len(tasks_by_owner['product'])} tâche(s) product à traiter.",
+                actor="blackboard",
+                target="product",
+                flow="blackboard_to_product",
+                task="Correction ciblée Product",
+                loop=loop_number,
+            )
             blackboard = _run_stage(
                 blackboard,
                 progress_callback,
@@ -467,6 +644,17 @@ def _run_targeted_correction_loop(
                 success_label="Product a arbitré les corrections ciblées",
                 success_detail="La boucle de correction produit est intégrée.",
                 success_done_blocks=["product_revision"],
+            )
+            _emit_agent_exchange(
+                progress_callback,
+                stage=f"correction_loop_{loop_number}_product",
+                label="PRD corrigé",
+                detail="Product a réécrit les éléments produits dans le blackboard.",
+                actor="product",
+                target="blackboard",
+                flow="product_to_blackboard",
+                task="PRD corrigé",
+                loop=loop_number,
             )
 
         blackboard = _finalize_readiness(blackboard)
@@ -548,6 +736,7 @@ def _emit_progress(
     done_blocks: list[str] | None = None,
     skipped_blocks: list[str] | None = None,
     failed_blocks: list[str] | None = None,
+    event: dict | None = None,
 ) -> None:
     if progress_callback is None:
         return
@@ -559,6 +748,37 @@ def _emit_progress(
         done_blocks=done_blocks or [],
         skipped_blocks=skipped_blocks or [],
         failed_blocks=failed_blocks or [],
+        event=event,
+    )
+
+
+def _emit_agent_exchange(
+    progress_callback,
+    *,
+    stage: str,
+    label: str,
+    detail: str = "",
+    actor: str = "",
+    target: str = "",
+    flow: str = "",
+    task: str = "",
+    loop: int | None = None,
+) -> None:
+    _emit_progress(
+        progress_callback,
+        stage=stage,
+        label=label,
+        detail=detail,
+        event=build_agent_exchange_event(
+            stage=stage,
+            label=label,
+            detail=detail,
+            actor=actor,
+            target=target,
+            flow=flow,
+            task=task,
+            loop=loop,
+        ),
     )
 
 
