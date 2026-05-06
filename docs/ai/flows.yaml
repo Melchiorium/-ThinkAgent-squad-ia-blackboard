@@ -124,12 +124,12 @@ web_viewer_flow:
   owner: app/web.py, app/web_storage.py, and app/web_presenters.py
   status: poc_viewer
   steps:
-    - list generated runs from outputs/tests/
-    - render run list on /
+    - list browser-session generation jobs on /
+    - render run links from done jobs only when their run still exists
     - render selected run artifacts on /runs/<project>/<version>
     - serve only allowlisted artifacts from the selected run
   limitations:
-    - read-only viewer for generated runs
+    - no global run archive section on the home page
     - no background jobs
     - no authentication
 
@@ -141,10 +141,11 @@ web_run_deletion_flow:
     - reject raw or invalid path inputs
     - delete the selected run with POST only
     - remove the run from the file inventory or Supabase artifacts table
-    - redirect back to the home inventory after deletion
+    - remove job history entries that point to the deleted run
+    - redirect back to the session generation history after deletion
   limitations:
     - no bulk delete
-    - no job deletion
+    - no standalone job deletion without deleting the linked run
     - no GET deletion route
     - no raw filesystem path acceptance
 
@@ -162,6 +163,7 @@ web_generation_job_flow:
     - update the job to running, done, or failed
     - use the web-only step timeout as a stale-step alert threshold while keeping the CLI path unchanged
     - link done jobs to /runs/<project>/<version>
+    - hide stale done jobs when their linked run has already been deleted
   limitations:
     - no authentication
     - no user accounts

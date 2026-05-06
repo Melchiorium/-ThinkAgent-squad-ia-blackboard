@@ -135,6 +135,18 @@ def update_job(
     return _file_update_job(job_id, updates, jobs_root)
 
 
+def delete_jobs_for_run(
+    project: str,
+    version: str,
+    jobs_root: Path | None = None,
+    backend: str | None = None,
+) -> int:
+    storage_backend = resolve_web_storage_backend(backend)
+    if storage_backend == "supabase":
+        return _supabase_delete_jobs_for_run(project, version)
+    return _file_delete_jobs_for_run(project, version, jobs_root)
+
+
 def list_jobs(
     session_id: str | None = None,
     jobs_root: Path | None = None,
@@ -353,6 +365,30 @@ def _file_list_jobs(
         ),
         reverse=True,
     )
+
+
+def _file_delete_jobs_for_run(
+    project: str,
+    version: str,
+    jobs_root: Path | None = None,
+) -> int:
+    _validate_run_coordinates(project, version)
+    root = _resolve_jobs_root(jobs_root)
+    if not root.exists():
+        return 0
+
+    deleted_count = 0
+    for job_path in sorted(root.glob("*.json")):
+        try:
+            with job_path.open("r", encoding="utf-8") as handle:
+                job = _normalize_job_record(json.load(handle))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if job.get("run_project") != project or job.get("run_version") != version:
+            continue
+        job_path.unlink(missing_ok=True)
+        deleted_count += 1
+    return deleted_count
 
 
 def _file_list_runs(outputs_root: Path | None = None) -> list[dict]:
@@ -645,6 +681,18 @@ def _supabase_update_job(job_id: str, updates: dict) -> dict:
         _prepare_supabase_job_payload(updated),
     )
     return updated
+
+
+def _supabase_delete_jobs_for_run(project: str, version: str) -> int:
+    _validate_run_coordinates(project, version)
+    return _supabase_execute(
+        """
+        delete from web_jobs
+        where run_project = %s
+          and run_version = %s
+        """,
+        (project, version),
+    )
 
 
 def _supabase_list_jobs(session_id: str | None = None) -> list[dict]:
@@ -1337,14 +1385,18 @@ def _supabase_execute(
     params: Any | list[Any] | tuple[Any, ...] | None = None,
     *,
     many: bool = False,
-) -> None:
+) -> int:
     with _supabase_connection() as connection:
         with connection.cursor() as cursor:
             if many:
+                affected_count = 0
                 for item in params or []:
                     cursor.execute(query, item)
-                return
+                    if cursor.rowcount and cursor.rowcount > 0:
+                        affected_count += cursor.rowcount
+                return affected_count
             cursor.execute(query, params or ())
+            return cursor.rowcount if cursor.rowcount and cursor.rowcount > 0 else 0
 
 
 def _supabase_check_storage_readiness() -> dict:

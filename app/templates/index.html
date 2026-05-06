@@ -79,6 +79,13 @@
                   <a href="{{ job.status_url }}">Ouvrir le suivi</a>
                   {% if job.run_url %}
                     <a href="{{ job.run_url }}">Ouvrir le résultat</a>
+                    <form
+                      method="post"
+                      action="{{ url_for('delete_run_route', project=job.run_project, version=job.run_version) }}"
+                      onsubmit="return confirm('Supprimer ce run ?');"
+                    >
+                      <button type="submit" class="run-delete-button">Supprimer</button>
+                    </form>
                   {% endif %}
                 </div>
               </article>
@@ -89,57 +96,6 @@
         {% endif %}
       </section>
 
-      {% if runs %}
-        <section class="panel">
-          <div class="panel__header">
-            <div>
-              <h2>Dossiers générés existants</h2>
-              <p>Résultats déjà générés, accessibles en dessous.</p>
-            </div>
-          </div>
-
-          <div class="runs">
-          {% for run in runs %}
-            <article class="run">
-              <div class="run__meta">
-                <h2>{{ run.project }}</h2>
-                <p>{{ run.version }}</p>
-              </div>
-
-              <div class="run__details">
-                <p class="run__summary">
-                  {{ run.present_file_count }} / {{ run.total_file_count }} fichiers présents
-                </p>
-                {% if run.missing_files %}
-                  <p class="run__missing">
-                    Manquants : {{ run.missing_files | join(", ") }}
-                  </p>
-                {% else %}
-                  <p class="run__missing run__missing--ok">Tous les fichiers attendus sont présents.</p>
-                {% endif %}
-                <div class="run__actions">
-                  <a
-                    class="run__link"
-                    href="{{ url_for('run_detail', project=run.project, version=run.version) }}"
-                  >
-                    Ouvrir le dossier
-                  </a>
-                  <form
-                    method="post"
-                    action="{{ url_for('delete_run_route', project=run.project, version=run.version) }}"
-                    onsubmit="return confirm('Supprimer ce run ?');"
-                  >
-                    <button type="submit" class="run-delete-button">Supprimer</button>
-                  </form>
-                </div>
-              </div>
-            </article>
-          {% endfor %}
-          </div>
-        </section>
-      {% else %}
-        <p class="empty">Aucun dossier généré trouvé.</p>
-      {% endif %}
     </main>
   </body>
 </html>

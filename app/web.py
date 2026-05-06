@@ -36,6 +36,7 @@ if __package__ in {None, ""}:
         DEFAULT_WEB_JOBS_DIRNAME,
         create_job,
         create_session_id,
+        delete_jobs_for_run,
         get_job,
         list_jobs,
         update_job,
@@ -72,6 +73,7 @@ else:
         DEFAULT_WEB_JOBS_DIRNAME,
         create_job,
         create_session_id,
+        delete_jobs_for_run,
         get_job,
         list_jobs,
         update_job,
@@ -161,29 +163,27 @@ def _guard_secret_access():
 
 @app.get("/")
 def index():
-    runs = [
-        build_run_view(run)
-        for run in list_runs(outputs_root=_outputs_root(), backend=_storage_backend())
-    ]
     deletion_notice = bool(request.args.get("deleted", "").strip())
     session_id = g.web_session_id
-    session_jobs = [
-        build_job_view(
-            job,
-            status_url=url_for("job_status", job_id=job["job_id"]),
-            status_api_url=url_for("job_status_api", job_id=job["job_id"]),
-            run_url=_job_run_url(job),
+    session_jobs = []
+    for job in list_jobs(
+        session_id=session_id,
+        jobs_root=_jobs_root(),
+        backend=_storage_backend(),
+    ):
+        run_url = _job_run_url(job)
+        if _is_stale_done_job(job, run_url):
+            continue
+        session_jobs.append(
+            build_job_view(
+                job,
+                status_url=url_for("job_status", job_id=job["job_id"]),
+                status_api_url=url_for("job_status_api", job_id=job["job_id"]),
+                run_url=run_url,
+            )
         )
-        for job in list_jobs(
-            session_id=session_id,
-            jobs_root=_jobs_root(),
-            backend=_storage_backend(),
-        )
-    ]
     return render_template(
         "index.html",
-        runs=runs,
-        run_count=len(runs),
         jobs=session_jobs,
         job_count=len(session_jobs),
         max_brief_characters=MAX_BRIEF_CHARACTERS,
@@ -358,6 +358,16 @@ def delete_run_route(project: str, version: str):
     if not deleted:
         abort(404)
 
+    try:
+        delete_jobs_for_run(
+            project,
+            version,
+            jobs_root=_jobs_root(),
+            backend=_storage_backend(),
+        )
+    except Exception:
+        return "Run supprimé, mais nettoyage de l'historique impossible.", 500
+
     return redirect(url_for("index", deleted="1"))
 
 
@@ -454,6 +464,16 @@ def _job_run_url(job: dict) -> str | None:
     if run is None:
         return None
     return url_for("run_detail", project=project, version=version)
+
+
+def _is_stale_done_job(job: dict, run_url: str | None) -> bool:
+    if job.get("status") != "done":
+        return False
+    has_run_reference = bool(
+        str(job.get("run_project", "")).strip()
+        and str(job.get("run_version", "")).strip()
+    )
+    return has_run_reference and run_url is None
 
 
 def _web_agent_step_timeout_seconds() -> int:

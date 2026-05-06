@@ -196,7 +196,13 @@ body {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
   margin-top: 12px;
+}
+
+.job-card__links form,
+.job-status__secondary-link form {
+  margin: 0;
 }
 
 .job-card__links a,
@@ -530,6 +536,10 @@ body {
 }
 
 .job-status__secondary-link {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
   margin-top: 12px;
 }
 

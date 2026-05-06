@@ -218,15 +218,15 @@ modules:
     role: >
       Flask server for the POC viewer, job flow orchestration, and shared-link
       access gate. Runs locally with the Flask dev server or on Render via
-      Gunicorn. Lists runs on /, accepts a project title plus brief on POST
-      /jobs, shows session generations on /, renders job status on
+      Gunicorn. Accepts a project title plus brief on POST /jobs, shows session
+      generations as the only home-page history on /, renders job status on
       /jobs/<job_id>, exposes JSON status on /api/jobs/<job_id> with progress
       telemetry, renders run details on /runs/<project>/<version>, serves
       allowlisted artifacts on /runs/<project>/<version>/artifacts/<filename>,
-      exposes /healthz and /readyz, offers manual run deletion through the run
-      inventory, filters done-job result links against the live run inventory,
-      and protects the application routes, including /readyz, with WEB_ACCESS_TOKEN
-      when configured.
+      exposes /healthz and /readyz, offers manual run deletion through job and
+      run views, removes matching job history when a run is deleted, filters stale
+      done jobs against the live run inventory, and protects the application
+      routes, including /readyz, with WEB_ACCESS_TOKEN when configured.
     read_when:
       - changing Flask routes
       - changing templates
@@ -254,6 +254,7 @@ modules:
       - _guard_secret_access
       - _outputs_root
       - _jobs_root
+      - _is_stale_done_job
       - _run_generation_runner
       - _readyz_error_payload
 
@@ -263,7 +264,8 @@ modules:
       Backend-aware job store for the POC web generation flow. Persists
       submitted briefs, project titles, statuses, progress fields, session
       ids, output links, and errors through the active storage backend while
-      keeping the file backend as default.
+      keeping the file backend as default. Can also delete job history entries
+      that point to a manually deleted run.
     read_when:
       - changing web job persistence
       - changing session job history
@@ -273,6 +275,7 @@ modules:
       - create_job
       - get_job
       - update_job
+      - delete_jobs_for_run
       - list_jobs
 
   - name: web_storage
@@ -280,8 +283,8 @@ modules:
     role: >
       Backend routing and persistence helpers for the web POC. Resolves
       WEB_STORAGE_BACKEND, keeps the file backend as default, and implements
-      the job, progress, run-deletion, and run-artifact persistence contract
-      for file and Supabase storage.
+      the job, progress, run-deletion, run-linked job cleanup, and run-artifact
+      persistence contract for file and Supabase storage.
     read_when:
       - adding or changing storage backends
       - changing Supabase persistence behavior
@@ -295,6 +298,7 @@ modules:
       - create_job
       - get_job
       - update_job
+      - delete_jobs_for_run
       - list_jobs
       - list_runs
       - get_run
