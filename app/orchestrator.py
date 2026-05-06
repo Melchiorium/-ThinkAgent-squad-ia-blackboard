@@ -511,6 +511,7 @@ def _run_stage(
     )
     result = _run_agent_step_with_timeout(
         runner,
+        blackboard,
         timeout_seconds=step_timeout_seconds,
         timeout_message=timeout_message,
     )
@@ -525,10 +526,16 @@ def _run_stage(
     return result
 
 
-def _run_agent_step_with_timeout(runner, *, timeout_seconds: int | None, timeout_message: str):
+def _run_agent_step_with_timeout(
+    runner,
+    blackboard: dict,
+    *,
+    timeout_seconds: int | None,
+    timeout_message: str,
+):
     # WEB_AGENT_STEP_TIMEOUT_SECONDS is a stale-step alert threshold in the web UI.
     # Run the agent inline so the generation lock stays held until the step returns.
-    return runner()
+    return runner(blackboard)
 
 
 def _emit_progress(
