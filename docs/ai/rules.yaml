@@ -15,6 +15,16 @@ coding_rules:
   - Do not change prompt output headings without updating parsers and contracts.yaml.
   - Do not add broad abstractions unless they remove real duplication or clarify ownership.
 
+v4_rules:
+  - V4 is a target architecture built around runs/<run_id>/, not the current validated runtime baseline.
+  - run_id must be unique per run and readable enough for manual inspection.
+  - Blackboard items are atomic coordination objects and should stay short, target-specific, and manually readable.
+  - Summaries are compressed derivatives of exactly one source document and must not introduce new information.
+  - V4 prompts live under app/prompts V4/; V3 prompts remain untouched until a later lot explicitly migrates them.
+  - Do not turn V4 into a generic graph engine or a full distributed queue.
+  - Keep documents as the long-form source of truth and summaries as traceable derivatives.
+  - Keep the run workspace file-system first and easy to inspect manually.
+
 web_rules:
   - The web access token is a POC shared-link guard. Do not expand it into full auth, accounts, roles, or OAuth unless explicitly requested.
   - Protect /readyz with the same WEB_ACCESS_TOKEN guard as the rest of the app when the token is configured.

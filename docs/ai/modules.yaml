@@ -340,6 +340,89 @@ modules:
       - extract_project_name
       - next_project_version_outputs_dir
 
+  - name: run_store
+    path: app/run_store.py
+    role: >
+      V4 run-workspace foundation. Creates the root-level runs/<run_id>/
+      workspace and exposes explicit path helpers for blackboard items,
+      versioned documents, summaries, activity logs, and final outputs.
+    read_when:
+      - implementing V4 run workspace paths
+      - changing run_id generation
+      - changing workspace directory creation or logging helpers
+    key_functions:
+      - create_run_workspace
+      - resolve_runs_root
+      - write_text_file
+      - read_text_file
+      - append_activity_log_entry
+
+  - name: blackboard_items
+    path: app/blackboard_items.py
+    role: >
+      V4 blackboard item store. Persists atomic coordination items as readable
+      YAML files inside runs/<run_id>/blackboard/items/ and supports filtering
+      by target, author, type, status, or tag.
+    read_when:
+      - implementing V4 blackboard items
+      - changing item types, statuses, or priorities
+      - changing item filtering or status updates
+    key_functions:
+      - create_item
+      - list_items
+      - list_open_items
+      - update_item_status
+
+  - name: run_documents
+    path: app/run_documents.py
+    role: >
+      V4 versioned document helpers. Reads and writes explicit agent documents
+      in runs/<run_id>/documents/product/, tech/, and growth/ without a
+      complex resolver.
+    read_when:
+      - implementing V4 agent documents
+      - changing document version naming
+      - changing latest-document lookup
+    key_functions:
+      - write_document
+      - list_documents
+      - read_named_document
+      - read_latest_document
+
+  - name: run_summaries
+    path: app/run_summaries.py
+    role: >
+      V4 summary helper. Generates a source-scoped summary from one document
+      at a time, validates the required shape, stores the summary under
+      runs/<run_id>/summaries/, and preserves source_hash traceability.
+    read_when:
+      - implementing V4 summaries
+      - changing summary prompt constraints
+      - changing summary file naming or validation
+    key_functions:
+      - generate_summary
+
+  - name: prompts_v4
+    path: app/prompts V4/
+    role: >
+      Target V4 prompt set. Separates stable system behavior, the initial
+      project brief, contextual step prompts, and strict summary prompting.
+    files:
+      - product_prompt.md
+      - growth_prompt.md
+      - tech_prompt.md
+      - summary_prompt.md
+
+  - name: v4_evolution_docs
+    path: Evolutions/
+    role: >
+      Human-facing target-architecture notes for the planned V4 workspace and
+      prompt layering. Documents the design target before runtime migration.
+    read_when:
+      - reviewing the V4 target architecture
+      - checking the planned run workspace structure
+      - checking prompt layering guidance
+
   - name: web_local_launcher
     path: scripts/run_web.sh
     role: >

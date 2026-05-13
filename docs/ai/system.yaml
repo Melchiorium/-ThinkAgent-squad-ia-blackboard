@@ -47,6 +47,27 @@ validated_baseline:
     V3 prompts assume projects are implemented in Paris, France unless a brief
     explicitly contradicts that context.
 
+v4_target_architecture:
+  status: target_only
+  workspace_root: "runs/<run_id>/"
+  layers:
+    - blackboard/items/
+    - documents/product/
+    - documents/tech/
+    - documents/growth/
+    - summaries/
+    - activity_log/
+    - final_outputs/
+  prompt_layers:
+    - stable system prompt
+    - initial project brief
+    - contextual step prompt
+  note: >
+    V4 is the planned file-system-first target architecture. It separates the
+    run workspace, blackboard items, documents, summaries, and final outputs.
+    It is documented here for navigation and future migration planning, but it
+    is not the current validated runtime baseline.
+
 external_dependencies:
   python:
     package_manager: pip

@@ -120,6 +120,74 @@ standard_generation_service_flow:
     - no authentication
     - no second-pass handling
 
+v4_run_workspace_flow:
+  owner: app/run_store.py
+  status: target_only
+  steps:
+    - generate a readable run_id from a UTC timestamp and normalized project slug
+    - create runs/<run_id>/
+    - create runs/<run_id>/blackboard/items/
+    - create runs/<run_id>/documents/product/
+    - create runs/<run_id>/documents/tech/
+    - create runs/<run_id>/documents/growth/
+    - create runs/<run_id>/summaries/
+    - create runs/<run_id>/activity_log/
+    - create runs/<run_id>/final_outputs/
+  limitations:
+    - not wired into the current V3 runtime baseline
+    - no orchestrator migration in this lot
+
+v4_blackboard_item_flow:
+  owner: app/blackboard_items.py
+  status: target_only
+  steps:
+    - create atomic items inside runs/<run_id>/blackboard/items/
+    - assign sequential ITEM-XXX identifiers within the run
+    - normalize item authors, targets, priorities, statuses, and tags
+    - list and filter items by target, author, type, status, or tag
+    - update item status without changing item content
+  limitations:
+    - not wired into the current V3 runtime baseline
+    - no workflow rewrite in this lot
+
+v4_versioned_document_flow:
+  owner: app/run_documents.py
+  status: target_only
+  steps:
+    - write explicit agent documents under the agent folder in runs/<run_id>/documents/
+    - list documents per agent without a complex resolver
+    - read a named document directly
+    - read the latest document for an agent using readable version naming
+  limitations:
+    - not wired into the current V3 runtime baseline
+    - no prompt migration in this lot
+
+v4_summary_generation_flow:
+  owner: app/run_summaries.py and app/prompts V4/summary_prompt.md
+  status: target_only
+  steps:
+    - receive exactly one source document path
+    - compute a source hash from the source document content
+    - call the LLM with a strict summary prompt
+    - validate the required summary shape
+    - write the summary under runs/<run_id>/summaries/
+  limitations:
+    - one source document at a time only
+    - summaries are derivatives, not a source of truth
+    - not wired into the current V3 runtime baseline
+
+v4_prompt_layer_flow:
+  owner: app/prompts V4/
+  status: target_only
+  steps:
+    - keep stable system prompts separate from the project brief
+    - treat the brief as the shared initial context
+    - let the orchestrator provide contextual step prompts
+    - keep V4 Product, Growth, Tech, and summary prompts blackboard-first
+  limitations:
+    - not wired into the current V3 runtime baseline
+    - does not replace the validated V3 prompts yet
+
 web_viewer_flow:
   owner: app/web.py, app/web_storage.py, and app/web_presenters.py
   status: poc_viewer

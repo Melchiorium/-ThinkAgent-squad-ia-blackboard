@@ -1,170 +1,88 @@
 # Prompt Architecture
 
-The orchestration system must distinguish multiple prompt layers.
+V4 keeps prompt layers separate on purpose.
 
-This separation is critical to:
-- maintain agent consistency
-- reduce prompt duplication
-- improve orchestration clarity
-- preserve deterministic behavior
-- simplify iteration management
+That split keeps the orchestration readable and makes it easier to reason
+about what changes when the project brief changes, when the step changes, or
+when only the agent role changes.
 
----
+## 1. Stable System Prompt
 
-# 1. System Prompt
+The stable system prompt defines the permanent role of the agent.
 
-## Purpose
+It contains:
 
-Defines:
-- the permanent role of the agent
-- global behavioral rules
-- shared project context
-- collaboration model
-- output expectations
+- role identity
+- collaboration rules
+- blackboard-first behavior
+- document discipline
+- item creation and update discipline
+- output boundaries
 
-The system prompt is stable across the whole project.
+Examples:
 
-It should rarely change during execution.
+- Product: framing, arbitration, MVP scope, and final locking
+- Growth: market access, launch realism, and early traction
+- Tech: feasibility, architecture, controls, and delivery realism
 
----
+The system prompt should stay stable across the whole run.
 
-## Examples
+## 2. Initial Project Brief
 
-PRODUCT agent:
-- product reasoning
-- user-centric thinking
-- prioritization
-- PRD ownership
+The initial project brief is the shared project context.
 
-TECH agent:
-- architecture
-- scalability
-- feasibility
-- technical constraints
+It contains:
 
-GROWTH agent:
-- adoption
-- distribution
-- business impact
-- GTM strategy
-
----
-
-## Shared Context
-
-The system prompt may also include:
-- agents work collaboratively
-- blackboard-first workflow
-- atomic item philosophy
-- document conventions
-- orchestration rules
-- deterministic behavior expectations
-
-Example:
-
-```txt
-You are part of a multi-agent product team.
-Agents collaborate through a shared blackboard system.
-Communication must remain atomic and traceable.
-```
-
----
-
-# 2. Initial Prompt
-
-## Purpose
-
-Represents the project brief.
-
-This is the initial business/problem statement given to all agents.
-
-It defines:
-- the product idea
-- objectives
+- the project idea
+- the business or product problem
 - constraints
-- expected outputs
-- business context
+- expected outcomes
+- the target context for the run
 
-The initial prompt is shared across all agents.
+The brief is not a template. It is the actual input the agents work from.
 
----
+## 3. Contextual Step Prompt
 
-## Example
-
-```txt
-Build a workflow automation system for Figma Dev license management.
-
-The system must:
-- automate requests
-- validate manager approval
-- manage cost centers
-- provision licenses
-- remove inactive licenses after inactivity
-```
-
----
-
-# 3. Contextual Step Prompt
-
-## Purpose
-
-Defines the current orchestration step.
-
-This prompt changes at every workflow stage.
+The contextual step prompt defines the current orchestration step.
 
 It tells the agent:
+
 - what it must do now
 - which documents to read
-- which agents to consider
-- which outputs to produce
+- which open items matter now
+- what to update or create
 - what the current iteration goal is
 
-This is the main orchestration control layer.
+This is the layer that changes the most during a run.
 
----
+## 4. Summary Prompt
 
-# Example
+Summaries use their own strict prompt layer.
 
-```txt
-Step 3 — Technical Review
+They are separate from the agent prompts because summaries are compressed
+derivatives of exactly one source document.
 
-Read:
-- PRD_V0
-- open blackboard items
+The summary prompt must:
 
-Your objectives:
-- identify technical risks
-- answer technical questions
-- propose architecture decisions
-- create Architecture_V0
-```
+- forbid invention
+- require a single source document
+- require traceable source metadata
+- keep the output in a strict machine-checkable shape
 
----
+## Why The Split Matters
 
-# Why This Separation Matters
+Without prompt layering:
 
-Without separation:
-- prompts become huge
-- responsibilities become blurry
-- orchestration becomes difficult to control
-- agents become inconsistent across iterations
+- prompts become harder to audit
+- role boundaries blur
+- the orchestration logic becomes harder to change safely
+- summaries and agent outputs get conflated
 
-With separation:
+With prompt layering:
 
-```txt
-System Prompt
-= permanent identity
+- permanent behavior stays stable
+- the brief stays reusable
+- step-specific instructions stay small
+- debugging becomes easier
+- future migration to V4 stays understandable
 
-Initial Prompt
-= project brief
-
-Contextual Step Prompt
-= current task
-```
-
-This creates:
-- cleaner orchestration
-- better memory management
-- more stable agent behavior
-- easier debugging
-- easier scalability

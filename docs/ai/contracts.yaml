@@ -145,6 +145,159 @@ output_artifacts_contract:
     directory through app/main.py unless the task explicitly asks to patch an
     existing output.
 
+v4_run_workspace_contract:
+  source: app/run_store.py
+  root: "runs/<run_id>/"
+  required_directories:
+    - blackboard/items/
+    - documents/product/
+    - documents/tech/
+    - documents/growth/
+    - summaries/
+    - activity_log/
+    - final_outputs/
+  run_id_rule: >
+    Every run must have its own readable run_id built from a UTC timestamp,
+    a normalized project slug, and a short suffix so two runs for the same
+    project never overwrite each other.
+  rule: >
+    The run workspace is the V4 file-system home for intermediate coordination
+    data. It is separate from outputs/tests/ and is not the current validated
+    runtime baseline.
+
+v4_blackboard_item_contract:
+  source: app/blackboard_items.py
+  file_pattern: "runs/<run_id>/blackboard/items/ITEM-XXX.yaml"
+  fields:
+    required:
+      - id
+      - type
+      - author
+      - targets
+      - priority
+      - status
+      - tags
+      - title
+      - content
+      - created_at
+      - updated_at
+    type_values:
+      - QUESTION
+      - RISK
+      - DECISION
+      - PROPOSAL
+      - FEEDBACK
+      - WARNING
+      - CONSTRAINT
+    priority_values:
+      - LOW
+      - MEDIUM
+      - HIGH
+      - CRITICAL
+    status_values:
+      - OPEN
+      - ANSWERED
+      - ACCEPTED
+      - REJECTED
+      - OBSOLETE
+  rule: >
+    Blackboard items are atomic coordination objects. They must stay readable,
+    target-specific, and manually inspectable. Status changes preserve the item
+    content and only update status plus updated_at.
+
+v4_document_contract:
+  source: app/run_documents.py
+  root: "runs/<run_id>/documents/"
+  agent_folders:
+    - product
+    - tech
+    - growth
+  naming_rule: >
+    Document names stay explicit and readable, such as PRD_V0.md or
+    Architecture_V1.md. Avoid complex version resolution.
+  rule: >
+    Documents are the long-form source of truth. They may be versioned and
+    refined, but they remain separate from summaries and blackboard items.
+
+v4_summary_contract:
+  source: app/run_summaries.py
+  root: "runs/<run_id>/summaries/"
+  file_pattern: "*.summary.yaml"
+  required_shape: |
+    summary:
+      source_document:
+      source_hash:
+      scope:
+      key_decisions:
+      unresolved_questions:
+      critical_risks:
+  rule: >
+    A summary is a compressed derivative of exactly one source document.
+    It must not introduce new information and must remain traceable through
+    source_document and source_hash.
+
+v4_agent_output_contracts:
+  product:
+    prompt: app/prompts V4/product_prompt.md
+    document_sections:
+      - Product Problem
+      - Initial Wedge
+      - First Target User
+      - Existing Alternatives And Switching Trigger
+      - Core MVP Workflow
+      - In Scope
+      - Out of Scope
+      - MVP Build Vs Pilot Operations
+      - Business Model Hypothesis
+      - Critical Assumptions
+      - How To Test Quickly
+      - Acceptance Criteria
+      - Risks And Failure Modes
+      - Product Readiness
+      - Product Arbitration
+      - Blackboard Items To Create
+      - Blackboard Items To Update
+      - Product Locking
+  growth:
+    prompt: app/prompts V4/growth_prompt.md
+    document_sections:
+      - Go-To-Market Notes
+      - Review Summary
+      - Build Vs Pilot Operations
+      - Critical Assumptions
+      - Requested Changes
+      - Risks
+      - Open Questions
+      - Why This Could Fail Even With Good Execution
+      - GTM Readiness
+      - Blackboard Items To Create
+      - Blackboard Items To Update
+  tech:
+    prompt: app/prompts V4/tech_prompt.md
+    document_sections:
+      - Architecture Notes
+      - Review Summary
+      - Critical Assumptions
+      - Requested Changes
+      - Risks
+      - Open Questions
+      - Why This Could Fail Even With Good Execution
+      - Technical Readiness
+      - Blackboard Items To Create
+      - Blackboard Items To Update
+    architecture_notes:
+      diagram_subsection: "### Mermaid Diagram"
+  summary:
+    prompt: app/prompts V4/summary_prompt.md
+    parser: strict_yaml_subset
+    required_fields:
+      - source_document
+      - source_hash
+      - scope
+      - key_decisions
+      - unresolved_questions
+      - critical_risks
+
 environment_contract:
   project_selection:
     - BLACKBOARD_PROJECT_NAME
