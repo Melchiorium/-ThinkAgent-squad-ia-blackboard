@@ -248,15 +248,32 @@ v4_parser_contract:
     V4 agent responses are split into clean document text and internal
     blackboard operation sections. The parser must keep raw_response for
     internal trace/debug use only, must strip `## Blackboard Items To Create`
-    and `## Blackboard Items To Update` from the deliverable text, and must
-    preserve parsed item operations for the blackboard store.
+    and `## Blackboard Items To Update` from the deliverable text, must
+    preserve parsed item operations for the blackboard store, and must keep
+    raw_line / line_number on each parsed item for failure traceability.
   fields:
     parsed_response:
       - raw_response
+      - raw_response_trace_path
       - document_text
       - sections
       - items_to_create
       - items_to_update
+    parsed_item_create:
+      - type
+      - author
+      - targets
+      - priority
+      - tags
+      - title
+      - content
+      - raw_line
+      - line_number
+    parsed_item_update:
+      - id
+      - status
+      - raw_line
+      - line_number
 
 v4_summary_contract:
   source: app/run_summaries.py

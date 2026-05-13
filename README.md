@@ -182,12 +182,24 @@ Validation V4 sans LLM :
 python3 scripts/check_v4_flow_no_llm.py
 ```
 
+Le harness V4 vérifie aussi les opérations d'items invalides, y compris les
+priorités, les sections humaines placeholder-only ou réduites à `- None`, et
+les traces brutes des agents sous `runs/<run_id>/agent_outputs/` avec des noms
+stables et non écrasés quand un même mode se répète.
+
 Validation V4 optionnelle avec LLM, seulement si l'environnement est prêt :
 
 ```bash
+source .env
 BLACKBOARD_PROMPT_VERSION=V4 BLACKBOARD_PROJECT_NAME=CareSync python3 app/main.py
 BLACKBOARD_PROMPT_VERSION=V4 BLACKBOARD_PROJECT_NAME=LocalLoop python3 app/main.py
 ```
+
+Le dépôt trace déjà `OPENAI_API_KEY` et `OPENAI_MODEL` dans `.env` pour la
+validation locale. Le shell ne les voit qu'après `source .env`. Si un autre
+endpoint OpenAI-compatible est utilisé, `OPENAI_BASE_URL` doit être fourni par
+l'environnement qui lance la commande. Le code V4 est prêt, mais cette
+validation n'a pas été relancée ici.
 
 ## Viewer Web POC
 

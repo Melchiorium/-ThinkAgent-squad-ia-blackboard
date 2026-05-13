@@ -27,11 +27,13 @@ modules:
   - name: orchestrator
     path: app/orchestrator.py
     role: >
-      Defines the deterministic V4 execution order, bounded item-resolution
-      loop, candidate rewrite, verification pass, and final locking flow.
+      Defines the deterministic V4 execution order, raw-response trace capture,
+      document and item validation boundaries, bounded item-resolution loop,
+      candidate rewrite, verification pass, and final locking flow.
     read_when:
       - changing workflow order
       - changing item-resolution behavior
+      - changing V4 validation boundaries or raw trace capture
       - changing candidate or finalization phases
       - changing readiness task ownership
     key_functions:
@@ -414,8 +416,9 @@ modules:
     path: app/v4_parsing.py
     role: >
       Shared parsing helpers for V4 prompt output. Extracts markdown sections,
-      strips internal blackboard item protocol from deliverable text, and
-      parses blackboard item create/update lines into structured data.
+      strips internal blackboard item protocol from deliverable text, validates
+      required human-facing sections, and parses blackboard item create/update
+      lines into structured data with raw line traceability.
     read_when:
       - changing V4 prompt output parsing
       - changing blackboard item line formats
@@ -426,15 +429,18 @@ modules:
       - parse_v4_agent_response
       - parse_item_creates
       - parse_item_updates
+      - validate_v4_document
+      - validate_v4_item_operations
 
   - name: v4_validation_harness
     path: scripts/check_v4_flow_no_llm.py
     role: >
       Deterministic V4 regression harness. Validates parser separation, final
       ordering across Product, Growth, and Tech, integrated rejection of
-      Growth/Tech finalization updates, item state rendering, Product
-      finalization item updates, and final artifact compilation without
-      calling an LLM.
+      invalid item types, priorities, and statuses before persistence,
+      placeholder-only required sections, item state rendering, Product
+      finalization item updates, raw trace creation with repeat-safe naming,
+      and final artifact compilation without calling an LLM.
     read_when:
       - adding or changing V4 parser regression coverage
       - validating explicit final-document compilation

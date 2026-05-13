@@ -249,10 +249,14 @@ v4_regression_validation_flow:
   steps:
     - parse a fake agent response with blackboard item sections
     - confirm the parsed document text excludes internal item sections
+    - confirm parsed item operations preserve raw line traceability
     - run the V4 flow with fake agent outputs, fake summaries, and a temp workspace
+    - confirm invalid item types, priorities, and statuses fail before persistence
+    - confirm placeholder-only required sections fail validation
     - confirm Product finalization receives the actual remaining open items
     - compile public artifacts from explicit final documents
     - confirm public artifacts do not include internal item sections
+    - confirm run-local raw agent traces are written under agent_outputs/ with repeat-safe naming
     - confirm blackboard.md preserves open and resolved item state in their expected sections
   limitations:
     - no real LLM calls
@@ -267,6 +271,9 @@ v4_prompt_layer_flow:
     - treat the brief as the shared initial context
     - let the orchestrator provide contextual step prompts
     - keep V4 Product, Growth, Tech, and summary prompts blackboard-first
+    - state the allowed item types and statuses plainly in the role prompts
+    - tell agents to use `- None` only when there is no valid item operation
+    - keep required human-facing sections self-contained and placeholder-free
   limitations:
     - separate from the validated V3 baseline
     - does not replace the validated V3 prompts

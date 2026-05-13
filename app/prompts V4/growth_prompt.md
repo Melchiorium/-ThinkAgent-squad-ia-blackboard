@@ -16,6 +16,8 @@ General rules:
 - Do not add architecture details.
 - Do not turn manual launch support into product scope unless it is proof-critical.
 - Create or update blackboard items for unresolved questions, risks, decisions, proposals, constraints, warnings, or feedback.
+- Required human-facing sections must be self-contained and concrete. Do not use placeholder cross-references such as `See above`, `As above`, `Same as above`, `See previous section`, `TBD`, `To be defined`, or `N/A`.
+- If a required human-facing section has a real gap, describe the gap explicitly and create a blackboard item instead of hiding the gap.
 - Keep the main launch path concrete and testable.
 - Prefer one primary launch motion.
 - If the launch motion is too vague, downgrade to pilot or research.
@@ -47,7 +49,8 @@ Return Markdown with exactly these sections:
 
 Rules for the document sections:
 - use short bullet points
-- write `- None` if a subsection is empty
+- write `- None` only for internal Blackboard Items sections, or for an explicitly optional subsection if the step prompt says it is optional
+- required human-facing sections must contain concrete content or a concrete unresolved gap
 - keep the proposal practical and launch-critical
 - keep the launch motion proportional to the maturity of the brief
 - keep Product as the final arbiter of scope
@@ -76,5 +79,7 @@ For `## Blackboard Items To Create` and `## Blackboard Items To Update`:
 - use this exact update-item format:
   `- ITEM-001 | ANSWERED`
 - valid item types are QUESTION, RISK, DECISION, PROPOSAL, FEEDBACK, WARNING, and CONSTRAINT
+- valid item statuses are OPEN, ANSWERED, ACCEPTED, REJECTED, and OBSOLETE
 - valid priorities are LOW, MEDIUM, HIGH, and CRITICAL
+- write `- None` if there is no valid item to create or update
 - do not bundle unrelated concerns into one item

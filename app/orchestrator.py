@@ -15,10 +15,14 @@ if __package__ and __package__.startswith("app"):
     from .blackboard_items import create_item, list_items, list_open_items, update_item_status
     from .llm import call_llm
     from .run_documents import write_document
-    from .run_store import append_activity_log_entry, create_run_workspace
+    from .run_store import append_activity_log_entry, create_run_workspace, write_text_file
     from .run_summaries import generate_summary
     from .readiness import aggregate_global_readiness
-    from .v4_parsing import parse_v4_agent_response
+    from .v4_parsing import (
+        parse_v4_agent_response,
+        validate_v4_document,
+        validate_v4_item_operations,
+    )
     from .web_progress import build_agent_exchange_event
 else:
     from blackboard import create_blackboard
@@ -33,10 +37,14 @@ else:
     from blackboard_items import create_item, list_items, list_open_items, update_item_status
     from llm import call_llm
     from run_documents import write_document
-    from run_store import append_activity_log_entry, create_run_workspace
+    from run_store import append_activity_log_entry, create_run_workspace, write_text_file
     from run_summaries import generate_summary
     from readiness import aggregate_global_readiness
-    from v4_parsing import parse_v4_agent_response
+    from v4_parsing import (
+        parse_v4_agent_response,
+        validate_v4_document,
+        validate_v4_item_operations,
+    )
     from web_progress import build_agent_exchange_event
 
 
@@ -1806,6 +1814,11 @@ def _run_v4_agent(
     extra_context: list[str],
     agent_runner: Callable[..., dict] | None = None,
 ) -> dict:
+    stage_label = _v4_stage_label(role, mode_label)
+    trace_counts = state.setdefault("_v4_trace_counts", {})
+    trace_index = int(trace_counts.get(stage_label, 0)) + 1
+    trace_counts[stage_label] = trace_index
+    trace_stage_label = stage_label if trace_index == 1 else f"{stage_label}_{trace_index:02d}"
     if agent_runner is not None:
         parsed = agent_runner(
             role=role,
@@ -1820,23 +1833,36 @@ def _run_v4_agent(
             extra_context=extra_context,
         )
         parsed["role"] = role
-        return parsed
+        parsed["mode_label"] = mode_label
+        parsed.setdefault("raw_response", parsed.get("document_text", ""))
+    else:
+        system_prompt = _load_v4_prompt(role)
+        user_prompt = _build_v4_user_prompt(
+            role=role,
+            mode_label=mode_label,
+            project_brief=project_brief,
+            project_brief_source=project_brief_source,
+            workspace=workspace,
+            open_items=open_items,
+            summaries=summaries,
+            documents=documents,
+            extra_context=extra_context,
+        )
+        response_text = call_llm(system_prompt, user_prompt)
+        parsed = _parse_v4_agent_output(response_text)
+        parsed["role"] = role
+        parsed["mode_label"] = mode_label
 
-    system_prompt = _load_v4_prompt(role)
-    user_prompt = _build_v4_user_prompt(
+    raw_response = str(parsed.get("raw_response") or parsed.get("document_text") or "")
+    trace_path = _write_v4_raw_response_trace(workspace, trace_stage_label, raw_response)
+    parsed["raw_response_trace_path"] = str(trace_path)
+    parsed["raw_response_trace_stage"] = trace_stage_label
+    validate_v4_document(
         role=role,
         mode_label=mode_label,
-        project_brief=project_brief,
-        project_brief_source=project_brief_source,
-        workspace=workspace,
-        open_items=open_items,
-        summaries=summaries,
-        documents=documents,
-        extra_context=extra_context,
+        parsed_response=parsed,
+        raw_response_trace_path=trace_path,
     )
-    response_text = call_llm(system_prompt, user_prompt)
-    parsed = _parse_v4_agent_output(response_text)
-    parsed["role"] = role
     return parsed
 
 
@@ -1849,17 +1875,15 @@ def _refresh_v4_item_state(state: dict, workspace) -> list[dict]:
 
 
 def _apply_v4_finalization_item_operations(workspace, agent_output: dict, default_author: str) -> None:
-    updates = agent_output.get("items_to_update", [])
-    if updates:
-        raise ValueError(
-            "Growth and Tech finalization cannot update verification item statuses."
-        )
+    validate_v4_item_operations(
+        role=default_author.lower(),
+        mode_label=str(agent_output.get("mode_label", "finalization")),
+        parsed_response=agent_output,
+        raw_response_trace_path=agent_output.get("raw_response_trace_path", ""),
+        allowed_create_types={"RISK", "WARNING"},
+        allow_updates=False,
+    )
     for item_spec in agent_output.get("items_to_create", []):
-        item_type = str(item_spec.get("type", "")).strip().upper()
-        if item_type not in {"RISK", "WARNING"}:
-            raise ValueError(
-                "Growth and Tech finalization may only create RISK or WARNING follow-up items."
-            )
         create_item(
             workspace,
             type=item_spec["type"],
@@ -1914,6 +1938,12 @@ def _parse_v4_agent_output(text: str) -> dict:
 
 
 def _apply_v4_item_operations(workspace, agent_output: dict, default_author: str) -> None:
+    validate_v4_item_operations(
+        role=default_author.lower(),
+        mode_label=str(agent_output.get("mode_label", "unknown")),
+        parsed_response=agent_output,
+        raw_response_trace_path=agent_output.get("raw_response_trace_path", ""),
+    )
     for item_spec in agent_output.get("items_to_create", []):
         author = item_spec.get("author", "") or default_author
         create_item(
@@ -1928,6 +1958,22 @@ def _apply_v4_item_operations(workspace, agent_output: dict, default_author: str
         )
     for update_spec in agent_output.get("items_to_update", []):
         update_item_status(workspace, update_spec["id"], update_spec["status"])
+
+
+def _write_v4_raw_response_trace(workspace, stage_label: str, raw_response: str) -> Path:
+    trace_dir = workspace.root / "agent_outputs"
+    trace_path = trace_dir / f"{_normalize_v4_trace_stage(stage_label)}.raw.md"
+    return write_text_file(trace_path, raw_response.rstrip() + "\n")
+
+
+def _v4_stage_label(role: str, mode_label: str) -> str:
+    return f"{str(role).strip().lower()}_{str(mode_label).strip().lower()}"
+
+
+def _normalize_v4_trace_stage(stage_label: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "_", stage_label.strip().lower())
+    normalized = re.sub(r"_+", "_", normalized).strip("_")
+    return normalized or "v4_agent"
 
 
 def _load_v4_prompt(role: str) -> str:

@@ -67,6 +67,14 @@ v4_target_architecture:
     BLACKBOARD_PROMPT_VERSION=V4. It separates the run workspace, blackboard
     items, documents, summaries, and final outputs. It remains separate from
     the validated V3 baseline, but it is no longer only a paper target.
+    V4 agent runs now write raw response traces under runs/<run_id>/agent_outputs/
+    and fail fast on invalid item operations or placeholder-only required
+    sections.
+    Representative LLM validation on CareSync and LocalLoop must still be run
+    after sourcing `.env` so the shell sees the traced `OPENAI_API_KEY` and
+    `OPENAI_MODEL` values. `OPENAI_BASE_URL` is only required when using a
+    non-default OpenAI-compatible endpoint. This checkout does not currently
+    have that validation evidence.
 
 external_dependencies:
   python:

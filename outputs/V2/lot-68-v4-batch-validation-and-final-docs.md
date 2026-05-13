@@ -121,3 +121,21 @@ git status --short outputs/web-jobs
 - Do not modify V3 prompts.
 - Do not rewrite generated history manually.
 - Do not commit secrets or print real credentials.
+
+## Validation Note
+
+- The repository `.env` traces `OPENAI_API_KEY` and `OPENAI_MODEL`; the shell
+  must `source .env` before running the V4 validation commands.
+- `OPENAI_BASE_URL` is only required when the validation uses a non-default
+  OpenAI-compatible endpoint.
+- The V4 runtime code and no-LLM harness are in place, but the representative
+  CareSync/LocalLoop LLM validation was not rerun in this checkout.
+
+## Failure Report
+
+- The CareSync V4 run started successfully after `source .env`, `BLACKBOARD_PROMPT_VERSION=V4`, and `BLACKBOARD_PROJECT_NAME=CareSync`.
+- The run failed during blackboard item creation in `app/orchestrator.py` before the first representative validation completed.
+- The exception came from `app/blackboard_items.py:create_item()`: `ValueError: type must be one of: CONSTRAINT, DECISION, FEEDBACK, PROPOSAL, QUESTION, RISK, WARNING`.
+- This means at least one V4 agent output emitted a non-conforming item type string that the runtime refused to persist.
+- The failure is blocking at the runtime contract boundary, not at the validation-doc layer.
+- The next step for the architect is to inspect the exact item payload emitted by the failing V4 agent output and decide whether the prompt, parser, or item-normalization path needs to be tightened.

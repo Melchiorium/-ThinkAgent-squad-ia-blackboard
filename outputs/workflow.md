@@ -33,6 +33,16 @@ Important:
 - the best recent runs were obtained with `BLACKBOARD_PROMPT_VERSION=V3`
 - older notes may call this baseline `V12-like`; that is historical vocabulary,
   not the current name.
+- V4 exists as an active runtime path in code, but the representative
+  CareSync/LocalLoop validation must only be claimed after a real LLM run.
+  In this checkout, the repo `.env` already traces `OPENAI_API_KEY` and
+  `OPENAI_MODEL`, but the shell must `source .env` before running V4 LLM
+  validation. `OPENAI_BASE_URL` must be supplied separately if a non-default
+  OpenAI-compatible endpoint is used.
+  The no-LLM V4 harness also checks invalid item operations, including
+  priorities, placeholder-only sections, `- None` in human-facing sections,
+  and run-local raw traces under `runs/<run_id>/agent_outputs/` with repeat-
+  safe naming.
 
 ## Deployment Assumption
 
