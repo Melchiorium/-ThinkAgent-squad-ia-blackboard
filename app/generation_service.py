@@ -3,17 +3,20 @@ from __future__ import annotations
 import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
+import os
 import re
 import sys
 from pathlib import Path
 
 if __package__ and __package__.startswith("app"):
     from .artifact_writer import write_run_artifacts
-    from .orchestrator import run_v0_flow
+    from .artifact_writer import write_v4_run_artifacts
+    from .orchestrator import run_v0_flow, run_v4_flow
 else:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from artifact_writer import write_run_artifacts
-    from orchestrator import run_v0_flow
+    from artifact_writer import write_v4_run_artifacts
+    from orchestrator import run_v0_flow, run_v4_flow
 
 
 @dataclass(frozen=True)
@@ -44,15 +47,26 @@ def run_generation_from_brief(
         else extract_project_name(brief_text)
     )
     output_dir = next_project_version_outputs_dir(project_name, outputs_root)
-    runner = flow_runner or run_v0_flow
-    blackboard = _call_flow_runner(
-        runner,
-        brief_text,
-        project_brief_source,
-        progress_callback=progress_callback,
-        step_timeout_seconds=step_timeout_seconds,
-    )
-    write_run_artifacts(output_dir, blackboard, brief_text, evaluator_report_text)
+    if _workflow_version() == "V4":
+        v4_state = run_v4_flow(
+            project_name,
+            brief_text,
+            project_brief_source,
+            progress_callback=progress_callback,
+            step_timeout_seconds=step_timeout_seconds,
+        )
+        write_v4_run_artifacts(v4_state, output_dir, evaluator_report_text)
+        blackboard = v4_state
+    else:
+        runner = flow_runner or run_v0_flow
+        blackboard = _call_flow_runner(
+            runner,
+            brief_text,
+            project_brief_source,
+            progress_callback=progress_callback,
+            step_timeout_seconds=step_timeout_seconds,
+        )
+        write_run_artifacts(output_dir, blackboard, brief_text, evaluator_report_text)
     return GenerationResult(
         project_name=project_name,
         project_brief_source=project_brief_source,
@@ -134,3 +148,7 @@ def _accepts_keyword(signature: inspect.Signature, name: str) -> bool:
         parameter.kind == inspect.Parameter.VAR_KEYWORD
         for parameter in signature.parameters.values()
     )
+
+
+def _workflow_version() -> str:
+    return (os.getenv("BLACKBOARD_PROMPT_VERSION", "V2").strip() or "V2").upper()

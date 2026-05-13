@@ -27,15 +27,17 @@ modules:
   - name: orchestrator
     path: app/orchestrator.py
     role: >
-      Defines the deterministic agent execution order, readiness aggregation,
-      and bounded correction loop.
+      Defines the deterministic V4 execution order, bounded item-resolution
+      loop, candidate rewrite, verification pass, and final locking flow.
     read_when:
       - changing workflow order
-      - changing correction loop behavior
+      - changing item-resolution behavior
+      - changing candidate or finalization phases
       - changing readiness task ownership
     key_functions:
       - run_v0_flow
       - run_v2_flow
+      - run_v4_flow
       - _finalize_readiness
       - _run_targeted_correction_loop
       - _build_correction_plan
@@ -316,13 +318,16 @@ modules:
     role: >
       Writes run artifacts from a completed blackboard into an output
       directory: project brief, PRD, architecture, Mermaid artifacts, GTM,
-      blackboard, and activity log.
+      blackboard, and activity log. Also compiles V4 run-workspace outputs
+      from explicit final documents into the public historical artifact
+      contract.
     read_when:
       - changing generated artifact files
       - changing blackboard.md rendering
       - debugging Mermaid artifact writing
     key_functions:
       - write_run_artifacts
+      - write_v4_run_artifacts
 
   - name: generation_service
     path: app/generation_service.py
@@ -330,11 +335,14 @@ modules:
       Reusable standard-generation service. Runs the validated standard
       workflow from an in-memory brief and writes a new
       outputs/tests/<Project>/version X/ directory, or another outputs root
-      when configured for persistent storage.
+      when configured for persistent storage. Dispatches to V4 when the
+      workflow version requests it and preserves the explicit V4 compiler
+      handoff.
     read_when:
       - adding non-CLI generation entrypoints
       - changing standard run creation from in-memory briefs
       - debugging output version directory creation
+      - changing V4 generation dispatch
     key_functions:
       - run_generation_from_brief
       - extract_project_name
@@ -378,7 +386,7 @@ modules:
     role: >
       V4 versioned document helpers. Reads and writes explicit agent documents
       in runs/<run_id>/documents/product/, tech/, and growth/ without a
-      complex resolver.
+      complex resolver. Supports initial, candidate, and final names.
     read_when:
       - implementing V4 agent documents
       - changing document version naming
@@ -402,10 +410,40 @@ modules:
     key_functions:
       - generate_summary
 
+  - name: v4_parsing
+    path: app/v4_parsing.py
+    role: >
+      Shared parsing helpers for V4 prompt output. Extracts markdown sections,
+      strips internal blackboard item protocol from deliverable text, and
+      parses blackboard item create/update lines into structured data.
+    read_when:
+      - changing V4 prompt output parsing
+      - changing blackboard item line formats
+      - debugging V4 agent output extraction
+    key_functions:
+      - extract_sections
+      - extract_section
+      - parse_v4_agent_response
+      - parse_item_creates
+      - parse_item_updates
+
+  - name: v4_validation_harness
+    path: scripts/check_v4_flow_no_llm.py
+    role: >
+      Deterministic V4 regression harness. Validates parser separation, final
+      ordering across Product, Growth, and Tech, integrated rejection of
+      Growth/Tech finalization updates, item state rendering, Product
+      finalization item updates, and final artifact compilation without
+      calling an LLM.
+    read_when:
+      - adding or changing V4 parser regression coverage
+      - validating explicit final-document compilation
+      - checking that public outputs exclude internal item protocol
+
   - name: prompts_v4
     path: app/prompts V4/
     role: >
-      Target V4 prompt set. Separates stable system behavior, the initial
+      Active V4 prompt set. Separates stable system behavior, the initial
       project brief, contextual step prompts, and strict summary prompting.
     files:
       - product_prompt.md
@@ -416,11 +454,11 @@ modules:
   - name: v4_evolution_docs
     path: Evolutions/
     role: >
-      Human-facing target-architecture notes for the planned V4 workspace and
-      prompt layering. Documents the design target before runtime migration.
+      Human-facing evolution notes for the active V4 workspace and prompt
+      layering. Documents the design target alongside the runtime path.
     read_when:
       - reviewing the V4 target architecture
-      - checking the planned run workspace structure
+      - checking the run workspace structure
       - checking prompt layering guidance
 
   - name: web_local_launcher

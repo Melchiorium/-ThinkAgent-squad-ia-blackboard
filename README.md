@@ -176,6 +176,19 @@ python3 app/main.py
 
 Selon le modèle utilisé, il faut aussi configurer les variables de connexion LLM attendues par `app/llm.py`.
 
+Validation V4 sans LLM :
+
+```bash
+python3 scripts/check_v4_flow_no_llm.py
+```
+
+Validation V4 optionnelle avec LLM, seulement si l'environnement est prêt :
+
+```bash
+BLACKBOARD_PROMPT_VERSION=V4 BLACKBOARD_PROJECT_NAME=CareSync python3 app/main.py
+BLACKBOARD_PROMPT_VERSION=V4 BLACKBOARD_PROJECT_NAME=LocalLoop python3 app/main.py
+```
+
 ## Viewer Web POC
 
 Ouvrir la home, saisir un titre de projet, coller un brief, lancer la

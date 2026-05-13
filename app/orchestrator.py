@@ -1,4 +1,5 @@
 import re
+from collections.abc import Callable
 from pathlib import Path
 
 if __package__ and __package__.startswith("app"):
@@ -11,7 +12,13 @@ if __package__ and __package__.startswith("app"):
     )
     from .agents.tech_agent import run_tech_agent
     from .agents.growth_agent import run_growth_agent
+    from .blackboard_items import create_item, list_items, list_open_items, update_item_status
+    from .llm import call_llm
+    from .run_documents import write_document
+    from .run_store import append_activity_log_entry, create_run_workspace
+    from .run_summaries import generate_summary
     from .readiness import aggregate_global_readiness
+    from .v4_parsing import parse_v4_agent_response
     from .web_progress import build_agent_exchange_event
 else:
     from blackboard import create_blackboard
@@ -23,7 +30,13 @@ else:
     )
     from agents.tech_agent import run_tech_agent
     from agents.growth_agent import run_growth_agent
+    from blackboard_items import create_item, list_items, list_open_items, update_item_status
+    from llm import call_llm
+    from run_documents import write_document
+    from run_store import append_activity_log_entry, create_run_workspace
+    from run_summaries import generate_summary
     from readiness import aggregate_global_readiness
+    from v4_parsing import parse_v4_agent_response
     from web_progress import build_agent_exchange_event
 
 
@@ -1061,3 +1074,981 @@ def _format_tagged_gap(gap: dict) -> str:
     if tag and tag != "untagged":
         return f"[{tag}] {text}"
     return text
+
+
+def run_v4_flow(
+    project_name: str,
+    project_brief: str,
+    project_brief_source: str,
+    progress_callback=None,
+    step_timeout_seconds: int | None = None,
+    workspace_factory: Callable[[str], object] | None = None,
+    summary_runner: Callable[..., dict] | None = None,
+    agent_runner: Callable[..., dict] | None = None,
+) -> dict:
+    workspace_factory = workspace_factory or create_run_workspace
+    summary_runner = summary_runner or generate_summary
+    workspace = workspace_factory(project_name)
+    state = {
+        "workspace": workspace,
+        "project_name": project_name,
+        "project_brief": project_brief,
+        "project_brief_source": project_brief_source,
+        "documents": {},
+        "summaries": {},
+        "flow_version": "V4",
+    }
+    _append_v4_log(workspace, "orchestrator", "workspace_created", "app/orchestrator.py", workspace.run_id)
+    _emit_progress(
+        progress_callback,
+        stage="brief_received",
+        label="Run V4 initialisé",
+        detail="Le workspace V4 a été créé pour ce run.",
+        active_blocks=["brief_received"],
+        done_blocks=[],
+    )
+
+    product_create = _run_v4_agent(
+        role="product",
+        mode_label="initial_draft",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=_open_items_for_role(workspace, "PRODUCT"),
+        summaries={},
+        documents={},
+        extra_context=[],
+        agent_runner=agent_runner,
+    )
+    prd_v0_path = write_document(workspace, "product", "PRD_V0.md", product_create["document_text"])
+    state["documents"]["product_v0"] = prd_v0_path
+    _apply_v4_item_operations(workspace, product_create, default_author="PRODUCT")
+    _refresh_v4_item_state(state, workspace)
+    _record_v4_stage(workspace, "product_initial", prd_v0_path, product_create)
+    _emit_progress(
+        progress_callback,
+        stage="product_initial",
+        label="PRD V0 écrit",
+        detail="Product a produit le premier PRD V0 dans le run workspace.",
+        active_blocks=[
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+        ],
+        done_blocks=["brief_received"],
+    )
+    prd_v0_summary = summary_runner(workspace, prd_v0_path)
+    state["summaries"]["product_v0"] = prd_v0_summary
+    product_current_path = prd_v0_path
+    product_current_summary = prd_v0_summary
+
+    growth_create = _run_v4_agent(
+        role="growth",
+        mode_label="review",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=_open_items_for_role(workspace, "GROWTH"),
+        summaries={"product": prd_v0_summary},
+        documents={"product": prd_v0_path.read_text(encoding="utf-8")},
+        extra_context=[
+            _format_summary_context("Product summary", prd_v0_summary),
+            _format_document_context("PRD_V0.md", prd_v0_path.read_text(encoding="utf-8")),
+        ],
+        agent_runner=agent_runner,
+    )
+    gtm_v0_path = write_document(workspace, "growth", "GTM_V0.md", growth_create["document_text"])
+    state["documents"]["growth_v0"] = gtm_v0_path
+    _apply_v4_item_operations(workspace, growth_create, default_author="GROWTH")
+    _refresh_v4_item_state(state, workspace)
+    _record_v4_stage(workspace, "growth_review", gtm_v0_path, growth_create)
+    _emit_progress(
+        progress_callback,
+        stage="growth_review",
+        label="GTM V0 écrit",
+        detail="Growth a produit le premier GTM V0.",
+        active_blocks=[
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+        ],
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+        ],
+    )
+    gtm_v0_summary = summary_runner(workspace, gtm_v0_path)
+    state["summaries"]["growth_v0"] = gtm_v0_summary
+    growth_current_path = gtm_v0_path
+    growth_current_summary = gtm_v0_summary
+
+    tech_create = _run_v4_agent(
+        role="tech",
+        mode_label="review",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=_open_items_for_role(workspace, "TECH"),
+        summaries={"product": prd_v0_summary, "growth": gtm_v0_summary},
+        documents={
+            "product": prd_v0_path.read_text(encoding="utf-8"),
+            "growth": gtm_v0_path.read_text(encoding="utf-8"),
+        },
+        extra_context=[
+            _format_summary_context("Product summary", prd_v0_summary),
+            _format_summary_context("Growth summary", gtm_v0_summary),
+            _format_document_context("PRD_V0.md", prd_v0_path.read_text(encoding="utf-8")),
+            _format_document_context("GTM_V0.md", gtm_v0_path.read_text(encoding="utf-8")),
+        ],
+        agent_runner=agent_runner,
+    )
+    architecture_v0_path = write_document(
+        workspace, "tech", "Architecture_V0.md", tech_create["document_text"]
+    )
+    state["documents"]["tech_v0"] = architecture_v0_path
+    _apply_v4_item_operations(workspace, tech_create, default_author="TECH")
+    _refresh_v4_item_state(state, workspace)
+    _record_v4_stage(workspace, "tech_review", architecture_v0_path, tech_create)
+    _emit_progress(
+        progress_callback,
+        stage="tech_review",
+        label="Architecture V0 écrite",
+        detail="Tech a produit la première architecture V0.",
+        active_blocks=[
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+        ],
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+        ],
+    )
+    architecture_v0_summary = summary_runner(workspace, architecture_v0_path)
+    state["summaries"]["tech_v0"] = architecture_v0_summary
+    tech_current_path = architecture_v0_path
+    tech_current_summary = architecture_v0_summary
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
+
+    product_revision = _run_v4_agent(
+        role="product",
+        mode_label="revision",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=open_items,
+        summaries={
+            "product": product_current_summary,
+            "growth": growth_current_summary,
+            "tech": tech_current_summary,
+        },
+        documents={
+            "product": product_current_path.read_text(encoding="utf-8"),
+            "growth": growth_current_path.read_text(encoding="utf-8"),
+            "tech": tech_current_path.read_text(encoding="utf-8"),
+        },
+        extra_context=[
+            _format_summary_context("Product summary", product_current_summary),
+            _format_summary_context("Growth summary", growth_current_summary),
+            _format_summary_context("Tech summary", tech_current_summary),
+            _format_document_context(product_current_path.name, product_current_path.read_text(encoding="utf-8")),
+            _format_document_context(growth_current_path.name, growth_current_path.read_text(encoding="utf-8")),
+            _format_document_context(
+                tech_current_path.name, tech_current_path.read_text(encoding="utf-8")
+            ),
+            _format_open_items_context(workspace, open_items),
+        ],
+        agent_runner=agent_runner,
+    )
+    prd_v1_path = write_document(workspace, "product", "PRD_V1.md", product_revision["document_text"])
+    state["documents"]["product_v1"] = prd_v1_path
+    _apply_v4_item_operations(workspace, product_revision, default_author="PRODUCT")
+    _refresh_v4_item_state(state, workspace)
+    _record_v4_stage(workspace, "product_revision", prd_v1_path, product_revision)
+    _emit_progress(
+        progress_callback,
+        stage="product_revision",
+        label="PRD V1 écrit",
+        detail="Product a arbitré les retours Growth et Tech.",
+        active_blocks=["product_revision"],
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+        ],
+    )
+    prd_v1_summary = summary_runner(workspace, prd_v1_path)
+    state["summaries"]["product_v1"] = prd_v1_summary
+    product_current_path = prd_v1_path
+    product_current_summary = prd_v1_summary
+
+    correction_log: list[dict] = []
+    for loop_number in range(1, 3):
+        open_items = list_open_items(workspace)
+        if not open_items:
+            break
+        grouped = _group_items_by_owner(open_items)
+        loop_changed = False
+
+        if grouped["growth"]:
+            growth_revision = _run_v4_agent(
+                role="growth",
+                mode_label="item_resolution",
+                project_brief=project_brief,
+                project_brief_source=project_brief_source,
+                workspace=workspace,
+                state=state,
+                open_items=grouped["growth"],
+                summaries={
+                    "product": product_current_summary,
+                    "growth": growth_current_summary,
+                    "tech": tech_current_summary,
+                },
+                documents={
+                    "product": product_current_path.read_text(encoding="utf-8"),
+                    "growth": growth_current_path.read_text(encoding="utf-8"),
+                    "tech": tech_current_path.read_text(encoding="utf-8"),
+                },
+                extra_context=[
+                    _format_summary_context("Product summary", product_current_summary),
+                    _format_summary_context("Growth summary", growth_current_summary),
+                    _format_summary_context("Tech summary", tech_current_summary),
+                    _format_open_items_context(workspace, grouped["growth"]),
+                ],
+                agent_runner=agent_runner,
+            )
+            _apply_v4_item_operations(workspace, growth_revision, default_author="GROWTH")
+            _refresh_v4_item_state(state, workspace)
+            _record_v4_stage(workspace, f"growth_item_resolution_{loop_number}", product_current_path, growth_revision)
+            state.setdefault("resolution_notes", []).append(
+                {
+                    "loop": loop_number,
+                    "role": "growth",
+                    "items": [item["id"] for item in grouped["growth"]],
+                    "note": growth_revision["document_text"],
+                }
+            )
+            correction_log.append(
+                {
+                    "loop": loop_number,
+                    "agent": "growth",
+                    "items": [item["id"] for item in grouped["growth"]],
+                }
+            )
+            loop_changed = True
+
+        if grouped["tech"]:
+            tech_revision = _run_v4_agent(
+                role="tech",
+                mode_label="item_resolution",
+                project_brief=project_brief,
+                project_brief_source=project_brief_source,
+                workspace=workspace,
+                state=state,
+                open_items=grouped["tech"],
+                summaries={
+                    "product": product_current_summary,
+                    "growth": growth_current_summary,
+                    "tech": tech_current_summary,
+                },
+                documents={
+                    "product": product_current_path.read_text(encoding="utf-8"),
+                    "growth": growth_current_path.read_text(encoding="utf-8"),
+                    "tech": tech_current_path.read_text(encoding="utf-8"),
+                },
+                extra_context=[
+                    _format_summary_context("Product summary", product_current_summary),
+                    _format_summary_context("Growth summary", growth_current_summary),
+                    _format_summary_context("Tech summary", tech_current_summary),
+                    _format_open_items_context(workspace, grouped["tech"]),
+                ],
+                agent_runner=agent_runner,
+            )
+            _apply_v4_item_operations(workspace, tech_revision, default_author="TECH")
+            _refresh_v4_item_state(state, workspace)
+            _record_v4_stage(workspace, f"tech_item_resolution_{loop_number}", product_current_path, tech_revision)
+            state.setdefault("resolution_notes", []).append(
+                {
+                    "loop": loop_number,
+                    "role": "tech",
+                    "items": [item["id"] for item in grouped["tech"]],
+                    "note": tech_revision["document_text"],
+                }
+            )
+            correction_log.append(
+                {
+                    "loop": loop_number,
+                    "agent": "tech",
+                    "items": [item["id"] for item in grouped["tech"]],
+                }
+            )
+            loop_changed = True
+
+        if grouped["product"] or loop_changed:
+            product_correction = _run_v4_agent(
+                role="product",
+                mode_label="item_resolution",
+                project_brief=project_brief,
+                project_brief_source=project_brief_source,
+                workspace=workspace,
+                state=state,
+                open_items=grouped["product"] or list_open_items(workspace),
+                summaries={
+                    "product": product_current_summary,
+                    "growth": growth_current_summary,
+                    "tech": tech_current_summary,
+                },
+                documents={
+                    "product": product_current_path.read_text(encoding="utf-8"),
+                    "growth": growth_current_path.read_text(encoding="utf-8"),
+                    "tech": tech_current_path.read_text(encoding="utf-8"),
+                },
+                extra_context=[
+                    _format_summary_context("Product summary", product_current_summary),
+                    _format_summary_context("Growth summary", growth_current_summary),
+                    _format_summary_context("Tech summary", tech_current_summary),
+                    _format_open_items_context(workspace, list_open_items(workspace)),
+                ],
+                agent_runner=agent_runner,
+            )
+            _apply_v4_item_operations(workspace, product_correction, default_author="PRODUCT")
+            _refresh_v4_item_state(state, workspace)
+            _record_v4_stage(workspace, f"product_item_resolution_{loop_number}", product_current_path, product_correction)
+            state.setdefault("resolution_notes", []).append(
+                {
+                    "loop": loop_number,
+                    "role": "product",
+                    "items": [item["id"] for item in (grouped["product"] or list_open_items(workspace))],
+                    "note": product_correction["document_text"],
+                }
+            )
+            correction_log.append(
+                {
+                    "loop": loop_number,
+                    "agent": "product",
+                    "items": [item["id"] for item in (grouped["product"] or list_open_items(workspace))],
+                }
+            )
+
+        _append_v4_log(
+            workspace,
+            "orchestrator",
+            f"correction_loop_{loop_number}",
+            "app/orchestrator.py",
+            f"changed={loop_changed}; open_items={len(list_open_items(workspace))}",
+        )
+        if not loop_changed and not grouped["product"]:
+            break
+
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
+
+    candidate_growth = _run_v4_agent(
+        role="growth",
+        mode_label="candidate_rewrite",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=open_items,
+        summaries={
+            "product": product_current_summary,
+            "growth": growth_current_summary,
+            "tech": tech_current_summary,
+        },
+        documents={
+            "product": product_current_path.read_text(encoding="utf-8"),
+            "growth": growth_current_path.read_text(encoding="utf-8"),
+            "tech": tech_current_path.read_text(encoding="utf-8"),
+        },
+        extra_context=[
+            _format_summary_context("Product summary", product_current_summary),
+            _format_summary_context("Growth summary", growth_current_summary),
+            _format_summary_context("Tech summary", tech_current_summary),
+            _format_items_context("Resolved Blackboard Items", resolved_items),
+            _format_items_context("Remaining Open Blackboard Items", open_items),
+            _format_open_items_context(workspace, open_items),
+        ],
+        agent_runner=agent_runner,
+    )
+    gtm_candidate_path = write_document(
+        workspace, "growth", "GTM_CANDIDATE.md", candidate_growth["document_text"]
+    )
+    state["documents"]["growth_candidate"] = gtm_candidate_path
+    _apply_v4_item_operations(workspace, candidate_growth, default_author="GROWTH")
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
+    _record_v4_stage(workspace, "growth_candidate_rewrite", gtm_candidate_path, candidate_growth)
+    candidate_growth_summary = summary_runner(workspace, gtm_candidate_path)
+    state["summaries"]["growth_candidate"] = candidate_growth_summary
+
+    candidate_tech = _run_v4_agent(
+        role="tech",
+        mode_label="candidate_rewrite",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=open_items,
+        summaries={
+            "product": product_current_summary,
+            "growth": candidate_growth_summary,
+            "tech": tech_current_summary,
+        },
+        documents={
+            "product": product_current_path.read_text(encoding="utf-8"),
+            "growth": gtm_candidate_path.read_text(encoding="utf-8"),
+            "tech": tech_current_path.read_text(encoding="utf-8"),
+        },
+        extra_context=[
+            _format_summary_context("Product summary", product_current_summary),
+            _format_summary_context("Growth summary", candidate_growth_summary),
+            _format_summary_context("Tech summary", tech_current_summary),
+            _format_items_context("Resolved Blackboard Items", resolved_items),
+            _format_items_context("Remaining Open Blackboard Items", open_items),
+            _format_open_items_context(workspace, open_items),
+        ],
+        agent_runner=agent_runner,
+    )
+    architecture_candidate_path = write_document(
+        workspace, "tech", "Architecture_CANDIDATE.md", candidate_tech["document_text"]
+    )
+    state["documents"]["tech_candidate"] = architecture_candidate_path
+    _apply_v4_item_operations(workspace, candidate_tech, default_author="TECH")
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
+    _record_v4_stage(
+        workspace, "tech_candidate_rewrite", architecture_candidate_path, candidate_tech
+    )
+    candidate_tech_summary = summary_runner(workspace, architecture_candidate_path)
+    state["summaries"]["tech_candidate"] = candidate_tech_summary
+
+    candidate_product = _run_v4_agent(
+        role="product",
+        mode_label="candidate_rewrite",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=open_items,
+        summaries={
+            "product": product_current_summary,
+            "growth": candidate_growth_summary,
+            "tech": candidate_tech_summary,
+        },
+        documents={
+            "product": product_current_path.read_text(encoding="utf-8"),
+            "growth": gtm_candidate_path.read_text(encoding="utf-8"),
+            "tech": architecture_candidate_path.read_text(encoding="utf-8"),
+        },
+        extra_context=[
+            _format_summary_context("Product summary", product_current_summary),
+            _format_summary_context("Growth summary", candidate_growth_summary),
+            _format_summary_context("Tech summary", candidate_tech_summary),
+            _format_items_context("Resolved Blackboard Items", resolved_items),
+            _format_items_context("Remaining Open Blackboard Items", open_items),
+            _format_open_items_context(workspace, open_items),
+        ],
+        agent_runner=agent_runner,
+    )
+    prd_candidate_path = write_document(
+        workspace, "product", "PRD_CANDIDATE.md", candidate_product["document_text"]
+    )
+    state["documents"]["product_candidate"] = prd_candidate_path
+    _apply_v4_item_operations(workspace, candidate_product, default_author="PRODUCT")
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
+    _record_v4_stage(workspace, "product_candidate_rewrite", prd_candidate_path, candidate_product)
+    candidate_product_summary = summary_runner(workspace, prd_candidate_path)
+    state["summaries"]["product_candidate"] = candidate_product_summary
+
+    verification_notes: list[dict] = []
+    verification_inputs = {
+        "product": prd_candidate_path.read_text(encoding="utf-8"),
+        "growth": gtm_candidate_path.read_text(encoding="utf-8"),
+        "tech": architecture_candidate_path.read_text(encoding="utf-8"),
+    }
+    verification_summaries = {
+        "product": candidate_product_summary,
+        "growth": candidate_growth_summary,
+        "tech": candidate_tech_summary,
+    }
+    for role in ("product", "growth", "tech"):
+        verification_output = _run_v4_agent(
+            role=role,
+            mode_label="verification",
+            project_brief=project_brief,
+            project_brief_source=project_brief_source,
+            workspace=workspace,
+            state=state,
+            open_items=open_items,
+            summaries=verification_summaries,
+            documents=verification_inputs,
+            extra_context=[
+                _format_summary_context("Product candidate summary", candidate_product_summary),
+                _format_summary_context("Growth candidate summary", candidate_growth_summary),
+                _format_summary_context("Tech candidate summary", candidate_tech_summary),
+                _format_items_context("Resolved Blackboard Items", resolved_items),
+                _format_items_context("Remaining Open Blackboard Items", open_items),
+            ],
+            agent_runner=agent_runner,
+        )
+        _apply_v4_item_operations(workspace, verification_output, default_author="VERIFICATION")
+        open_items = _refresh_v4_item_state(state, workspace)
+        resolved_items = list(state["resolved_items"])
+        verification_notes.append(
+            {
+                "role": role,
+                "note": verification_output["document_text"],
+                "items_to_create": verification_output.get("items_to_create", []),
+                "items_to_update": verification_output.get("items_to_update", []),
+            }
+        )
+        _append_v4_log(
+            workspace,
+            "orchestrator",
+            f"{role}_verification",
+            "app/orchestrator.py",
+            f"items_to_create={len(verification_output.get('items_to_create', []))}; items_to_update={len(verification_output.get('items_to_update', []))}",
+        )
+    state["verification_notes"] = verification_notes
+
+    final_product = _run_v4_agent(
+        role="product",
+        mode_label="finalization",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=open_items,
+        summaries={
+            "product": candidate_product_summary,
+            "growth": candidate_growth_summary,
+            "tech": candidate_tech_summary,
+        },
+        documents={
+            "product": prd_candidate_path.read_text(encoding="utf-8"),
+            "growth": gtm_candidate_path.read_text(encoding="utf-8"),
+            "tech": architecture_candidate_path.read_text(encoding="utf-8"),
+        },
+        extra_context=[
+            _format_summary_context("Product candidate summary", candidate_product_summary),
+            _format_summary_context("Growth candidate summary", candidate_growth_summary),
+            _format_summary_context("Tech candidate summary", candidate_tech_summary),
+            _format_items_context("Verification Items", open_items),
+            _format_items_context("Remaining Open Blackboard Items", open_items),
+            _format_open_items_context(workspace, open_items),
+        ],
+        agent_runner=agent_runner,
+    )
+    prd_final_path = write_document(
+        workspace, "product", "PRD_FINAL.md", final_product["document_text"]
+    )
+    state["documents"]["product_final"] = prd_final_path
+    _apply_v4_item_operations(workspace, final_product, default_author="PRODUCT")
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
+    _record_v4_stage(workspace, "product_finalization", prd_final_path, final_product)
+    product_final_summary = summary_runner(workspace, prd_final_path)
+    state["summaries"]["product_final"] = product_final_summary
+
+    final_growth = _run_v4_agent(
+        role="growth",
+        mode_label="finalization",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=open_items,
+        summaries={
+            "product": product_final_summary,
+            "growth": candidate_growth_summary,
+            "tech": candidate_tech_summary,
+        },
+        documents={
+            "product": prd_final_path.read_text(encoding="utf-8"),
+            "growth": gtm_candidate_path.read_text(encoding="utf-8"),
+            "tech": architecture_candidate_path.read_text(encoding="utf-8"),
+        },
+        extra_context=[
+            _format_summary_context("Product final summary", product_final_summary),
+            _format_summary_context("Growth candidate summary", candidate_growth_summary),
+            _format_summary_context("Tech candidate summary", candidate_tech_summary),
+            _format_items_context("Verification Items", open_items),
+            _format_items_context("Remaining Open Blackboard Items", open_items),
+        ],
+        agent_runner=agent_runner,
+    )
+    gtm_final_path = write_document(workspace, "growth", "GTM_FINAL.md", final_growth["document_text"])
+    state["documents"]["growth_final"] = gtm_final_path
+    _apply_v4_finalization_item_operations(workspace, final_growth, default_author="GROWTH")
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
+    _record_v4_stage(workspace, "growth_finalization", gtm_final_path, final_growth)
+    growth_final_summary = summary_runner(workspace, gtm_final_path)
+    state["summaries"]["growth_final"] = growth_final_summary
+
+    final_tech = _run_v4_agent(
+        role="tech",
+        mode_label="finalization",
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        state=state,
+        open_items=open_items,
+        summaries={
+            "product": product_final_summary,
+            "growth": growth_final_summary,
+            "tech": candidate_tech_summary,
+        },
+        documents={
+            "product": prd_final_path.read_text(encoding="utf-8"),
+            "growth": gtm_final_path.read_text(encoding="utf-8"),
+            "tech": architecture_candidate_path.read_text(encoding="utf-8"),
+        },
+        extra_context=[
+            _format_summary_context("Product final summary", product_final_summary),
+            _format_summary_context("Growth final summary", growth_final_summary),
+            _format_summary_context("Tech candidate summary", candidate_tech_summary),
+            _format_items_context("Verification Items", open_items),
+            _format_items_context("Remaining Open Blackboard Items", open_items),
+        ],
+        agent_runner=agent_runner,
+    )
+    architecture_final_path = write_document(
+        workspace, "tech", "Architecture_FINAL.md", final_tech["document_text"]
+    )
+    state["documents"]["tech_final"] = architecture_final_path
+    _apply_v4_finalization_item_operations(workspace, final_tech, default_author="TECH")
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
+    _record_v4_stage(workspace, "tech_finalization", architecture_final_path, final_tech)
+    tech_final_summary = summary_runner(workspace, architecture_final_path)
+    state["summaries"]["tech_final"] = tech_final_summary
+
+    _emit_progress(
+        progress_callback,
+        stage="product_locking",
+        label="V4 finalisation prête",
+        detail=f"{len(open_items)} item(s) restent ouverts avant compilation finale.",
+        done_blocks=[
+            "brief_received",
+            "product_brief_analysis",
+            "product_problem",
+            "product_users_goals",
+            "product_user_stories",
+            "growth_segments",
+            "growth_positioning",
+            "growth_channels",
+            "growth_objections",
+            "tech_constraints",
+            "tech_components",
+            "tech_mermaid",
+            "tech_risks",
+            "product_revision",
+            "readiness_check",
+            "correction_loop",
+            "product_locking",
+        ],
+    )
+    _append_v4_log(
+        workspace,
+        "orchestrator",
+        "finalization_ready",
+        "app/orchestrator.py",
+        f"open_items={len(open_items)}",
+    )
+    state["correction_log"] = correction_log
+    state["open_items"] = open_items
+    state["resolved_items"] = resolved_items
+    return state
+
+
+def _run_v4_agent(
+    *,
+    role: str,
+    mode_label: str,
+    project_brief: str,
+    project_brief_source: str,
+    workspace,
+    state: dict,
+    open_items: list[dict],
+    summaries: dict[str, dict],
+    documents: dict[str, str],
+    extra_context: list[str],
+    agent_runner: Callable[..., dict] | None = None,
+) -> dict:
+    if agent_runner is not None:
+        parsed = agent_runner(
+            role=role,
+            mode_label=mode_label,
+            project_brief=project_brief,
+            project_brief_source=project_brief_source,
+            workspace=workspace,
+            state=state,
+            open_items=open_items,
+            summaries=summaries,
+            documents=documents,
+            extra_context=extra_context,
+        )
+        parsed["role"] = role
+        return parsed
+
+    system_prompt = _load_v4_prompt(role)
+    user_prompt = _build_v4_user_prompt(
+        role=role,
+        mode_label=mode_label,
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        workspace=workspace,
+        open_items=open_items,
+        summaries=summaries,
+        documents=documents,
+        extra_context=extra_context,
+    )
+    response_text = call_llm(system_prompt, user_prompt)
+    parsed = _parse_v4_agent_output(response_text)
+    parsed["role"] = role
+    return parsed
+
+
+def _refresh_v4_item_state(state: dict, workspace) -> list[dict]:
+    resolved_items = [item for item in list_items(workspace) if item.get("status") != "OPEN"]
+    open_items = list_open_items(workspace)
+    state["resolved_items"] = resolved_items
+    state["open_items"] = open_items
+    return open_items
+
+
+def _apply_v4_finalization_item_operations(workspace, agent_output: dict, default_author: str) -> None:
+    updates = agent_output.get("items_to_update", [])
+    if updates:
+        raise ValueError(
+            "Growth and Tech finalization cannot update verification item statuses."
+        )
+    for item_spec in agent_output.get("items_to_create", []):
+        item_type = str(item_spec.get("type", "")).strip().upper()
+        if item_type not in {"RISK", "WARNING"}:
+            raise ValueError(
+                "Growth and Tech finalization may only create RISK or WARNING follow-up items."
+            )
+        create_item(
+            workspace,
+            type=item_spec["type"],
+            author=item_spec.get("author", "") or default_author,
+            targets=item_spec["targets"],
+            priority=item_spec["priority"],
+            tags=item_spec["tags"],
+            title=item_spec["title"],
+            content=item_spec["content"],
+        )
+
+
+def _build_v4_user_prompt(
+    *,
+    role: str,
+    mode_label: str,
+    project_brief: str,
+    project_brief_source: str,
+    workspace,
+    open_items: list[dict],
+    summaries: dict[str, dict],
+    documents: dict[str, str],
+    extra_context: list[str],
+) -> str:
+    sections = [
+        f"Mode: {mode_label}",
+        f"Run id:\n{workspace.run_id}",
+        f"Project brief source:\n{project_brief_source}",
+        f"Project brief:\n{project_brief}",
+        _format_open_items_context(workspace, open_items),
+    ]
+    for summary_label, summary in summaries.items():
+        sections.append(_format_summary_context(f"{summary_label.capitalize()} summary", summary))
+    for document_label, document_text in documents.items():
+        sections.append(_format_document_context(f"{document_label.upper()} document", document_text))
+    sections.extend(extra_context)
+    sections.append(
+        "Return the role document first, then the Blackboard Items To Create and Blackboard Items To Update sections."
+    )
+    return "\n\n".join(section for section in sections if section.strip())
+
+
+def _parse_v4_agent_output(text: str) -> dict:
+    parsed = parse_v4_agent_response(text)
+    return {
+        "raw_response": parsed["raw_response"],
+        "document_text": parsed["document_text"],
+        "sections": parsed["sections"],
+        "items_to_create": parsed["items_to_create"],
+        "items_to_update": parsed["items_to_update"],
+    }
+
+
+def _apply_v4_item_operations(workspace, agent_output: dict, default_author: str) -> None:
+    for item_spec in agent_output.get("items_to_create", []):
+        author = item_spec.get("author", "") or default_author
+        create_item(
+            workspace,
+            type=item_spec["type"],
+            author=author,
+            targets=item_spec["targets"],
+            priority=item_spec["priority"],
+            tags=item_spec["tags"],
+            title=item_spec["title"],
+            content=item_spec["content"],
+        )
+    for update_spec in agent_output.get("items_to_update", []):
+        update_item_status(workspace, update_spec["id"], update_spec["status"])
+
+
+def _load_v4_prompt(role: str) -> str:
+    prompt_path = Path(__file__).resolve().parent / "prompts V4" / f"{role}_prompt.md"
+    return prompt_path.read_text(encoding="utf-8").strip()
+
+
+def _open_items_for_role(workspace, target: str) -> list[dict]:
+    normalized_target = target.strip().upper()
+    return list_items(workspace, target=normalized_target, status="OPEN")
+
+
+def _format_document_context(title: str, text: str) -> str:
+    body = text.strip() or "_Aucun contenu._"
+    return f"## {title}\n\n{body}"
+
+
+def _format_summary_context(title: str, summary: dict) -> str:
+    if not summary:
+        return f"## {title}\n\n_Aucun résumé._"
+    lines = [
+        f"## {title}",
+        "",
+        f"- Source document: {summary.get('source_document', '')}",
+        f"- Source hash: {summary.get('source_hash', '')}",
+        f"- Scope: {summary.get('scope', '')}",
+        "- Key decisions:",
+    ]
+    lines.extend(f"  - {item}" for item in summary.get("key_decisions", []) or ["None"])
+    lines.append("- Unresolved questions:")
+    lines.extend(f"  - {item}" for item in summary.get("unresolved_questions", []) or ["None"])
+    lines.append("- Critical risks:")
+    lines.extend(f"  - {item}" for item in summary.get("critical_risks", []) or ["None"])
+    return "\n".join(lines)
+
+
+def _format_open_items_context(workspace, items: list[dict]) -> str:
+    if not items:
+        return "## Open Blackboard Items\n\n- None"
+    lines = ["## Open Blackboard Items", ""]
+    for item in items:
+        targets = ", ".join(item.get("targets", [])) or "None"
+        tags = ", ".join(item.get("tags", [])) or "None"
+        lines.extend(
+            [
+                f"- {item['id']} | {item['type']} | {item['priority']} | {item['status']}",
+                f"  - Author: {item['author']}",
+                f"  - Targets: {targets}",
+                f"  - Tags: {tags}",
+                f"  - Title: {item['title']}",
+                f"  - Content: {item['content']}",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _format_items_context(title: str, items: list[dict]) -> str:
+    if not items:
+        return f"## {title}\n\n- None"
+    lines = [f"## {title}", ""]
+    for item in items:
+        targets = ", ".join(item.get("targets", [])) or "None"
+        tags = ", ".join(item.get("tags", [])) or "None"
+        lines.extend(
+            [
+                f"- {item['id']} | {item['type']} | {item['priority']} | {item['status']}",
+                f"  - Author: {item['author']}",
+                f"  - Targets: {targets}",
+                f"  - Tags: {tags}",
+                f"  - Title: {item['title']}",
+                f"  - Content: {item['content']}",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _append_v4_log(workspace, agent: str, event: str, source: str, details: str = "") -> None:
+    entry = {
+        "agent": agent,
+        "event": event,
+        "source": source,
+    }
+    if details:
+        entry["details"] = details
+    append_activity_log_entry(workspace, entry)
+
+
+def _record_v4_stage(workspace, stage: str, document_path: Path, agent_output: dict) -> None:
+    _append_v4_log(
+        workspace,
+        "orchestrator",
+        stage,
+        "app/orchestrator.py",
+        (
+            f"document={document_path.name}; "
+            f"items_to_create={len(agent_output.get('items_to_create', []))}; "
+            f"items_to_update={len(agent_output.get('items_to_update', []))}"
+        ),
+    )
+
+
+def _group_items_by_owner(items: list[dict]) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = {"product": [], "growth": [], "tech": []}
+    for item in items:
+        owners = _owners_for_targets(item.get("targets", []))
+        for owner in owners:
+            grouped.setdefault(owner, []).append(item)
+    return grouped
+
+
+def _owners_for_targets(targets: list[str] | tuple[str, ...] | str) -> list[str]:
+    if isinstance(targets, str):
+        raw_targets = [targets]
+    else:
+        raw_targets = list(targets)
+    normalized_targets = [str(value).strip().upper() for value in raw_targets if str(value).strip()]
+    owners: list[str] = []
+    if "PRODUCT" in normalized_targets:
+        owners.append("product")
+    if "GROWTH" in normalized_targets:
+        owners.append("growth")
+    if "TECH" in normalized_targets:
+        owners.append("tech")
+    return owners or ["product"]

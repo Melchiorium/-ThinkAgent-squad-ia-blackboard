@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
 
 if __package__ and __package__.startswith("app"):
     from .architecture_render import render_architecture_diagram
+    from .blackboard_items import list_items
+    from .run_documents import list_documents, read_named_document
+    from .run_store import write_text_file
+    from .v4_parsing import extract_section
     from .readiness import group_tagged_items, render_tagged_item
 else:
     from architecture_render import render_architecture_diagram
+    from blackboard_items import list_items
+    from run_documents import list_documents, read_named_document
+    from run_store import write_text_file
+    from v4_parsing import extract_section
     from readiness import group_tagged_items, render_tagged_item
 
 
@@ -47,6 +56,206 @@ def write_run_artifacts(
             evaluator_report_text,
             encoding="utf-8",
         )
+
+
+def write_v4_run_artifacts(
+    run_state: dict,
+    output_dir: Path,
+    evaluator_report_text: str = "",
+) -> None:
+    workspace = run_state["workspace"]
+    final_output_dir = workspace.final_outputs_dir
+    final_output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    project_brief_text = str(run_state.get("project_brief", "")).strip()
+    project_brief_source = str(run_state.get("project_brief_source", "")).strip()
+    project_name = str(run_state.get("project_name", "")).strip()
+
+    product_doc = read_named_document(workspace, "product", "PRD_FINAL.md")
+    growth_doc = read_named_document(workspace, "growth", "GTM_FINAL.md")
+    tech_doc = read_named_document(workspace, "tech", "Architecture_FINAL.md")
+
+    _write_final_text(final_output_dir / "project-brief.md", project_brief_text)
+    _write_final_text(final_output_dir / "prd.md", product_doc)
+    _write_final_text(final_output_dir / "architecture.md", tech_doc)
+
+    artifact_state = render_architecture_diagram(
+        final_output_dir,
+        {
+            "architecture_notes": tech_doc,
+            "mermaid_diagram": "",
+        },
+    )
+
+    _write_final_text(final_output_dir / "gtm.md", growth_doc)
+    _write_final_text(
+        final_output_dir / "blackboard.md",
+        _format_v4_blackboard_markdown(
+            run_state,
+            project_name=project_name,
+            project_brief_source=project_brief_source,
+            product_doc=product_doc,
+            growth_doc=growth_doc,
+            tech_doc=tech_doc,
+            artifact_state=artifact_state,
+        ),
+    )
+    _write_final_text(final_output_dir / "activity_log.txt", _read_activity_log(workspace))
+    if evaluator_report_text:
+        _write_final_text(final_output_dir / "evaluator-report.md", evaluator_report_text)
+
+    _mirror_directory_contents(final_output_dir, output_dir)
+
+
+def _write_final_text(path: Path, content: str) -> None:
+    write_text_file(path, content.rstrip("\n") + ("\n" if content else ""))
+
+
+def _mirror_directory_contents(source_dir: Path, target_dir: Path) -> None:
+    for source_path in source_dir.iterdir():
+        target_path = target_dir / source_path.name
+        if source_path.is_dir():
+            if target_path.exists():
+                shutil.rmtree(target_path)
+            shutil.copytree(source_path, target_path)
+            continue
+        shutil.copy2(source_path, target_path)
+
+
+def _read_activity_log(workspace) -> str:
+    activity_log_path = workspace.activity_log_path
+    if not activity_log_path.exists():
+        return ""
+    return activity_log_path.read_text(encoding="utf-8").rstrip()
+
+
+def _format_v4_blackboard_markdown(
+    run_state: dict,
+    *,
+    project_name: str,
+    project_brief_source: str,
+    product_doc: str,
+    growth_doc: str,
+    tech_doc: str,
+    artifact_state: dict,
+) -> str:
+    workspace = run_state["workspace"]
+    items = list_items(workspace)
+    summary_blocks = run_state.get("summaries", {})
+    document_names = {
+        "product": ", ".join(list_documents(workspace, "product")) or "None",
+        "growth": ", ".join(list_documents(workspace, "growth")) or "None",
+        "tech": ", ".join(list_documents(workspace, "tech")) or "None",
+    }
+    open_items = [item for item in items if item.get("status") == "OPEN"]
+    answered_items = [item for item in items if item.get("status") != "OPEN"]
+
+    lines = [
+        "# Blackboard",
+        "",
+        _format_block("Run Id", workspace.run_id),
+        _format_block("Project Name", project_name),
+        _format_block("Project Brief Source", project_brief_source),
+        _format_block("Workspace Root", str(workspace.root)),
+        _format_v4_document_index(document_names),
+        _format_v4_summary_section(summary_blocks),
+        _format_v4_item_section("Open Items", open_items),
+        _format_v4_item_section("Resolved Items", answered_items),
+        _format_v4_decisions_section(
+            {
+                "product": product_doc,
+                "growth": growth_doc,
+                "tech": tech_doc,
+            }
+        ),
+        _format_block(
+            "Architecture Markdown Ready",
+            str(bool(artifact_state.get("architecture_markdown_ready"))),
+        ),
+        _format_block(
+            "Architecture Visual Ready",
+            str(bool(artifact_state.get("architecture_visual_ready"))),
+        ),
+        _format_block(
+            "Architecture Visual Warning",
+            artifact_state.get("architecture_visual_warning", ""),
+        ),
+        _format_block(
+            "Architecture Mermaid Source",
+            artifact_state.get("architecture_mermaid_source", ""),
+        ),
+        _format_block(
+            "Architecture Image Path",
+            artifact_state.get("architecture_image_path", ""),
+        ),
+        _format_block("Activity Log", _read_activity_log(workspace)),
+    ]
+    return "\n".join(lines)
+
+
+def _format_v4_document_index(document_names: dict[str, str]) -> str:
+    lines = ["## Documents", ""]
+    for agent, filename in document_names.items():
+        lines.append(f"- {agent}: {filename}")
+    return "\n".join(lines)
+
+
+def _format_v4_summary_section(summary_blocks: dict) -> str:
+    if not summary_blocks:
+        return "## Summaries\n\n- None"
+    lines = ["## Summaries", ""]
+    for name, summary in summary_blocks.items():
+        lines.extend(
+            [
+                f"### {name}",
+                f"- Source document: {summary.get('source_document', '')}",
+                f"- Source hash: {summary.get('source_hash', '')}",
+                f"- Scope: {summary.get('scope', '')}",
+                "- Key decisions:",
+            ]
+        )
+        lines.extend(f"  - {value}" for value in summary.get("key_decisions", []) or ["None"])
+        lines.append("- Unresolved questions:")
+        lines.extend(f"  - {value}" for value in summary.get("unresolved_questions", []) or ["None"])
+        lines.append("- Critical risks:")
+        lines.extend(f"  - {value}" for value in summary.get("critical_risks", []) or ["None"])
+    return "\n".join(lines)
+
+
+def _format_v4_item_section(title: str, items: list[dict]) -> str:
+    if not items:
+        return f"## {title}\n\n- None"
+    lines = [f"## {title}", ""]
+    for item in items:
+        lines.extend(
+            [
+                f"### {item['id']}",
+                f"- Type: {item['type']}",
+                f"- Author: {item['author']}",
+                f"- Targets: {', '.join(item.get('targets', [])) or 'None'}",
+                f"- Priority: {item['priority']}",
+                f"- Status: {item['status']}",
+                f"- Tags: {', '.join(item.get('tags', [])) or 'None'}",
+                f"- Title: {item['title']}",
+                f"- Content: {item['content']}",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _format_v4_decisions_section(latest_documents: dict[str, str]) -> str:
+    product_arbitration = extract_section(latest_documents["product"], "Product Arbitration")
+    product_locking = extract_section(latest_documents["product"], "Product Locking")
+    growth_notes = extract_section(latest_documents["growth"], "Go-To-Market Notes")
+    tech_notes = extract_section(latest_documents["tech"], "Architecture Notes")
+    sections = [
+        _format_block("Product Arbitration", product_arbitration),
+        _format_block("Product Locking", product_locking),
+        _format_block("Growth Notes", growth_notes),
+        _format_block("Tech Notes", tech_notes),
+    ]
+    return "\n\n".join(["## Decisions Snapshot", *sections])
 
 
 def _format_block(title: str, content: str) -> str:

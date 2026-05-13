@@ -44,7 +44,7 @@ evidence exists.
    contracts, flows, rules, and outputs.
 2. Confirm V4 is wired as intended.
 3. Run a V4 generation for `CareSync` if LLM environment variables are
-   configured.
+   configured. Runs may take several minutes per agent.
 4. Run a V4 generation for `LocalLoop` if LLM environment variables are
    configured.
 5. Inspect the generated `runs/<run_id>/` workspaces:

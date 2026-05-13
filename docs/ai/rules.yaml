@@ -20,6 +20,12 @@ v4_rules:
   - run_id must be unique per run and readable enough for manual inspection.
   - Blackboard items are atomic coordination objects and should stay short, target-specific, and manually readable.
   - Summaries are compressed derivatives of exactly one source document and must not introduce new information.
+  - V4 agent responses may contain internal blackboard item sections; strip them from public deliverables and keep them only as parsed item operations.
+  - V4 final public artifacts must come from explicit `*_FINAL.md` documents, not from latest-document sorting.
+  - V4 mode labels must stay aligned across orchestrator, prompts, and docs; the canonical modes are initial_draft, review, revision, item_resolution, candidate_rewrite, verification, and finalization.
+  - V4 finalization order is Product first, then Growth, then Tech. Growth finalization reads `PRD_FINAL.md`; Tech finalization reads `PRD_FINAL.md` and `GTM_FINAL.md`.
+  - Growth and Tech finalization must not update existing verification item statuses. They may only create follow-up `RISK` or `WARNING` items when necessary.
+  - V4 candidate and finalization outputs must have their parsed blackboard item operations applied immediately, then the open/resolved item state must be recomputed.
   - V4 prompts live under app/prompts V4/; V3 prompts remain untouched until a later lot explicitly migrates them.
   - Do not turn V4 into a generic graph engine or a full distributed queue.
   - Keep documents as the long-form source of truth and summaries as traceable derivatives.
@@ -58,6 +64,7 @@ quality_rules:
   - If changing runtime code, run python3 -m compileall app when feasible.
   - If changing Mermaid rendering, verify mmdc availability or run a targeted render.
   - If changing prompt contracts, inspect parser expectations before editing prompts.
+  - If changing V4 parser or compiler behavior, run the no-LLM harness before relying on live LLM validation.
   - If changing correction loop logic, verify ownership and max-loop behavior.
   - If information is missing and cannot be recovered from docs/ai or targeted source reads, stop and ask the user.
 

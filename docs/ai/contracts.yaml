@@ -145,6 +145,29 @@ output_artifacts_contract:
     directory through app/main.py unless the task explicitly asks to patch an
     existing output.
 
+v4_output_compilation_contract:
+  source: app/artifact_writer.py and app/generation_service.py
+  final_output_dir: "runs/<run_id>/final_outputs/"
+  public_output_dir: "outputs/tests/<Project Name>/version X/"
+  files:
+    required:
+      - project-brief.md
+      - prd.md
+      - architecture.md
+      - gtm.md
+      - blackboard.md
+      - activity_log.txt
+    conditional:
+      - architecture-diagram.mmd
+      - architecture-diagram.png
+      - evaluator-report.md
+  rule: >
+    V4 compiles the active run workspace into the same public historical
+    artifact set used by the viewer. The compiler must read PRD_FINAL.md,
+    GTM_FINAL.md, and Architecture_FINAL.md explicitly. Final outputs must
+    remain readable in both the private run workspace and the public outputs
+    directory.
+
 v4_run_workspace_contract:
   source: app/run_store.py
   root: "runs/<run_id>/"
@@ -162,8 +185,8 @@ v4_run_workspace_contract:
     project never overwrite each other.
   rule: >
     The run workspace is the V4 file-system home for intermediate coordination
-    data. It is separate from outputs/tests/ and is not the current validated
-    runtime baseline.
+    data. It is separate from outputs/tests/ and is the active V4 runtime
+    workspace, distinct from the validated V3 baseline.
 
 v4_blackboard_item_contract:
   source: app/blackboard_items.py
@@ -213,11 +236,27 @@ v4_document_contract:
     - tech
     - growth
   naming_rule: >
-    Document names stay explicit and readable, such as PRD_V0.md or
-    Architecture_V1.md. Avoid complex version resolution.
+    Document names stay explicit and readable, such as PRD_V0.md,
+    PRD_CANDIDATE.md, or PRD_FINAL.md. Avoid complex version resolution.
   rule: >
     Documents are the long-form source of truth. They may be versioned and
     refined, but they remain separate from summaries and blackboard items.
+
+v4_parser_contract:
+  source: app/v4_parsing.py
+  rule: >
+    V4 agent responses are split into clean document text and internal
+    blackboard operation sections. The parser must keep raw_response for
+    internal trace/debug use only, must strip `## Blackboard Items To Create`
+    and `## Blackboard Items To Update` from the deliverable text, and must
+    preserve parsed item operations for the blackboard store.
+  fields:
+    parsed_response:
+      - raw_response
+      - document_text
+      - sections
+      - items_to_create
+      - items_to_update
 
 v4_summary_contract:
   source: app/run_summaries.py
@@ -239,6 +278,7 @@ v4_summary_contract:
 v4_agent_output_contracts:
   product:
     prompt: app/prompts V4/product_prompt.md
+    parser: app/v4_parsing.py:parse_v4_agent_response
     document_sections:
       - Product Problem
       - Initial Wedge
@@ -258,8 +298,14 @@ v4_agent_output_contracts:
       - Blackboard Items To Create
       - Blackboard Items To Update
       - Product Locking
+    item_create_format: "TYPE | AUTHOR | TARGETS | PRIORITY | TAGS | TITLE | CONTENT"
+    item_update_format: "ITEM-001 | ANSWERED"
+    internal_sections:
+      - Blackboard Items To Create
+      - Blackboard Items To Update
   growth:
     prompt: app/prompts V4/growth_prompt.md
+    parser: app/v4_parsing.py:parse_v4_agent_response
     document_sections:
       - Go-To-Market Notes
       - Review Summary
@@ -272,8 +318,14 @@ v4_agent_output_contracts:
       - GTM Readiness
       - Blackboard Items To Create
       - Blackboard Items To Update
+    item_create_format: "TYPE | AUTHOR | TARGETS | PRIORITY | TAGS | TITLE | CONTENT"
+    item_update_format: "ITEM-001 | ANSWERED"
+    internal_sections:
+      - Blackboard Items To Create
+      - Blackboard Items To Update
   tech:
     prompt: app/prompts V4/tech_prompt.md
+    parser: app/v4_parsing.py:parse_v4_agent_response
     document_sections:
       - Architecture Notes
       - Review Summary
@@ -287,6 +339,11 @@ v4_agent_output_contracts:
       - Blackboard Items To Update
     architecture_notes:
       diagram_subsection: "### Mermaid Diagram"
+    item_create_format: "TYPE | AUTHOR | TARGETS | PRIORITY | TAGS | TITLE | CONTENT"
+    item_update_format: "ITEM-001 | ANSWERED"
+    internal_sections:
+      - Blackboard Items To Create
+      - Blackboard Items To Update
   summary:
     prompt: app/prompts V4/summary_prompt.md
     parser: strict_yaml_subset
@@ -313,6 +370,14 @@ environment_contract:
     caveat: >
       Second pass is a historical/experimental mode and is currently partly
       hardcoded in app/main.py. It is not part of the validated standard flow.
+  v4_runtime:
+    variable: BLACKBOARD_PROMPT_VERSION
+    supported_values:
+      - V4
+    caveat: >
+      V4 is an active runtime path with explicit initial, item-resolution,
+      candidate, verification, and finalization phases. It remains separate
+      from the validated V3 baseline.
   evaluator_report:
     - BLACKBOARD_EVALUATOR_REPORT
   llm:

@@ -112,17 +112,82 @@ standard_generation_service_flow:
     - receive an in-memory project brief
     - extract or receive the project name
     - create the next outputs/tests/<Project>/version X/ directory
-    - run the validated standard workflow
-    - write run artifacts through app/artifact_writer.py
+    - run the validated standard workflow or V4 workflow based on prompt version
+    - write run artifacts through app/artifact_writer.py or the V4 compiler
   limitations:
     - no web form integration yet
     - no background jobs
     - no authentication
     - no second-pass handling
 
+v4_explicit_orchestration_flow:
+  owner: app/orchestrator.py
+  status: active_runtime
+  steps:
+    - create a run workspace
+    - run Product initial draft into PRD_V0.md
+    - summarize PRD_V0.md
+    - run Growth and Tech review passes with the brief, PRD summary, and required document context
+    - write GTM_V0.md and Architecture_V0.md
+    - summarize GTM_V0.md and Architecture_V0.md
+    - run Product revision with the initial summaries and full document context
+    - write PRD_V1.md
+    - run a bounded item-resolution loop over remaining open items
+    - keep the item-resolution loop focused on item updates, resolution notes, and blackboard state
+    - generate PRD_CANDIDATE.md, GTM_CANDIDATE.md, and Architecture_CANDIDATE.md after resolution
+    - apply parsed item operations immediately after each candidate document is produced
+    - recompute open and resolved items after each candidate batch
+    - run one verification pass over the candidate documents
+    - apply parsed verification item operations immediately after each verification output
+    - recompute open and resolved items after each verification batch
+    - run Product finalization first and generate PRD_FINAL.md as the locked source of truth
+    - run Growth finalization against PRD_FINAL.md and generate GTM_FINAL.md
+    - run Tech finalization against PRD_FINAL.md and GTM_FINAL.md and generate Architecture_FINAL.md
+    - apply parsed finalization item operations immediately after each final output is produced
+    - recompute open and resolved items after each finalization batch
+    - record stage transitions in the activity log
+    - hand the run off to final output compilation
+  limitations:
+    - no generic graph engine
+    - no distributed queue
+    - no automatic resolution of all open items
+
+v4_mode_contract:
+  owner: app/orchestrator.py and app/prompts V4/
+  status: active_runtime
+  canonical_modes:
+    - initial_draft
+    - review
+    - revision
+    - item_resolution
+    - candidate_rewrite
+    - verification
+    - finalization
+  note: >
+    These are the canonical V4 mode labels used by the orchestrator and
+    declared in the V4 prompts. The initial review/revision modes are kept for
+    the first pass, while the later phases stay blackboard-first and
+    item-aware. Finalization order is Product first, then Growth, then Tech,
+    so later passes read the locked upstream documents.
+
+v4_final_output_compilation_flow:
+  owner: app/artifact_writer.py and app/generation_service.py
+  status: active_runtime
+  steps:
+    - read PRD_FINAL.md, GTM_FINAL.md, and Architecture_FINAL.md explicitly
+    - write final outputs under runs/<run_id>/final_outputs/
+    - render the Mermaid artifacts when the source exists
+    - copy the compiled outputs to outputs/tests/<Project>/version X/
+    - preserve the historical public artifact names
+    - surface remaining open items in blackboard.md
+  limitations:
+    - no change to the public artifact contract
+    - no change to V3 prompt files
+    - not the current validated runtime baseline
+
 v4_run_workspace_flow:
   owner: app/run_store.py
-  status: target_only
+  status: active_runtime
   steps:
     - generate a readable run_id from a UTC timestamp and normalized project slug
     - create runs/<run_id>/
@@ -134,12 +199,12 @@ v4_run_workspace_flow:
     - create runs/<run_id>/activity_log/
     - create runs/<run_id>/final_outputs/
   limitations:
-    - not wired into the current V3 runtime baseline
-    - no orchestrator migration in this lot
+    - separate from the validated V3 baseline
+    - no orchestrator migration back into V3
 
 v4_blackboard_item_flow:
   owner: app/blackboard_items.py
-  status: target_only
+  status: active_runtime
   steps:
     - create atomic items inside runs/<run_id>/blackboard/items/
     - assign sequential ITEM-XXX identifiers within the run
@@ -147,24 +212,25 @@ v4_blackboard_item_flow:
     - list and filter items by target, author, type, status, or tag
     - update item status without changing item content
   limitations:
-    - not wired into the current V3 runtime baseline
-    - no workflow rewrite in this lot
+    - separate from the validated V3 baseline
+    - no workflow rewrite back into V3
 
 v4_versioned_document_flow:
   owner: app/run_documents.py
-  status: target_only
+  status: active_runtime
   steps:
     - write explicit agent documents under the agent folder in runs/<run_id>/documents/
+    - keep initial, candidate, and final names separate and readable
     - list documents per agent without a complex resolver
     - read a named document directly
     - read the latest document for an agent using readable version naming
   limitations:
-    - not wired into the current V3 runtime baseline
-    - no prompt migration in this lot
+    - separate from the validated V3 baseline
+    - no prompt migration back into V3
 
 v4_summary_generation_flow:
   owner: app/run_summaries.py and app/prompts V4/summary_prompt.md
-  status: target_only
+  status: active_runtime
   steps:
     - receive exactly one source document path
     - compute a source hash from the source document content
@@ -174,19 +240,36 @@ v4_summary_generation_flow:
   limitations:
     - one source document at a time only
     - summaries are derivatives, not a source of truth
-    - not wired into the current V3 runtime baseline
+    - separate from the validated V3 baseline
+
+v4_regression_validation_flow:
+  owner: scripts/check_v4_flow_no_llm.py
+  status: validation
+  command: python3 scripts/check_v4_flow_no_llm.py
+  steps:
+    - parse a fake agent response with blackboard item sections
+    - confirm the parsed document text excludes internal item sections
+    - run the V4 flow with fake agent outputs, fake summaries, and a temp workspace
+    - confirm Product finalization receives the actual remaining open items
+    - compile public artifacts from explicit final documents
+    - confirm public artifacts do not include internal item sections
+    - confirm blackboard.md preserves open and resolved item state in their expected sections
+  limitations:
+    - no real LLM calls
+    - no deployment validation
+    - validation-only helper
 
 v4_prompt_layer_flow:
   owner: app/prompts V4/
-  status: target_only
+  status: active_runtime
   steps:
     - keep stable system prompts separate from the project brief
     - treat the brief as the shared initial context
     - let the orchestrator provide contextual step prompts
     - keep V4 Product, Growth, Tech, and summary prompts blackboard-first
   limitations:
-    - not wired into the current V3 runtime baseline
-    - does not replace the validated V3 prompts yet
+    - separate from the validated V3 baseline
+    - does not replace the validated V3 prompts
 
 web_viewer_flow:
   owner: app/web.py, app/web_storage.py, and app/web_presenters.py

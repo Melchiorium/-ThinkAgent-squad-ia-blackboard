@@ -31,6 +31,7 @@ key_paths:
   v4_blackboard_items: app/blackboard_items.py
   v4_run_documents: app/run_documents.py
   v4_run_summaries: app/run_summaries.py
+  v4_parsing: app/v4_parsing.py
   v4_prompts: app/prompts V4/
   v4_target_docs: Evolutions/
   active_prompts: app/prompts V3/
