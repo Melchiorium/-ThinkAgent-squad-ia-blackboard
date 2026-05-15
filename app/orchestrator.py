@@ -1849,14 +1849,25 @@ def _run_v4_agent(
             extra_context=extra_context,
         )
         response_text = call_llm(system_prompt, user_prompt)
-        parsed = _parse_v4_agent_output(response_text)
+        trace_path = _write_v4_raw_response_trace(workspace, trace_stage_label, response_text)
+        try:
+            parsed = _parse_v4_agent_output(response_text, role=role)
+        except ValueError as error:
+            raise ValueError(
+                f"V4 {role} {mode_label} parsing failed. Raw trace: {trace_path}. {error}"
+            ) from error
         parsed["role"] = role
         parsed["mode_label"] = mode_label
+        parsed["raw_response_trace_path"] = str(trace_path)
+        parsed["raw_response_trace_stage"] = trace_stage_label
 
     raw_response = str(parsed.get("raw_response") or parsed.get("document_text") or "")
-    trace_path = _write_v4_raw_response_trace(workspace, trace_stage_label, raw_response)
-    parsed["raw_response_trace_path"] = str(trace_path)
-    parsed["raw_response_trace_stage"] = trace_stage_label
+    if "raw_response_trace_path" in parsed:
+        trace_path = Path(str(parsed["raw_response_trace_path"]))
+    else:
+        trace_path = _write_v4_raw_response_trace(workspace, trace_stage_label, raw_response)
+        parsed["raw_response_trace_path"] = str(trace_path)
+        parsed["raw_response_trace_stage"] = trace_stage_label
     validate_v4_document(
         role=role,
         mode_label=mode_label,
@@ -1875,6 +1886,9 @@ def _refresh_v4_item_state(state: dict, workspace) -> list[dict]:
 
 
 def _apply_v4_finalization_item_operations(workspace, agent_output: dict, default_author: str) -> None:
+    existing_item_ids = {item["id"] for item in list_items(workspace)}
+    _normalize_v4_finalization_create_types(agent_output)
+    _drop_v4_finalization_updates(agent_output)
     validate_v4_item_operations(
         role=default_author.lower(),
         mode_label=str(agent_output.get("mode_label", "finalization")),
@@ -1882,6 +1896,7 @@ def _apply_v4_finalization_item_operations(workspace, agent_output: dict, defaul
         raw_response_trace_path=agent_output.get("raw_response_trace_path", ""),
         allowed_create_types={"RISK", "WARNING"},
         allow_updates=False,
+        existing_item_ids=existing_item_ids,
     )
     for item_spec in agent_output.get("items_to_create", []):
         create_item(
@@ -1896,6 +1911,33 @@ def _apply_v4_finalization_item_operations(workspace, agent_output: dict, defaul
         )
 
 
+def _normalize_v4_finalization_create_types(agent_output: dict) -> None:
+    for item_spec in agent_output.get("items_to_create", []):
+        item_type = str(item_spec.get("type", "")).strip().upper()
+        if item_type in {"RISK", "WARNING"}:
+            continue
+        if item_type:
+            item_spec["content"] = (
+                f"Originally emitted as {item_type} during finalization. "
+                f"{str(item_spec.get('content', '')).strip()}"
+            ).strip()
+        item_spec["type"] = "WARNING"
+        tags = [
+            str(tag).strip()
+            for tag in item_spec.get("tags", [])
+            if str(tag).strip()
+        ]
+        if "finalization-followup" not in tags:
+            tags.append("finalization-followup")
+        item_spec["tags"] = tags
+
+
+def _drop_v4_finalization_updates(agent_output: dict) -> None:
+    if agent_output.get("items_to_update"):
+        agent_output["ignored_finalization_updates"] = list(agent_output["items_to_update"])
+        agent_output["items_to_update"] = []
+
+
 def _build_v4_user_prompt(
     *,
     role: str,
@@ -1908,6 +1950,42 @@ def _build_v4_user_prompt(
     documents: dict[str, str],
     extra_context: list[str],
 ) -> str:
+    contextual_blocks: list[str] = []
+    if mode_label == "initial_draft":
+        contextual_blocks.append(
+            "Contextual step instruction:\n"
+            "- This is the first Product draft for this run.\n"
+            "- No blackboard item exists yet unless it is shown in Open items context.\n"
+            "- In Blackboard Items To Update, write `- None`.\n"
+            "- In Blackboard Items To Create, create only real unresolved questions, risks, decisions, proposals, constraints, warnings, or feedback.\n"
+            "- Do not output template rows, field names, or placeholder values as items."
+        )
+    if mode_label == "finalization" and role in {"growth", "tech"}:
+        contextual_blocks.append(
+            "Contextual finalization instruction:\n"
+            "- Product has locked the final PRD for this run.\n"
+            "- Do not reopen decisions with QUESTION, DECISION, PROPOSAL, FEEDBACK, or CONSTRAINT items.\n"
+            "- If a final follow-up is still critical, create only a RISK or WARNING item.\n"
+            "- In Blackboard Items To Update, write `- None`."
+        )
+    contextual_blocks.append(
+        "Blackboard operation reminder:\n"
+        "- In create items, ROUTING_TARGETS must contain only PRODUCT, GROWTH, TECH, or ALL.\n"
+        "- Put topic labels such as pricing, privacy, onboarding, data-model, or compliance in TAGS, not in ROUTING_TARGETS.\n"
+        "- Do not output TYPE, AUTHOR, TARGET1, TARGET2, PRIORITY, TAGS, TITLE, or CONTENT as literal item values.\n"
+        "- In Blackboard Items To Create, the first field must be a valid item type, never an ITEM-### id.\n"
+        "- In Blackboard Items To Create, title and content are separate fields; use `|` between them, not `:`.\n"
+        "- Existing ITEM-### ids are read-only references unless they are used in Blackboard Items To Update.\n"
+        "- In Blackboard Items To Update, output only item id and status, with no targets, priority, tags, title, or content.\n"
+        "- Use one bullet marker only for each blackboard operation; do not write nested bullets like `- - ITEM-001 | ANSWERED`.\n"
+        "- Do not copy Open items context rows into Blackboard Items To Create.\n"
+        "- Every required top-level section heading must start with `##`.\n"
+        "- Do not repeat any required document section after the Blackboard Items sections.\n"
+        "- Keep Blackboard Items To Create and Blackboard Items To Update consecutive; do not insert document sections between them.\n"
+        "- Do not write any content after Blackboard Items To Update.\n"
+        "- Update only item IDs that appear in Open items context or Resolved items context for this step.\n"
+        "- If there is no valid operation, write `- None`."
+    )
     sections = [
         f"Mode: {mode_label}",
         f"Run id:\n{workspace.run_id}",
@@ -1920,14 +1998,15 @@ def _build_v4_user_prompt(
     for document_label, document_text in documents.items():
         sections.append(_format_document_context(f"{document_label.upper()} document", document_text))
     sections.extend(extra_context)
+    sections.extend(contextual_blocks)
     sections.append(
         "Return the role document first, then the Blackboard Items To Create and Blackboard Items To Update sections."
     )
     return "\n\n".join(section for section in sections if section.strip())
 
 
-def _parse_v4_agent_output(text: str) -> dict:
-    parsed = parse_v4_agent_response(text)
+def _parse_v4_agent_output(text: str, *, role: str | None = None) -> dict:
+    parsed = parse_v4_agent_response(text, role=role)
     return {
         "raw_response": parsed["raw_response"],
         "document_text": parsed["document_text"],
@@ -1938,11 +2017,13 @@ def _parse_v4_agent_output(text: str) -> dict:
 
 
 def _apply_v4_item_operations(workspace, agent_output: dict, default_author: str) -> None:
+    existing_item_ids = {item["id"] for item in list_items(workspace)}
     validate_v4_item_operations(
         role=default_author.lower(),
         mode_label=str(agent_output.get("mode_label", "unknown")),
         parsed_response=agent_output,
         raw_response_trace_path=agent_output.get("raw_response_trace_path", ""),
+        existing_item_ids=existing_item_ids,
     )
     for item_spec in agent_output.get("items_to_create", []):
         author = item_spec.get("author", "") or default_author
@@ -1988,15 +2069,31 @@ def _open_items_for_role(workspace, target: str) -> list[dict]:
 
 def _format_document_context(title: str, text: str) -> str:
     body = text.strip() or "_Aucun contenu._"
-    return f"## {title}\n\n{body}"
+    return "\n".join(
+        [
+            f"Context document: {title}",
+            "---",
+            body,
+            "---",
+            f"End context document: {title}",
+        ]
+    )
 
 
 def _format_summary_context(title: str, summary: dict) -> str:
     if not summary:
-        return f"## {title}\n\n_Aucun résumé._"
+        return "\n".join(
+            [
+                f"Summary context: {title}",
+                "---",
+                "_Aucun résumé._",
+                "---",
+                f"End summary context: {title}",
+            ]
+        )
     lines = [
-        f"## {title}",
-        "",
+        f"Summary context: {title}",
+        "---",
         f"- Source document: {summary.get('source_document', '')}",
         f"- Source hash: {summary.get('source_hash', '')}",
         f"- Scope: {summary.get('scope', '')}",
@@ -2007,47 +2104,62 @@ def _format_summary_context(title: str, summary: dict) -> str:
     lines.extend(f"  - {item}" for item in summary.get("unresolved_questions", []) or ["None"])
     lines.append("- Critical risks:")
     lines.extend(f"  - {item}" for item in summary.get("critical_risks", []) or ["None"])
+    lines.extend(["---", f"End summary context: {title}"])
     return "\n".join(lines)
 
 
 def _format_open_items_context(workspace, items: list[dict]) -> str:
     if not items:
-        return "## Open Blackboard Items\n\n- None"
-    lines = ["## Open Blackboard Items", ""]
-    for item in items:
-        targets = ", ".join(item.get("targets", [])) or "None"
-        tags = ", ".join(item.get("tags", [])) or "None"
-        lines.extend(
+        return "\n".join(
             [
-                f"- {item['id']} | {item['type']} | {item['priority']} | {item['status']}",
-                f"  - Author: {item['author']}",
-                f"  - Targets: {targets}",
-                f"  - Tags: {tags}",
-                f"  - Title: {item['title']}",
-                f"  - Content: {item['content']}",
+                "Open items context",
+                "---",
+                "- None",
+                "---",
+                "End open items context",
             ]
         )
+    lines = ["Open items context", "---"]
+    for item in items:
+        lines.extend(_format_single_item_context(item))
+    lines.extend(["---", "End open items context"])
     return "\n".join(lines)
 
 
 def _format_items_context(title: str, items: list[dict]) -> str:
     if not items:
-        return f"## {title}\n\n- None"
-    lines = [f"## {title}", ""]
-    for item in items:
-        targets = ", ".join(item.get("targets", [])) or "None"
-        tags = ", ".join(item.get("tags", [])) or "None"
-        lines.extend(
+        return "\n".join(
             [
-                f"- {item['id']} | {item['type']} | {item['priority']} | {item['status']}",
-                f"  - Author: {item['author']}",
-                f"  - Targets: {targets}",
-                f"  - Tags: {tags}",
-                f"  - Title: {item['title']}",
-                f"  - Content: {item['content']}",
+                f"Items context: {title}",
+                "---",
+                "- None",
+                "---",
+                f"End items context: {title}",
             ]
         )
+    lines = [f"Items context: {title}", "---"]
+    for item in items:
+        lines.extend(_format_single_item_context(item))
+    lines.extend(["---", f"End items context: {title}"])
     return "\n".join(lines)
+
+
+def _format_single_item_context(item: dict) -> list[str]:
+    targets = ", ".join(item.get("targets", [])) or "None"
+    tags = ", ".join(item.get("tags", [])) or "None"
+    return [
+        "Read-only blackboard item:",
+        f"Item id: {item['id']}",
+        f"Type: {item['type']}",
+        f"Priority: {item['priority']}",
+        f"Status: {item['status']}",
+        f"Author: {item['author']}",
+        f"Targets: {targets}",
+        f"Tags: {tags}",
+        f"Title: {item['title']}",
+        f"Content: {item['content']}",
+        "",
+    ]
 
 
 def _append_v4_log(workspace, agent: str, event: str, source: str, details: str = "") -> None:
@@ -2091,10 +2203,12 @@ def _owners_for_targets(targets: list[str] | tuple[str, ...] | str) -> list[str]
         raw_targets = list(targets)
     normalized_targets = [str(value).strip().upper() for value in raw_targets if str(value).strip()]
     owners: list[str] = []
+    if "ALL" in normalized_targets:
+        return ["product", "growth", "tech"]
     if "PRODUCT" in normalized_targets:
         owners.append("product")
     if "GROWTH" in normalized_targets:
         owners.append("growth")
     if "TECH" in normalized_targets:
         owners.append("tech")
-    return owners or ["product"]
+    return owners

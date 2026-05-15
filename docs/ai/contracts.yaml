@@ -61,7 +61,9 @@ readiness_contract:
     tag_registry: object
     parse_warning: string
   required_markdown_shape: |
-    Status: READY / LIMITED / INSUFFICIENT
+    Status: READY
+    # or: Status: LIMITED
+    # or: Status: INSUFFICIENT
 
     Blocking Gaps:
     - [tag_name] gap text
@@ -177,6 +179,7 @@ v4_run_workspace_contract:
     - documents/tech/
     - documents/growth/
     - summaries/
+    - summary_outputs/
     - activity_log/
     - final_outputs/
   run_id_rule: >
@@ -227,6 +230,18 @@ v4_blackboard_item_contract:
     Blackboard items are atomic coordination objects. They must stay readable,
     target-specific, and manually inspectable. Status changes preserve the item
     content and only update status plus updated_at.
+  routing_rule: >
+    V4 item targets must include at least one explicit routing target:
+    PRODUCT, GROWTH, TECH, or ALL. Topic labels belong in tags and must not be
+    the only targets. ALL routes to Product, Growth, and Tech. Unknown targets
+    must not silently default to Product.
+  operation_disambiguation_rule: >
+    Create operations must start with a valid item type and must not start with
+    an ITEM-### id. Update operations must contain only item id and status.
+    Create operations must keep title and content as separate canonical fields
+    separated by `|`.
+    Item context shown to agents should keep ids visible without using
+    pipe-delimited rows that resemble operation syntax.
 
 v4_document_contract:
   source: app/run_documents.py
@@ -251,6 +266,56 @@ v4_parser_contract:
     and `## Blackboard Items To Update` from the deliverable text, must
     preserve parsed item operations for the blackboard store, and must keep
     raw_line / line_number on each parsed item for failure traceability.
+    Section lookup for V4 parser-owned headings must be normalized so harmless
+    casing differences in internal headings do not break parsing. Duplicate
+    normalized top-level headings must fail clearly, and role documents must
+    reject copied cross-role headings before write. Known role/context
+    preamble headings before the first contract section are stripped as
+    non-deliverable text, but unexpected headings inside the document body
+    still fail validation. Duplicate required sections fail unless a trailing
+    duplicate after the internal blackboard sections contains only a
+    cross-reference to the earlier section; that trailing duplicate is stripped
+    as non-deliverable text. The canonical create-item format keeps TITLE and
+    CONTENT separated by `|`; the parser may normalize a six-field
+    `TITLE: CONTENT` slip in the final field as a compatibility guard, but
+    prompts must still require the canonical seven-field format.
+    Tech Architecture Notes canonically use `### Mermaid Diagram` followed by
+    a fenced Mermaid block. The parser may normalize a bullet-style Mermaid
+    subsection into that shape when a real Mermaid graph is present.
+    The internal blackboard sections are terminal protocol sections. Once both
+    `## Blackboard Items To Create` and `## Blackboard Items To Update` have
+    appeared, any later top-level heading is treated as non-deliverable trailing
+    content and stripped before validation. Product Locking is a human-facing
+    Product section before the internal blackboard sections; the parser may
+    move a single late Product Locking section before the internal sections as
+    a compatibility guard. Required top-level section headings canonically
+    start with `##`; the parser may promote an exact bare contract heading line
+    to `##` before validation. Blackboard operation lines canonically use one
+    bullet marker; the parser may collapse nested leading bullet markers before
+    item validation. Absence sections such as Open Questions, Requested
+    Changes, and Risks must use explicit absence prose instead of `- None`; the
+    parser may normalize placeholder-only absence sections to explicit absence
+    prose before validation. Growth and Tech finalization may only create RISK
+    or WARNING follow-up items; other create types emitted during finalization
+    are downgraded to WARNING follow-ups before validation and persistence.
+    Product Arbitration canonically uses the parent heading
+    `## Product Arbitration`; the parser may reinsert that parent heading when
+    Product emits the expected arbitration subsections directly after Product
+    Readiness. Mixed target fields that include at least one valid routing
+    target may have non-routing target tokens moved into tags before
+    validation; target fields with no valid routing target still fail. Internal
+    blackboard sections must be consecutive; human-facing sections inserted
+    between `## Blackboard Items To Create` and `## Blackboard Items To Update`
+    are stripped before parsing item updates. Code-like custom identifiers
+    accidentally emitted in the create-item type field, such as DATA-GOV-01,
+    are normalized to QUESTION and moved into tags; literal templates and
+    existing ITEM-### ids still fail. Composite type tokens ending in a valid
+    V4 type, such as DATA-MODEL_QUESTION, are normalized to that valid type and
+    moved into tags. Growth and Tech finalization item updates are ignored
+    before validation because finalization must not mutate existing verification
+    item statuses. Create lines that omit author but preserve
+    TYPE | TARGETS | PRIORITY | TAGS | TITLE | CONTENT are parsed with an empty
+    author so the runtime default author can be applied.
   fields:
     parsed_response:
       - raw_response
@@ -275,24 +340,45 @@ v4_parser_contract:
       - raw_line
       - line_number
 
+v4_readiness_contract:
+  source: app/v4_parsing.py
+  rule: >
+    Product, Growth, and Tech readiness sections must choose exactly one
+    concrete status: READY, LIMITED, or INSUFFICIENT. The literal placeholder
+    `READY / LIMITED / INSUFFICIENT` is invalid. Validation errors must include
+    the role, mode, section, invalid status, and raw trace path.
+
 v4_summary_contract:
   source: app/run_summaries.py
   root: "runs/<run_id>/summaries/"
   file_pattern: "*.summary.yaml"
   required_shape: |
     summary:
-      source_document:
-      source_hash:
-      scope:
+      source_document: <exact source document path>
+      source_hash: <exact source hash>
+      scope: |
+        <short grounded scope summary>
       key_decisions:
+        - <short grounded decision>
       unresolved_questions:
+        - <short grounded question>
       critical_risks:
+        - <short grounded risk>
   rule: >
     A summary is a compressed derivative of exactly one source document.
     It must not introduce new information and must remain traceable through
-    source_document and source_hash.
+    source_document and source_hash. Only the declared fields are valid under
+    summary, and list items must stay indented under their list field. Raw
+    summary responses are captured first under runs/<run_id>/summary_outputs/
+    so parse and validation failures stay inspectable.
 
 v4_agent_output_contracts:
+  prompt_contextualization: >
+    The orchestrator appends small contextual step instructions to the V4
+    user prompt. initial_draft includes explicit no-update guidance, and every
+    mode includes a blackboard operation reminder that keeps routing targets
+    separate from topic tags. Stable role prompts remain general and do not
+    include copyable fake item rows.
   product:
     prompt: app/prompts V4/product_prompt.md
     parser: app/v4_parsing.py:parse_v4_agent_response
@@ -312,9 +398,9 @@ v4_agent_output_contracts:
       - Risks And Failure Modes
       - Product Readiness
       - Product Arbitration
+      - Product Locking
       - Blackboard Items To Create
       - Blackboard Items To Update
-      - Product Locking
     item_create_format: "TYPE | AUTHOR | TARGETS | PRIORITY | TAGS | TITLE | CONTENT"
     item_update_format: "ITEM-001 | ANSWERED"
     internal_sections:

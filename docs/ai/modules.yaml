@@ -403,8 +403,10 @@ modules:
     path: app/run_summaries.py
     role: >
       V4 summary helper. Generates a source-scoped summary from one document
-      at a time, validates the required shape, stores the summary under
-      runs/<run_id>/summaries/, and preserves source_hash traceability.
+      at a time, captures the raw LLM response under runs/<run_id>/
+      summary_outputs/ before parsing, validates the required shape, stores
+      the summary under runs/<run_id>/summaries/, and preserves
+      source_hash traceability.
     read_when:
       - implementing V4 summaries
       - changing summary prompt constraints
@@ -416,9 +418,10 @@ modules:
     path: app/v4_parsing.py
     role: >
       Shared parsing helpers for V4 prompt output. Extracts markdown sections,
-      strips internal blackboard item protocol from deliverable text, validates
-      required human-facing sections, and parses blackboard item create/update
-      lines into structured data with raw line traceability.
+      strips internal blackboard item protocol from deliverable text,
+      normalizes parser-owned headings, validates role-specific document
+      boundaries and readiness statuses, and parses blackboard item create/
+      update lines into structured data with raw line traceability.
     read_when:
       - changing V4 prompt output parsing
       - changing blackboard item line formats
@@ -438,9 +441,12 @@ modules:
       Deterministic V4 regression harness. Validates parser separation, final
       ordering across Product, Growth, and Tech, integrated rejection of
       invalid item types, priorities, and statuses before persistence,
-      placeholder-only required sections, item state rendering, Product
-      finalization item updates, raw trace creation with repeat-safe naming,
-      and final artifact compilation without calling an LLM.
+      normalized internal headings, role-boundary validation, readiness
+      statuses, routing targets, update ownership, contextual prompt blocks,
+      placeholder-only required sections, summary parsing and raw trace
+      capture, item state rendering, Product finalization item updates, raw
+      trace creation with repeat-safe naming, and final artifact compilation
+      without calling an LLM.
     read_when:
       - adding or changing V4 parser regression coverage
       - validating explicit final-document compilation

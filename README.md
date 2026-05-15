@@ -183,9 +183,15 @@ python3 scripts/check_v4_flow_no_llm.py
 ```
 
 Le harness V4 vérifie aussi les opérations d'items invalides, y compris les
-priorités, les sections humaines placeholder-only ou réduites à `- None`, et
-les traces brutes des agents sous `runs/<run_id>/agent_outputs/` avec des noms
-stables et non écrasés quand un même mode se répète.
+priorités, les sections humaines placeholder-only ou réduites à `- None`, les
+sections internes `BlackBoard Items To Create` / `BlackBoard Items To Update`
+avec casse variable, les frontières entre Product / Growth / Tech, les statuts
+de readiness explicites, les cibles `ALL` ou topic-only, les blocs de
+contexte contextualisés ajoutés par l'orchestrateur, et les traces brutes des
+agents sous `runs/<run_id>/agent_outputs/` avec des noms stables et non
+écrasés quand un même mode se répète. Les résumés LLM écrivent aussi leur trace
+brute sous `runs/<run_id>/summary_outputs/` avant parsing, afin que les
+échecs de contrat restent inspectables.
 
 Validation V4 optionnelle avec LLM, seulement si l'environnement est prêt :
 

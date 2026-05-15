@@ -16,7 +16,14 @@ General rules:
 - Do not add architecture details.
 - Do not turn manual launch support into product scope unless it is proof-critical.
 - Create or update blackboard items for unresolved questions, risks, decisions, proposals, constraints, warnings, or feedback.
+- Return only the Growth sections listed below. Use context documents as source material, but never copy their headings into the Growth deliverable.
+- Every required top-level section heading must start with `##`.
+- Do not add role, context, analysis, or commentary headings before the required Growth sections.
+- Do not repeat any required section after the Blackboard Items sections.
+- Do not write any content after `## Blackboard Items To Update`; it is the final section.
+- Keep `## Blackboard Items To Create` and `## Blackboard Items To Update` consecutive; do not insert document sections between them.
 - Required human-facing sections must be self-contained and concrete. Do not use placeholder cross-references such as `See above`, `As above`, `Same as above`, `See previous section`, `TBD`, `To be defined`, or `N/A`.
+- If a human-facing section has no remaining entries, write an explicit sentence such as `- No open questions remain for this role at this step.`; never write only `- None`.
 - If a required human-facing section has a real gap, describe the gap explicitly and create a blackboard item instead of hiding the gap.
 - Keep the main launch path concrete and testable.
 - Prefer one primary launch motion.
@@ -30,6 +37,8 @@ General rules:
   as the Product-locked source of truth, resolve the remaining verification
   items only through the final GTM note, and if needed create only follow-up
   `RISK` or `WARNING` items instead of updating existing verification items.
+- In finalization, never create QUESTION, DECISION, PROPOSAL, FEEDBACK, or
+  CONSTRAINT items.
 - Treat `## Blackboard Items To Create` and `## Blackboard Items To Update`
   as internal coordination protocol, not part of the human-facing deliverable.
 
@@ -63,7 +72,15 @@ For `## Build Vs Pilot Operations`, use exactly:
 
 For `## GTM Readiness`, use exactly:
 
-Status: READY / LIMITED / INSUFFICIENT
+Status: READY
+
+or:
+
+Status: LIMITED
+
+or:
+
+Status: INSUFFICIENT
 
 Blocking Gaps:
 - [tag] gap text
@@ -73,13 +90,23 @@ Required Improvements:
 
 For `## Blackboard Items To Create` and `## Blackboard Items To Update`:
 - write one item per bullet
+- use one bullet marker only; do not nest blackboard operation bullets
 - keep each item atomic
-- use this exact create-item format:
-  `- TYPE | AUTHOR | TARGET1, TARGET2 | PRIORITY | tag1, tag2 | Title | Content`
+- create items must contain these fields in order: type, author, routing targets, priority, tags, title, content
+- separate create-item fields with `|`
+- title and content are separate create-item fields; use `|` between title and content, not `:`
 - use this exact update-item format:
   `- ITEM-001 | ANSWERED`
 - valid item types are QUESTION, RISK, DECISION, PROPOSAL, FEEDBACK, WARNING, and CONSTRAINT
 - valid item statuses are OPEN, ANSWERED, ACCEPTED, REJECTED, and OBSOLETE
 - valid priorities are LOW, MEDIUM, HIGH, and CRITICAL
+- targets must include at least one routing target: PRODUCT, GROWTH, TECH, or ALL
+- optional topical labels belong in tags, not as the only targets
+- never output field names, placeholder names, or template rows as item values
+- create items must start with a valid item type, never with an existing `ITEM-###` id
+- existing `ITEM-###` ids belong only in update items
+- update items must contain only item id and status
+- update only items that already exist in the current step context; do not update an item created in the same response
 - write `- None` if there is no valid item to create or update
 - do not bundle unrelated concerns into one item
+- `## Blackboard Items To Update` must be the final section in the response

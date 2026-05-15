@@ -41,8 +41,12 @@ Important:
   OpenAI-compatible endpoint is used.
   The no-LLM V4 harness also checks invalid item operations, including
   priorities, placeholder-only sections, `- None` in human-facing sections,
-  and run-local raw traces under `runs/<run_id>/agent_outputs/` with repeat-
-  safe naming.
+  `BlackBoard` internal section casing, role-boundary pollution, readiness
+  status normalization, explicit routing targets, prompt-contextualized
+  initial draft instructions, pre-existing item updates, and run-local raw
+  traces under `runs/<run_id>/agent_outputs/` with repeat-safe naming. Summary
+  LLM responses are traced first under `runs/<run_id>/summary_outputs/` so
+  malformed YAML can be inspected without rerunning the model.
 
 ## Deployment Assumption
 

@@ -68,8 +68,10 @@ v4_target_architecture:
     items, documents, summaries, and final outputs. It remains separate from
     the validated V3 baseline, but it is no longer only a paper target.
     V4 agent runs now write raw response traces under runs/<run_id>/agent_outputs/
-    and fail fast on invalid item operations or placeholder-only required
-    sections.
+    and summary traces under runs/<run_id>/summary_outputs/. They fail fast on
+    invalid item operations, placeholder-only required sections, duplicate
+    normalized headings, cross-role document pollution, invalid readiness
+    statuses, and malformed summary YAML.
     Representative LLM validation on CareSync and LocalLoop must still be run
     after sourcing `.env` so the shell sees the traced `OPENAI_API_KEY` and
     `OPENAI_MODEL` values. `OPENAI_BASE_URL` is only required when using a

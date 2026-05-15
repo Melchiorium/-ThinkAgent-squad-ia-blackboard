@@ -22,6 +22,8 @@ ALLOWED_ITEM_TYPES = {
 }
 ALLOWED_PRIORITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
 ALLOWED_STATUSES = {"OPEN", "ANSWERED", "ACCEPTED", "REJECTED", "OBSOLETE"}
+ALLOWED_ROUTING_TARGETS = {"PRODUCT", "GROWTH", "TECH", "ALL"}
+ROLE_ROUTING_TARGETS = ("PRODUCT", "GROWTH", "TECH")
 _ITEM_FILE_PATTERN = re.compile(r"^ITEM-(\d+)\.yaml$")
 
 
@@ -76,7 +78,8 @@ def list_items(
     items = [_read_item(path) for path in _item_paths(run)]
     if target:
         normalized_target = _normalize_identifier(target, "target")
-        items = [item for item in items if normalized_target in item["targets"]]
+        if normalized_target != "ALL":
+            items = [item for item in items if normalized_target in item["targets"]]
     if author:
         normalized_author = _normalize_identifier(author, "author")
         items = [item for item in items if item["author"] == normalized_author]
@@ -309,10 +312,15 @@ def _normalize_targets(values: list[str]) -> list[str]:
     seen: set[str] = set()
     for value in values or []:
         item = _normalize_identifier(value, "target")
-        if item in seen:
-            continue
-        seen.add(item)
-        normalized.append(item)
+        if item not in ALLOWED_ROUTING_TARGETS:
+            allowed_values = ", ".join(sorted(ALLOWED_ROUTING_TARGETS))
+            raise ValueError(f"target must be one of: {allowed_values}")
+        expanded = list(ROLE_ROUTING_TARGETS) if item == "ALL" else [item]
+        for target in expanded:
+            if target in seen:
+                continue
+            seen.add(target)
+            normalized.append(target)
     if not normalized:
         raise ValueError("targets must contain at least one recipient")
     return normalized

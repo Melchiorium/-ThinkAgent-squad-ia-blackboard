@@ -129,13 +129,37 @@ git status --short outputs/web-jobs
 - `OPENAI_BASE_URL` is only required when the validation uses a non-default
   OpenAI-compatible endpoint.
 - The V4 runtime code and no-LLM harness are in place, but the representative
-  CareSync/LocalLoop LLM validation was not rerun in this checkout.
+  CareSync validation run was still blocked at the V4 document-validation
+  boundary before corrective lot 68d. The current failure happened in the
+  `product` `item_resolution` trace at
+  `runs/20260513-165821-caresync-6d1282/agent_outputs/product_item_resolution_02.raw.md`.
+  LocalLoop was not run after the first representative failure because the
+  user asked to stop after the first run.
 
 ## Failure Report
 
-- The CareSync V4 run started successfully after `source .env`, `BLACKBOARD_PROMPT_VERSION=V4`, and `BLACKBOARD_PROJECT_NAME=CareSync`.
-- The run failed during blackboard item creation in `app/orchestrator.py` before the first representative validation completed.
-- The exception came from `app/blackboard_items.py:create_item()`: `ValueError: type must be one of: CONSTRAINT, DECISION, FEEDBACK, PROPOSAL, QUESTION, RISK, WARNING`.
-- This means at least one V4 agent output emitted a non-conforming item type string that the runtime refused to persist.
-- The failure is blocking at the runtime contract boundary, not at the validation-doc layer.
-- The next step for the architect is to inspect the exact item payload emitted by the failing V4 agent output and decide whether the prompt, parser, or item-normalization path needs to be tightened.
+- The CareSync V4 run started successfully after `source .env`,
+  `BLACKBOARD_PROMPT_VERSION=V4`, and `BLACKBOARD_PROJECT_NAME=CareSync`.
+- The earlier blackboard item type blocker was addressed by lots 68b and 68c,
+  but the current representative run now fails later, in the V4 document
+  validation boundary that lot 68d hardens.
+- The exception comes from `app/v4_parsing.py:validate_v4_document()`: the
+  `product` `item_resolution` response is missing or empty for the required
+  internal section `Blackboard Items To Create`.
+- The failing trace is
+  `runs/20260513-165821-caresync-6d1282/agent_outputs/product_item_resolution_02.raw.md`.
+- This is still a runtime contract failure, not a viewer issue.
+- The next step for the architect is to inspect the updated 68d harness and
+  then rerun the representative LLM validation from `.env` if the runtime
+  boundary checks are now green. The next representative attempt is now
+  blocked on corrective lot 68f, which hardens the summary contract after the
+  prompt/contextual guardrails from 68e.
+- Corrective lot 68d now covers the follow-up defects found in this failed
+  run: normalized internal section parsing, cross-role document pollution,
+  readiness placeholder rejection, explicit item routing, update validation
+  for pre-existing item IDs, and the broader live-output boundaries.
+- Corrective lot 68f now covers the later summary-contract blocker found after
+  68e: malformed PRD summary YAML and missing raw summary traces on failure.
+- Corrective lot 68g now covers the next Growth review blocker: create/update
+  item operation confusion caused by `ITEM-###` ids appearing in create-item
+  rows and pipe-delimited item context that can be copied by the model.

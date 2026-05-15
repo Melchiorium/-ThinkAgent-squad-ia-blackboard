@@ -1,0 +1,31 @@
+graph TD
+  U[User Devices (Web / Mobile)]
+  API[API Gateway & Auth (OIDC)]
+  SG[CareSync Services]
+  CAL[Calendar Service]
+  REM[Reminders Service]
+  DOC[Document Storage Service]
+  MSG[Messaging Service]
+  PERM[Permissions Service]
+  PROFILE[Recipient Profile & Contacts]
+  DB[Data Layer: Databases + Storage]
+  NOTIF[Notification System]
+  LOG[Logging & Audit]
+
+  U -->|HTTPS| API
+  API --> SG
+  SG --> CAL
+  SG --> REM
+  SG --> DOC
+  SG --> MSG
+  SG --> PERM
+  SG --> PROFILE
+  API --> NOTIF
+  PROFILE --> DB
+  CAL --> DB
+  REM --> DB
+  DOC --> DB
+  MSG --> DB
+  PERM --> DB
+  NOTIF --> DB
+  LOG --> DB

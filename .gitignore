@@ -6,3 +6,4 @@ venv/
 .env/
 node_modules/
 outputs/web-jobs/
+/runs/

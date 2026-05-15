@@ -1,0 +1,23 @@
+2026-05-14T17:16:19.948322Z | orchestrator | workspace_created | app/orchestrator.py | 20260514-171619-caresync-91802c
+2026-05-14T17:17:10.693811Z | orchestrator | product_initial | app/orchestrator.py | document=PRD_V0.md; items_to_create=7; items_to_update=0
+2026-05-14T17:18:24.315765Z | orchestrator | growth_review | app/orchestrator.py | document=GTM_V0.md; items_to_create=5; items_to_update=0
+2026-05-14T17:19:18.479525Z | orchestrator | tech_review | app/orchestrator.py | document=Architecture_V0.md; items_to_create=4; items_to_update=0
+2026-05-14T17:20:36.940671Z | orchestrator | product_revision | app/orchestrator.py | document=PRD_V1.md; items_to_create=6; items_to_update=1
+2026-05-14T17:21:47.079243Z | orchestrator | growth_item_resolution_1 | app/orchestrator.py | document=PRD_V1.md; items_to_create=4; items_to_update=0
+2026-05-14T17:22:39.035971Z | orchestrator | tech_item_resolution_1 | app/orchestrator.py | document=PRD_V1.md; items_to_create=4; items_to_update=4
+2026-05-14T17:23:15.851139Z | orchestrator | product_item_resolution_1 | app/orchestrator.py | document=PRD_V1.md; items_to_create=0; items_to_update=0
+2026-05-14T17:23:15.853396Z | orchestrator | correction_loop_1 | app/orchestrator.py | changed=True; open_items=25
+2026-05-14T17:24:32.774704Z | orchestrator | growth_item_resolution_2 | app/orchestrator.py | document=PRD_V1.md; items_to_create=5; items_to_update=4
+2026-05-14T17:25:08.831500Z | orchestrator | tech_item_resolution_2 | app/orchestrator.py | document=PRD_V1.md; items_to_create=4; items_to_update=4
+2026-05-14T17:26:04.525656Z | orchestrator | product_item_resolution_2 | app/orchestrator.py | document=PRD_V1.md; items_to_create=8; items_to_update=5
+2026-05-14T17:26:04.527545Z | orchestrator | correction_loop_2 | app/orchestrator.py | changed=True; open_items=33
+2026-05-14T17:26:51.354775Z | orchestrator | growth_candidate_rewrite | app/orchestrator.py | document=GTM_CANDIDATE.md; items_to_create=4; items_to_update=0
+2026-05-14T17:28:05.141555Z | orchestrator | tech_candidate_rewrite | app/orchestrator.py | document=Architecture_CANDIDATE.md; items_to_create=4; items_to_update=0
+2026-05-14T17:29:20.817033Z | orchestrator | product_candidate_rewrite | app/orchestrator.py | document=PRD_CANDIDATE.md; items_to_create=4; items_to_update=1
+2026-05-14T17:30:53.287074Z | orchestrator | product_verification | app/orchestrator.py | items_to_create=0; items_to_update=0
+2026-05-14T17:31:47.251248Z | orchestrator | growth_verification | app/orchestrator.py | items_to_create=5; items_to_update=0
+2026-05-14T17:32:39.383740Z | orchestrator | tech_verification | app/orchestrator.py | items_to_create=3; items_to_update=3
+2026-05-14T17:33:29.346668Z | orchestrator | product_finalization | app/orchestrator.py | document=PRD_FINAL.md; items_to_create=0; items_to_update=5
+2026-05-14T17:34:21.189730Z | orchestrator | growth_finalization | app/orchestrator.py | document=GTM_FINAL.md; items_to_create=0; items_to_update=0
+2026-05-14T17:36:08.882767Z | orchestrator | tech_finalization | app/orchestrator.py | document=Architecture_FINAL.md; items_to_create=2; items_to_update=0
+2026-05-14T17:36:24.462984Z | orchestrator | finalization_ready | app/orchestrator.py | open_items=46

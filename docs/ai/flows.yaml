@@ -128,12 +128,15 @@ v4_explicit_orchestration_flow:
     - run Product initial draft into PRD_V0.md
     - summarize PRD_V0.md
     - run Growth and Tech review passes with the brief, PRD summary, and required document context
+    - format context documents with plain labels, not deliverable-like headings
     - write GTM_V0.md and Architecture_V0.md
     - summarize GTM_V0.md and Architecture_V0.md
     - run Product revision with the initial summaries and full document context
     - write PRD_V1.md
     - run a bounded item-resolution loop over remaining open items
     - keep the item-resolution loop focused on item updates, resolution notes, and blackboard state
+    - append contextual step instructions to the V4 user prompt without changing stable role prompts
+    - validate item updates against items that existed before the current response
     - generate PRD_CANDIDATE.md, GTM_CANDIDATE.md, and Architecture_CANDIDATE.md after resolution
     - apply parsed item operations immediately after each candidate document is produced
     - recompute open and resolved items after each candidate batch
@@ -168,7 +171,10 @@ v4_mode_contract:
     declared in the V4 prompts. The initial review/revision modes are kept for
     the first pass, while the later phases stay blackboard-first and
     item-aware. Finalization order is Product first, then Growth, then Tech,
-    so later passes read the locked upstream documents.
+    so later passes read the locked upstream documents. The orchestrator also
+    appends small contextual step instructions to the user prompt, including
+    explicit initial_draft no-update guidance and a blackboard operation
+    reminder for every mode.
 
 v4_final_output_compilation_flow:
   owner: app/artifact_writer.py and app/generation_service.py
@@ -234,12 +240,14 @@ v4_summary_generation_flow:
   steps:
     - receive exactly one source document path
     - compute a source hash from the source document content
+    - write the raw LLM response under runs/<run_id>/summary_outputs/ before parsing
     - call the LLM with a strict summary prompt
     - validate the required summary shape
     - write the summary under runs/<run_id>/summaries/
   limitations:
     - one source document at a time only
     - summaries are derivatives, not a source of truth
+    - raw summary traces stay run-local and are not copied to public artifacts
     - separate from the validated V3 baseline
 
 v4_regression_validation_flow:
@@ -250,6 +258,12 @@ v4_regression_validation_flow:
     - parse a fake agent response with blackboard item sections
     - confirm the parsed document text excludes internal item sections
     - confirm parsed item operations preserve raw line traceability
+    - confirm normalized internal headings such as BlackBoard still parse
+    - confirm duplicate normalized top-level headings fail clearly
+    - confirm role documents reject copied cross-role deliverable headings
+    - confirm readiness sections accept exactly one concrete status and reject placeholder status text
+    - confirm topic-only routing targets fail and ALL routes to all roles
+    - confirm updates only reference pre-existing item ids
     - run the V4 flow with fake agent outputs, fake summaries, and a temp workspace
     - confirm invalid item types, priorities, and statuses fail before persistence
     - confirm placeholder-only required sections fail validation
@@ -257,6 +271,7 @@ v4_regression_validation_flow:
     - compile public artifacts from explicit final documents
     - confirm public artifacts do not include internal item sections
     - confirm run-local raw agent traces are written under agent_outputs/ with repeat-safe naming
+    - confirm summary raw traces are written before parse or validation errors and remain private
     - confirm blackboard.md preserves open and resolved item state in their expected sections
   limitations:
     - no real LLM calls
