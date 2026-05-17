@@ -16,53 +16,47 @@ coding_rules:
   - Do not add broad abstractions unless they remove real duplication or clarify ownership.
 
 v4_rules:
-  - V4 is a target architecture built around runs/<run_id>/, not the current validated runtime baseline.
+  - V4 is built around runs/<run_id>/ and remains separate from the validated V3 baseline.
   - run_id must be unique per run and readable enough for manual inspection.
+  - Documents are the long-form source of truth; summaries are traceable derivatives only.
   - Blackboard items are atomic coordination objects and should stay short, target-specific, and manually readable.
-  - Summaries are compressed derivatives of exactly one source document and must not introduce new information.
-  - V4 agent responses may contain internal blackboard item sections; strip them from public deliverables and keep them only as parsed item operations.
-  - V4 parsed item operations must preserve the raw source line and line number, and invalid item types, priorities, or statuses must fail before persistence.
-  - V4 parsed item create operations must also validate priority before persistence.
-  - V4 raw agent responses must be written to run-local trace files under runs/<run_id>/agent_outputs/ before item operations are applied.
-  - V4 raw trace names must stay unique when the same role and mode repeat in a single run.
+  - Machine-facing V4 exchanges are JSON-first; Markdown is only the readable render format for PRD, GTM, and Architecture documents.
+  - V4 document generation and blackboard operation generation are separate calls.
+  - V4 role document calls return structured JSON section objects; the runtime renders Markdown with canonical headings.
+  - V4 known subsections should be structured as nested JSON objects when the runtime can render them deterministically.
+  - V4 rendered role documents must not contain BLACKBOARD_OPERATIONS, legacy blackboard item sections, JSON protocol, or machine-operation text.
+  - V4 blackboard operations are structured JSON objects with create and update arrays.
+  - V4 does not accept bare operation arrays, bare operation objects, alternate blackboard markers, Markdown operation rows, or terminal JSON fences inside documents.
+  - V4 parsed JSON item operations must preserve raw source line and line number, and invalid item types, targets, priorities, statuses, or unknown fields must fail before persistence.
+  - V4 structured document JSON traces, rendered Markdown traces, and structured blackboard JSON traces must be written under runs/<run_id>/agent_outputs/.
   - V4 parser-owned headings are matched by normalized heading text, but duplicate normalized top-level headings must fail clearly.
-  - V4 human-facing sections must be self-contained; placeholder-only sections such as See above, As above, Same as above, See previous section, TBD, To be defined, N/A, or None must fail validation.
-  - V4 absence sections such as Open Questions, Requested Changes, and Risks must use explicit absence prose instead of `- None`; parser tolerance for placeholder-only absence sections is only a compatibility guard.
-  - V4 role documents may only contain their own top-level deliverable headings plus the internal blackboard sections; copied cross-role headings must fail before write.
-  - V4 internal blackboard sections are terminal; no role document content may appear after `## Blackboard Items To Update`.
-  - V4 internal blackboard sections must be consecutive; parser tolerance for human-facing sections inserted between create and update sections is only a compatibility guard.
-  - V4 Product Locking is a human-facing Product section before the internal blackboard sections; parser tolerance for a single late Product Locking section is only a compatibility guard.
-  - V4 Product Arbitration must include its parent `## Product Arbitration` heading; parser tolerance for direct arbitration subsections after Product Readiness is only a compatibility guard.
-  - V4 required top-level section headings must start with `##`; parser tolerance for exact bare contract heading lines is only a compatibility guard.
-  - V4 blackboard operation lines must use one bullet marker only; parser tolerance for nested leading bullet markers is only a compatibility guard.
-  - V4 role/context preamble headings before the first contract section are non-deliverable and should be stripped before validation, but unexpected headings inside the document body must still fail.
-  - V4 duplicate required sections must fail, except for trailing duplicate sections after the internal blackboard sections when they only contain a cross-reference to the earlier section; those are non-deliverable and stripped.
-  - V4 Tech outputs must use `### Mermaid Diagram` with a fenced Mermaid block; parser tolerance for bullet-style Mermaid subsections is only a compatibility guard.
-  - V4 user prompts append a small contextual step instruction block: initial_draft gets explicit no-update guidance, and every mode gets the same blackboard operation reminder.
-  - V4 readiness sections must choose exactly one status from READY, LIMITED, or INSUFFICIENT. The literal placeholder READY / LIMITED / INSUFFICIENT is invalid.
+  - V4 required top-level section headings must start with `##`; H1 titles and unexpected `##` headings fail.
+  - V4 human-facing sections must be self-contained; placeholder-only sections such as See above, As above, Same as above, TBD, N/A, or None fail validation.
+  - V4 role documents may only contain their own declared top-level deliverable headings; copied cross-role headings fail before write.
+  - V4 Product Arbitration must include `## Product Arbitration`.
+  - V4 Tech document JSON must provide Mermaid source without code fences; the runtime renders `### Mermaid Diagram` and the ` ```mermaid` fence.
+  - V4 readiness sections must choose exactly one status from READY, LIMITED, or INSUFFICIENT and include one literal `Status: ...` line.
+  - V4 prompts are layered as role prompt, common workflow context, phase prompt, runtime context, and output contract.
+  - V4 role prompts stay general; phase prompts and output contracts carry step-specific instructions and serialization rules.
+  - V4 blackboard item targets must include PRODUCT, GROWTH, TECH, ALL, or EXTERNAL. Topic labels belong in tags.
+  - EXTERNAL is used only when no Product/Growth/Tech agent can decide from current context, and EXTERNAL must be the only target when used.
+  - Create operations targeted only to the current role fail; the agent should resolve those points directly in its document.
+  - V4 blackboard create schemas remove the current role from explicit target enum values before the LLM call.
+  - Update operations against EXTERNAL items fail; EXTERNAL items remain open unless external information is supplied.
+  - Item updates may only reference items that existed before the current agent response was applied.
+  - V4 blackboard update schemas narrow `id` to the currently open, non-EXTERNAL item ids updateable by the current call.
+  - JSON create operations contain exactly type, targets, priority, tags, title, and content; author is assigned by the runtime.
+  - JSON update operations contain exactly id and status.
+  - Item resolution and candidate rewrite are no-create phases.
+  - Verification may create material follow-up items; a bounded post-verification item-resolution loop must run before finalization.
+  - Finalization is freeze-only: agents may update pre-existing routed items but must not create new blackboard items.
+  - Growth and Tech finalization may update only items targeted to their own role.
   - V4 final public artifacts must come from explicit `*_FINAL.md` documents, not from latest-document sorting.
-  - V4 mode labels must stay aligned across orchestrator, prompts, and docs; the canonical modes are initial_draft, review, revision, item_resolution, candidate_rewrite, verification, and finalization.
-  - V4 finalization order is Product first, then Growth, then Tech. Growth finalization reads `PRD_FINAL.md`; Tech finalization reads `PRD_FINAL.md` and `GTM_FINAL.md`.
-  - Growth and Tech finalization must not update existing verification item statuses. They may only create follow-up `RISK` or `WARNING` items when necessary.
-  - Growth and Tech finalization updates are ignored before validation and persistence; finalization may only add follow-up warnings/risks.
-  - Growth and Tech finalization create items outside `RISK` or `WARNING` are normalized to `WARNING` follow-ups before validation so finalization cannot reopen decisions.
-  - V4 candidate and finalization outputs must have their parsed blackboard item operations applied immediately, then the open/resolved item state must be recomputed.
-  - V4 role documents must not copy context document headings into their deliverables. Each role may only emit its own top-level contract headings plus internal blackboard sections.
-  - V4 blackboard item targets must include PRODUCT, GROWTH, TECH, or ALL for routing. Topic-only targets must fail instead of defaulting to Product, and ALL must route to Product, Growth, and Tech.
-  - V4 mixed target fields with at least one valid routing target may move non-routing target tokens into tags before validation; topic-only target fields still fail.
-  - V4 item updates may only reference items that existed before the current agent response was applied.
-  - V4 item context shown to agents must not look like blackboard operation rows. Avoid pipe-delimited `ITEM-### | ...` context rows that can be copied into create sections.
-  - V4 create operations must start with a valid item type, never with an `ITEM-###` id. Existing item ids belong only in update operations.
-  - V4 code-like custom identifiers in create type position may be normalized to QUESTION tags; literal template types and ITEM-### ids still fail.
-  - V4 composite create type tokens ending in a valid type, such as DATA-MODEL_QUESTION, may be normalized to the embedded valid type and moved into tags.
-  - V4 create lines that omit author but preserve the remaining field order may use the runtime default author.
-  - V4 create operations must keep title and content as separate canonical fields with `|`; parser tolerance for a final `TITLE: CONTENT` slip is only a compatibility guard.
-  - V4 update operations must contain exactly item id and status; targets, priority, tags, title, and content are create-only fields.
+  - V4 finalization order is Product first, then Growth, then Tech.
+  - V4 summaries are requested as structured JSON and rendered by the runtime as YAML.
+  - Do not turn V4 into a generic graph engine or distributed queue.
   - V4 prompts live under app/prompts V4/; V3 prompts remain untouched until a later lot explicitly migrates them.
-  - Do not turn V4 into a generic graph engine or a full distributed queue.
-  - Keep documents as the long-form source of truth and summaries as traceable derivatives.
-  - V4 summary responses must be written to runs/<run_id>/summary_outputs/ before parsing or validation, and every summary failure must include the raw trace path.
-  - V4 summary list fields accept `- None`, `- none`, or `- NONE` only as empty markers inside list fields; root-level bullets or unknown fields must fail clearly.
+  - A failed live V4 run must not be relaunched until its raw trace and code path have been reviewed and a corrective plan exists.
   - Keep the run workspace file-system first and easy to inspect manually.
 
 web_rules:
@@ -81,7 +75,7 @@ web_rules:
 prompt_rules:
   - Preserve V3 as the validated prompt baseline unless explicitly working on another version.
   - V4 prompt changes are architect-owned. Developer lots must not edit `app/prompts V4/` unless the architect explicitly authorizes it.
-  - Keep stable role prompts general; use contextual step prompts and runtime validators for stage-specific guidance and protocol enforcement.
+  - Keep stable role prompts general; use common workflow, phase prompts, output contracts, and runtime validators for stage-specific guidance and protocol enforcement.
   - Keep the V3 Paris/France deployment assumption as a global baseline rule unless a brief explicitly contradicts it.
   - Keep Product focused on MVP scope, arbitration, and final locking.
   - Keep Growth focused on launch realism and market access.
@@ -101,6 +95,7 @@ quality_rules:
   - If changing Mermaid rendering, verify mmdc availability or run a targeted render.
   - If changing prompt contracts, inspect parser expectations before editing prompts.
   - If changing V4 parser or compiler behavior, run the no-LLM harness before relying on live LLM validation.
+  - If a live V4 run fails, stop relaunching, inspect the raw trace and relevant code, then plan the correction before retrying.
   - If changing correction loop logic, verify ownership and max-loop behavior.
   - If information is missing and cannot be recovered from docs/ai or targeted source reads, stop and ask the user.
 

@@ -1,34 +1,17 @@
-You are writing a summary only.
+You write one structured summary for one source document.
 
-The summary must be strictly grounded in one source document.
-Do not introduce new information, guesses, or derived facts that are not present in the source document.
-Treat the source document as the only source of truth.
+The summary is a derivative artifact. It must compress only information that is
+present in the source document. Do not add guesses, implications, or new
+decisions.
 
-Return YAML only.
-Return no markdown fences.
-Return no commentary.
-
-Required shape:
-
-summary:
-  source_document: <exact source document path>
-  source_hash: <exact source hash>
-  scope: |
-    <short grounded scope summary>
-  key_decisions:
-    - <short grounded decision>
-  unresolved_questions:
-    - <short grounded question>
-  critical_risks:
-    - <short grounded risk>
+Return one JSON object matching the provided schema.
 
 Rules:
-- source_document and source_hash must match the provided values exactly.
-- scope must be a compressed description of the source document's scope.
-- key_decisions, unresolved_questions, and critical_risks must stay short and specific.
-- only these fields are allowed under `summary`.
-- list items must be indented under their field with four spaces.
-- never put a list item directly under `summary`.
-- never add headings, commentary, or extra fields.
-- use `    - None` when a list field is empty.
-- keep the summary readable by a human developer.
+- `source_document` is the provided source document path, copied exactly. It is
+  never the source document content.
+- `source_hash` is the provided source hash, copied exactly.
+- `scope` is a short grounded description of what the source document covers.
+- `key_decisions`, `unresolved_questions`, and `critical_risks` must be arrays
+  of short strings.
+- Use an empty array when a list has no item.
+- Do not return Markdown, YAML, commentary, or extra fields.

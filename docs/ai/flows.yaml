@@ -104,6 +104,10 @@ validation_flows:
   caution: >
     This calls external LLM APIs and writes a new outputs/tests/<Project>/version X
     directory.
+  live_failure_rule: >
+    When a live V4 run fails, do not relaunch it immediately. Inspect the raw
+    trace and relevant code, perform a real review, write a corrective plan, and
+    only then modify or retry.
 
 standard_generation_service_flow:
   owner: app/generation_service.py
@@ -134,19 +138,31 @@ v4_explicit_orchestration_flow:
     - run Product revision with the initial summaries and full document context
     - write PRD_V1.md
     - run a bounded item-resolution loop over remaining open items
-    - keep the item-resolution loop focused on item updates, resolution notes, and blackboard state
-    - append contextual step instructions to the V4 user prompt without changing stable role prompts
+    - keep the item-resolution loop no-create and focused on item updates, resolution notes, and blackboard state
+    - compose each V4 document prompt from role, common workflow, phase, runtime context, and document contract
+    - request each V4 role document as structured JSON keyed by canonical section names
+    - render Markdown documents from structured JSON section bodies and known nested objects
+    - validate each rendered Markdown role document before requesting blackboard operations
+    - request blackboard operations through a separate structured JSON call
+    - validate item operations against the JSON schema and current blackboard state
+    - narrow blackboard update ids to currently open, non-EXTERNAL items updateable by the call
     - validate item updates against items that existed before the current response
+    - keep EXTERNAL items open and out of automatic Product/Growth/Tech routing
     - generate PRD_CANDIDATE.md, GTM_CANDIDATE.md, and Architecture_CANDIDATE.md after resolution
-    - apply parsed item operations immediately after each candidate document is produced
+    - keep candidate rewrites no-create; verification is responsible for opening any material follow-up items
+    - apply parsed item updates immediately after each candidate document is produced
     - recompute open and resolved items after each candidate batch
     - run one verification pass over the candidate documents
     - apply parsed verification item operations immediately after each verification output
     - recompute open and resolved items after each verification batch
+    - run a bounded post-verification item-resolution loop over remaining non-EXTERNAL open items
+    - recompute open and resolved items after the post-verification resolution loop
     - run Product finalization first and generate PRD_FINAL.md as the locked source of truth
     - run Growth finalization against PRD_FINAL.md and generate GTM_FINAL.md
     - run Tech finalization against PRD_FINAL.md and GTM_FINAL.md and generate Architecture_FINAL.md
-    - apply parsed finalization item operations immediately after each final output is produced
+    - scope Growth and Tech finalization update context to their own remaining open items
+    - apply parsed finalization item updates immediately after each final output is produced
+    - reject any finalization create operation before persistence
     - recompute open and resolved items after each finalization batch
     - record stage transitions in the activity log
     - hand the run off to final output compilation
@@ -170,11 +186,14 @@ v4_mode_contract:
     These are the canonical V4 mode labels used by the orchestrator and
     declared in the V4 prompts. The initial review/revision modes are kept for
     the first pass, while the later phases stay blackboard-first and
-    item-aware. Finalization order is Product first, then Growth, then Tech,
-    so later passes read the locked upstream documents. The orchestrator also
-    appends small contextual step instructions to the user prompt, including
-    explicit initial_draft no-update guidance and a blackboard operation
-    reminder for every mode.
+    item-aware. Item resolution and candidate rewrite are no-create phases.
+    Verification may create material follow-up items, then a bounded
+    post-verification item-resolution loop runs before finalization.
+    Finalization order is Product first, then Growth, then Tech, so later
+    passes read the locked upstream documents. Finalization is freeze-only:
+    agents may update pre-existing routed items but must not create new items.
+    The orchestrator uses phase prompt files for step-specific instructions
+    instead of embedding collaboration rules inside role prompts.
 
 v4_final_output_compilation_flow:
   owner: app/artifact_writer.py and app/generation_service.py
@@ -242,7 +261,9 @@ v4_summary_generation_flow:
     - compute a source hash from the source document content
     - write the raw LLM response under runs/<run_id>/summary_outputs/ before parsing
     - call the LLM with a strict summary prompt
+    - request a structured JSON summary
     - validate the required summary shape
+    - render the validated JSON summary as YAML
     - write the summary under runs/<run_id>/summaries/
   limitations:
     - one source document at a time only
@@ -255,23 +276,26 @@ v4_regression_validation_flow:
   status: validation
   command: python3 scripts/check_v4_flow_no_llm.py
   steps:
-    - parse a fake agent response with blackboard item sections
-    - confirm the parsed document text excludes internal item sections
-    - confirm parsed item operations preserve raw line traceability
-    - confirm normalized internal headings such as BlackBoard still parse
+    - parse fake agent Markdown documents with no machine operation block
+    - reject BLACKBOARD_OPERATIONS and legacy blackboard item sections in documents
+    - validate separate structured JSON blackboard operations
+    - confirm parsed JSON item operations preserve raw line traceability
     - confirm duplicate normalized top-level headings fail clearly
     - confirm role documents reject copied cross-role deliverable headings
     - confirm readiness sections accept exactly one concrete status and reject placeholder status text
-    - confirm topic-only routing targets fail and ALL routes to all roles
+    - confirm topic-only routing targets fail, ALL routes to all roles, and EXTERNAL routes to no agent
+    - confirm self-targeted create items and EXTERNAL item updates fail
     - confirm updates only reference pre-existing item ids
     - run the V4 flow with fake agent outputs, fake summaries, and a temp workspace
-    - confirm invalid item types, priorities, and statuses fail before persistence
+    - confirm invalid item types, priorities, targets, statuses, self-targeted creates, and EXTERNAL updates fail before persistence
     - confirm placeholder-only required sections fail validation
     - confirm Product finalization receives the actual remaining open items
+    - confirm post-verification items are routed through item_resolution before finalization
+    - confirm finalization schemas and validators reject create operations
     - compile public artifacts from explicit final documents
-    - confirm public artifacts do not include internal item sections
+    - confirm public artifacts do not include machine operation protocol
     - confirm run-local raw agent traces are written under agent_outputs/ with repeat-safe naming
-    - confirm summary raw traces are written before parse or validation errors and remain private
+    - confirm structured summary raw traces are written and remain private
     - confirm blackboard.md preserves open and resolved item state in their expected sections
   limitations:
     - no real LLM calls
@@ -282,13 +306,13 @@ v4_prompt_layer_flow:
   owner: app/prompts V4/
   status: active_runtime
   steps:
-    - keep stable system prompts separate from the project brief
-    - treat the brief as the shared initial context
-    - let the orchestrator provide contextual step prompts
-    - keep V4 Product, Growth, Tech, and summary prompts blackboard-first
-    - state the allowed item types and statuses plainly in the role prompts
-    - tell agents to use `- None` only when there is no valid item operation
+    - keep role prompts under app/prompts V4/roles/
+    - keep shared collaboration semantics under app/prompts V4/common/
+    - keep phase-specific instructions under app/prompts V4/phases/
+    - keep document and blackboard serialization rules under app/prompts V4/contracts/
+    - compose document prompts and blackboard JSON prompts separately in the orchestrator
     - keep required human-facing sections self-contained and placeholder-free
+    - require structured JSON for item operations
   limitations:
     - separate from the validated V3 baseline
     - does not replace the validated V3 prompts

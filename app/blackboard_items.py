@@ -22,7 +22,7 @@ ALLOWED_ITEM_TYPES = {
 }
 ALLOWED_PRIORITIES = {"LOW", "MEDIUM", "HIGH", "CRITICAL"}
 ALLOWED_STATUSES = {"OPEN", "ANSWERED", "ACCEPTED", "REJECTED", "OBSOLETE"}
-ALLOWED_ROUTING_TARGETS = {"PRODUCT", "GROWTH", "TECH", "ALL"}
+ALLOWED_ROUTING_TARGETS = {"PRODUCT", "GROWTH", "TECH", "ALL", "EXTERNAL"}
 ROLE_ROUTING_TARGETS = ("PRODUCT", "GROWTH", "TECH")
 _ITEM_FILE_PATTERN = re.compile(r"^ITEM-(\d+)\.yaml$")
 
@@ -310,11 +310,14 @@ def _normalize_item_id(value: Any) -> str:
 def _normalize_targets(values: list[str]) -> list[str]:
     normalized: list[str] = []
     seen: set[str] = set()
+    has_external = False
     for value in values or []:
         item = _normalize_identifier(value, "target")
         if item not in ALLOWED_ROUTING_TARGETS:
             allowed_values = ", ".join(sorted(ALLOWED_ROUTING_TARGETS))
             raise ValueError(f"target must be one of: {allowed_values}")
+        if item == "EXTERNAL":
+            has_external = True
         expanded = list(ROLE_ROUTING_TARGETS) if item == "ALL" else [item]
         for target in expanded:
             if target in seen:
@@ -323,6 +326,8 @@ def _normalize_targets(values: list[str]) -> list[str]:
             normalized.append(target)
     if not normalized:
         raise ValueError("targets must contain at least one recipient")
+    if has_external and normalized != ["EXTERNAL"]:
+        raise ValueError("EXTERNAL must be the only target when used")
     return normalized
 
 

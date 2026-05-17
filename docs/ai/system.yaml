@@ -59,9 +59,12 @@ v4_target_architecture:
     - activity_log/
     - final_outputs/
   prompt_layers:
-    - stable system prompt
-    - initial project brief
-    - contextual step prompt
+    - role prompt
+    - common workflow context
+    - phase prompt
+    - runtime context
+    - document contract
+    - blackboard output contract
   note: >
     V4 is the file-system-first runtime path behind
     BLACKBOARD_PROMPT_VERSION=V4. It separates the run workspace, blackboard
@@ -71,7 +74,13 @@ v4_target_architecture:
     and summary traces under runs/<run_id>/summary_outputs/. They fail fast on
     invalid item operations, placeholder-only required sections, duplicate
     normalized headings, cross-role document pollution, invalid readiness
-    statuses, and malformed summary YAML.
+    statuses, self-targeted create items, EXTERNAL item misuse, and malformed
+    structured summaries. Machine-facing V4 exchanges are JSON-first. V4 role
+    document calls return structured JSON section objects; the runtime renders
+    Markdown with canonical headings and known subsections only for readable
+    PRD, GTM, and Architecture documents. Blackboard operations are requested
+    in a separate structured JSON call, and summaries are requested as
+    structured JSON before the runtime renders YAML.
     Representative LLM validation on CareSync and LocalLoop must still be run
     after sourcing `.env` so the shell sees the traced `OPENAI_API_KEY` and
     `OPENAI_MODEL` values. `OPENAI_BASE_URL` is only required when using a

@@ -73,6 +73,12 @@ app/
     product_prompt.md
     tech_prompt.md
     growth_prompt.md
+  prompts V4/
+    roles/                  # identité Product / Growth / Tech
+    common/                 # contexte de workflow partagé
+    phases/                 # consignes par phase V4
+    contracts/              # contrats JSON documents + opérations blackboard séparées
+    summary_prompt.md
   prompts V2/              # ancienne génération de prompts, conservée pour historique
   prompts/                 # prompts initiaux / historiques
   evaluations/
@@ -182,16 +188,21 @@ Validation V4 sans LLM :
 python3 scripts/check_v4_flow_no_llm.py
 ```
 
-Le harness V4 vérifie aussi les opérations d'items invalides, y compris les
-priorités, les sections humaines placeholder-only ou réduites à `- None`, les
-sections internes `BlackBoard Items To Create` / `BlackBoard Items To Update`
-avec casse variable, les frontières entre Product / Growth / Tech, les statuts
-de readiness explicites, les cibles `ALL` ou topic-only, les blocs de
-contexte contextualisés ajoutés par l'orchestrateur, et les traces brutes des
-agents sous `runs/<run_id>/agent_outputs/` avec des noms stables et non
-écrasés quand un même mode se répète. Les résumés LLM écrivent aussi leur trace
-brute sous `runs/<run_id>/summary_outputs/` avant parsing, afin que les
-échecs de contrat restent inspectables.
+Le harness V4 vérifie aussi que les échanges machine sont JSON-first, avec un
+rendu Markdown déterministe seulement pour les documents PRD, GTM et
+Architecture lisibles. Les sections connues comme readiness, arbitration,
+locking, build-vs-pilot et Mermaid sont des objets JSON imbriqués rendus par le
+runtime. Le harness couvre aussi le parsing strict du Markdown rendu, le rejet
+du protocole machine dans les livrables, les opérations blackboard JSON
+séparées, les items invalides, les cibles `ALL` et `EXTERNAL`, le rejet des
+items ciblés seulement vers leur auteur, la composition en couches des prompts
+V4, les traces brutes sous `runs/<run_id>/agent_outputs/`, et les summaries
+structurées rendues ensuite en YAML. Les phases `item_resolution` et
+`candidate_rewrite` sont no-create. La phase V4 `verification` peut ouvrir des
+items de suivi matériels ; ils sont routés dans une boucle bornée
+`item_resolution` avant `finalization`. La finalisation est freeze-only : elle
+peut mettre à jour des items préexistants, mais ne doit jamais créer de nouveaux
+items blackboard.
 
 Validation V4 optionnelle avec LLM, seulement si l'environnement est prêt :
 
@@ -204,8 +215,7 @@ BLACKBOARD_PROMPT_VERSION=V4 BLACKBOARD_PROJECT_NAME=LocalLoop python3 app/main.
 Le dépôt trace déjà `OPENAI_API_KEY` et `OPENAI_MODEL` dans `.env` pour la
 validation locale. Le shell ne les voit qu'après `source .env`. Si un autre
 endpoint OpenAI-compatible est utilisé, `OPENAI_BASE_URL` doit être fourni par
-l'environnement qui lance la commande. Le code V4 est prêt, mais cette
-validation n'a pas été relancée ici.
+l'environnement qui lance la commande.
 
 ## Viewer Web POC
 

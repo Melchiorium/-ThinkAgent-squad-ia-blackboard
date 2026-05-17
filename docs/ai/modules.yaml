@@ -403,9 +403,9 @@ modules:
     path: app/run_summaries.py
     role: >
       V4 summary helper. Generates a source-scoped summary from one document
-      at a time, captures the raw LLM response under runs/<run_id>/
-      summary_outputs/ before parsing, validates the required shape, stores
-      the summary under runs/<run_id>/summaries/, and preserves
+      at a time through a structured JSON LLM call, captures the raw structured
+      response under runs/<run_id>/summary_outputs/, validates the required
+      shape, renders YAML under runs/<run_id>/summaries/, and preserves
       source_hash traceability.
     read_when:
       - implementing V4 summaries
@@ -417,11 +417,13 @@ modules:
   - name: v4_parsing
     path: app/v4_parsing.py
     role: >
-      Shared parsing helpers for V4 prompt output. Extracts markdown sections,
-      strips internal blackboard item protocol from deliverable text,
-      normalizes parser-owned headings, validates role-specific document
-      boundaries and readiness statuses, and parses blackboard item create/
-      update lines into structured data with raw line traceability.
+      Shared strict validation helpers for V4 output. Builds role-specific
+      document JSON schemas, renders structured section objects and known
+      nested objects into canonical Markdown, extracts Markdown document
+      sections, rejects machine blackboard protocol inside documents, validates
+      role-specific document boundaries and readiness statuses, and parses
+      separate structured JSON blackboard item create/update operations with
+      raw line traceability.
     read_when:
       - changing V4 prompt output parsing
       - changing blackboard item line formats
@@ -429,24 +431,23 @@ modules:
     key_functions:
       - extract_sections
       - extract_section
+      - build_v4_document_schema
+      - parse_v4_structured_document
+      - render_v4_structured_document
       - parse_v4_agent_response
-      - parse_item_creates
-      - parse_item_updates
+      - parse_v4_blackboard_operations
       - validate_v4_document
       - validate_v4_item_operations
 
   - name: v4_validation_harness
     path: scripts/check_v4_flow_no_llm.py
     role: >
-      Deterministic V4 regression harness. Validates parser separation, final
-      ordering across Product, Growth, and Tech, integrated rejection of
-      invalid item types, priorities, and statuses before persistence,
-      normalized internal headings, role-boundary validation, readiness
-      statuses, routing targets, update ownership, contextual prompt blocks,
-      placeholder-only required sections, summary parsing and raw trace
-      capture, item state rendering, Product finalization item updates, raw
-      trace creation with repeat-safe naming, and final artifact compilation
-      without calling an LLM.
+      Deterministic V4 regression harness. Validates strict document parsing,
+      structured JSON document rendering, rejection of machine protocol inside
+      Markdown, separate structured JSON blackboard operations, invalid item
+      types, targets, priorities, statuses, self-targeted creates, EXTERNAL
+      updates, layered prompt composition, structured summaries, raw trace
+      creation, and final artifact compilation without calling an LLM.
     read_when:
       - adding or changing V4 parser regression coverage
       - validating explicit final-document compilation
@@ -455,12 +456,18 @@ modules:
   - name: prompts_v4
     path: app/prompts V4/
     role: >
-      Active V4 prompt set. Separates stable system behavior, the initial
-      project brief, contextual step prompts, and strict summary prompting.
+      Active V4 prompt set. Separates role identity, common workflow context,
+      phase instructions, structured JSON document contracts, blackboard JSON
+      output contract, and strict summary prompting.
     files:
-      - product_prompt.md
-      - growth_prompt.md
-      - tech_prompt.md
+      - roles/product.md
+      - roles/growth.md
+      - roles/tech.md
+      - common/workflow_context.md
+      - phases/*.md
+      - contracts/*_document.md
+      - contracts/blackboard_operations.md
+      - contracts/blackboard_operations.schema.json
       - summary_prompt.md
 
   - name: v4_evolution_docs

@@ -1,0 +1,59 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["create", "update"],
+  "properties": {
+    "create": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "targets", "priority", "tags", "title", "content"],
+        "properties": {
+          "type": {
+            "enum": ["QUESTION", "RISK", "DECISION", "PROPOSAL", "FEEDBACK", "WARNING", "CONSTRAINT"]
+          },
+          "targets": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": ["PRODUCT", "GROWTH", "TECH", "ALL", "EXTERNAL"]
+            }
+          },
+          "priority": {
+            "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "update": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^ITEM-[0-9]+$"
+          },
+          "status": {
+            "enum": ["OPEN", "ANSWERED", "ACCEPTED", "REJECTED", "OBSOLETE"]
+          }
+        }
+      }
+    }
+  }
+}

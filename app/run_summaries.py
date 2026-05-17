@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import json
 from pathlib import Path
 from typing import Any
 
 if __package__ and __package__.startswith("app"):
-    from .llm import call_llm
+    from .llm import call_llm_json
     from .run_store import RunWorkspace, read_text_file, write_text_file
 else:
-    from llm import call_llm
+    from llm import call_llm_json
     from run_store import RunWorkspace, read_text_file, write_text_file
 
 
@@ -21,18 +22,12 @@ SUMMARY_REQUIRED_FIELDS = (
     "unresolved_questions",
     "critical_risks",
 )
-SUMMARY_LIST_FIELDS = {
-    "key_decisions",
-    "unresolved_questions",
-    "critical_risks",
-}
-SUMMARY_ALLOWED_FIELDS = set(SUMMARY_REQUIRED_FIELDS)
 
 
 def generate_summary(
     run: RunWorkspace,
     source_document_path: str | Path,
-    llm_call=call_llm,
+    llm_call=call_llm_json,
 ) -> dict[str, Any]:
     source_path = _resolve_source_document_path(run, source_document_path)
     source_document = read_text_file(source_path)
@@ -42,21 +37,18 @@ def generate_summary(
 
     system_prompt = _load_summary_prompt()
     user_prompt = _build_user_prompt(run, source_relative_path, source_document, source_hash)
-    response_text = llm_call(system_prompt, user_prompt)
+    summary_schema = _build_summary_schema(
+        expected_source=str(source_relative_path),
+        expected_source_hash=source_hash,
+    )
+    summary = llm_call(
+        system_prompt,
+        user_prompt,
+        summary_schema,
+        schema_name="v4_summary",
+    )
     raw_trace_path = _summary_raw_trace_path(run, source_relative_path)
-    write_text_file(raw_trace_path, response_text)
-    try:
-        summary = _parse_summary_response(response_text)
-    except ValueError as exc:
-        raise ValueError(
-            _format_summary_error(
-                stage="parsing",
-                source_path=source_relative_path,
-                expected_source_hash=source_hash,
-                raw_trace_path=raw_trace_path,
-                detail=str(exc),
-            )
-        ) from exc
+    write_text_file(raw_trace_path, json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     try:
         validated = _validate_summary(
             summary,
@@ -93,10 +85,29 @@ def _build_user_prompt(
     return (
         "Source document only. Do not invent missing information.\n\n"
         f"Run id:\n{run.run_id}\n\n"
-        f"Source document:\n{source_path}\n\n"
-        f"Source hash:\n{source_hash}\n\n"
-        f"Source content:\n{source_document}"
+        "Source document path to copy exactly into source_document:\n"
+        f"{source_path}\n\n"
+        "Source hash to copy exactly into source_hash:\n"
+        f"{source_hash}\n\n"
+        "Source content to summarize:\n"
+        f"{source_document}"
     )
+
+
+def _build_summary_schema(*, expected_source: str, expected_source_hash: str) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": list(SUMMARY_REQUIRED_FIELDS),
+        "properties": {
+            "source_document": {"type": "string", "enum": [expected_source]},
+            "source_hash": {"type": "string", "enum": [expected_source_hash]},
+            "scope": {"type": "string"},
+            "key_decisions": {"type": "array", "items": {"type": "string"}},
+            "unresolved_questions": {"type": "array", "items": {"type": "string"}},
+            "critical_risks": {"type": "array", "items": {"type": "string"}},
+        },
+    }
 
 
 def _resolve_source_document_path(run: RunWorkspace, source_document_path: str | Path) -> Path:
@@ -123,77 +134,16 @@ def _summary_raw_trace_path(run: RunWorkspace, source_path: Path) -> Path:
     summary_outputs_dir = run.root / "summary_outputs"
     summary_outputs_dir.mkdir(parents=True, exist_ok=True)
     source_agent = source_path.parent.name
-    base_name = f"{source_agent}-{source_path.stem}.summary.raw.yaml"
+    base_name = f"{source_agent}-{source_path.stem}.summary.raw.json"
     candidate = summary_outputs_dir / base_name
     if not candidate.exists():
         return candidate
     index = 2
     while True:
-        candidate = summary_outputs_dir / f"{source_agent}-{source_path.stem}_{index:02d}.summary.raw.yaml"
+        candidate = summary_outputs_dir / f"{source_agent}-{source_path.stem}_{index:02d}.summary.raw.json"
         if not candidate.exists():
             return candidate
         index += 1
-
-
-def _parse_summary_response(text: str) -> dict[str, Any]:
-    cleaned_text = _strip_code_fences(text)
-    if not cleaned_text:
-        raise ValueError("Summary output is empty")
-    lines = cleaned_text.splitlines()
-    index = _skip_blank_lines(lines, 0)
-    if index >= len(lines) or lines[index].strip() != "summary:":
-        raise ValueError("Summary output must contain exactly one root key: summary")
-    index += 1
-
-    summary: dict[str, Any] = {}
-    while index < len(lines):
-        index = _skip_blank_lines(lines, index)
-        if index >= len(lines):
-            break
-        line = lines[index]
-        if not line.startswith("  "):
-            if line.strip().startswith("-"):
-                raise ValueError("Summary list items must be nested under a summary field")
-            raise ValueError("Summary output may only contain fields under the root key summary")
-        stripped = line[2:]
-        if stripped.lstrip().startswith("-"):
-            raise ValueError("Summary list items must be nested under a summary field")
-        field_name, separator, remainder = stripped.partition(":")
-        field_name = field_name.strip()
-        if not separator:
-            raise ValueError("Summary fields must use 'name:' under summary")
-        if field_name not in SUMMARY_ALLOWED_FIELDS:
-            raise ValueError(f"Unexpected summary field: {field_name}")
-        if field_name in summary:
-            raise ValueError(f"Duplicate summary field: {field_name}")
-
-        remainder = remainder.strip()
-        if field_name == "scope":
-            if remainder == "|":
-                scope, index = _consume_block_scalar(lines, index, "scope")
-                if not scope.strip():
-                    raise ValueError("Summary field 'scope' must not be empty")
-                summary[field_name] = scope
-                continue
-            if not remainder:
-                raise ValueError("Summary field 'scope' must be a scalar or block scalar")
-            summary[field_name] = remainder
-            index += 1
-            continue
-        if field_name in SUMMARY_LIST_FIELDS:
-            if remainder:
-                raise ValueError(f"Summary field '{field_name}' must be a list")
-            values, index, saw_item = _consume_summary_list(lines, index, field_name)
-            if not saw_item:
-                raise ValueError(f"Summary field '{field_name}' must contain at least one list item")
-            summary[field_name] = values
-            continue
-        if not remainder:
-            raise ValueError(f"Summary field '{field_name}' must be a scalar value")
-        summary[field_name] = remainder
-        index += 1
-
-    return summary
 
 
 def _validate_summary(
@@ -262,73 +212,6 @@ def _render_string_list_field(name: str, values: list[str]) -> list[str]:
     return [f"  {name}:", *[f"    - {value}" for value in values]]
 
 
-def _consume_block_scalar(lines: list[str], index: int, key: str) -> tuple[str, int]:
-    line = lines[index]
-    stripped = line[2:]
-    prefix = f"{key}:"
-    if not stripped.startswith(prefix):
-        raise ValueError(f"Expected {key} block in summary output")
-    remainder = stripped.split(":", 1)[1].strip()
-    index += 1
-    if remainder and remainder != "|":
-        return remainder, index
-
-    block_lines: list[str] = []
-    while index < len(lines):
-        current = lines[index]
-        if current.startswith("  ") and not current.startswith("    "):
-            break
-        if current.startswith("    "):
-            block_lines.append(current[4:])
-            index += 1
-            continue
-        if not current.strip():
-            block_lines.append("")
-            index += 1
-            continue
-            break
-    return "\n".join(block_lines).rstrip("\n"), index
-
-
-def _consume_summary_list(
-    lines: list[str], index: int, key: str
-) -> tuple[list[str], int, bool]:
-    line = lines[index]
-    stripped = line[2:]
-    prefix = f"{key}:"
-    if not stripped.startswith(prefix):
-        raise ValueError(f"Expected {key} list in summary output")
-    index += 1
-    values: list[str] = []
-    saw_item = False
-    while index < len(lines):
-        current = lines[index]
-        if current.startswith("  ") and not current.startswith("    "):
-            break
-        if current.startswith("    "):
-            item_text = current[4:]
-            item_text = item_text.lstrip()
-            if not item_text.startswith("- "):
-                raise ValueError(
-                    f"Summary field '{key}' must contain list bullets indented under the field"
-                )
-            saw_item = True
-            value = item_text[2:].strip()
-            if value and value.lower() != "none":
-                values.append(value)
-            index += 1
-            continue
-        if current.lstrip().startswith("-"):
-            raise ValueError(
-                f"Summary list items under '{key}' must be indented by at least four spaces"
-            )
-        if not current.strip():
-            index += 1
-            continue
-        break
-    return values, index, saw_item
-
-
 def _normalize_string_list(values: Any) -> list[str]:
     if values is None:
         raise ValueError("Summary list fields must be lists of strings")
@@ -341,23 +224,6 @@ def _normalize_string_list(values: Any) -> list[str]:
             continue
         normalized.append(text)
     return normalized
-
-
-def _strip_code_fences(text: str) -> str:
-    lines = [line.rstrip() for line in text.strip().splitlines()]
-    if not lines:
-        return ""
-    if lines[0].startswith("```"):
-        lines = lines[1:]
-    if lines and lines[-1].startswith("```"):
-        lines = lines[:-1]
-    return "\n".join(lines).strip()
-
-
-def _skip_blank_lines(lines: list[str], index: int) -> int:
-    while index < len(lines) and not lines[index].strip():
-        index += 1
-    return index
 
 
 def _format_summary_error(

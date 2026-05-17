@@ -39,14 +39,22 @@ Important:
   `OPENAI_MODEL`, but the shell must `source .env` before running V4 LLM
   validation. `OPENAI_BASE_URL` must be supplied separately if a non-default
   OpenAI-compatible endpoint is used.
-  The no-LLM V4 harness also checks invalid item operations, including
-  priorities, placeholder-only sections, `- None` in human-facing sections,
-  `BlackBoard` internal section casing, role-boundary pollution, readiness
-  status normalization, explicit routing targets, prompt-contextualized
-  initial draft instructions, pre-existing item updates, and run-local raw
-  traces under `runs/<run_id>/agent_outputs/` with repeat-safe naming. Summary
-  LLM responses are traced first under `runs/<run_id>/summary_outputs/` so
-  malformed YAML can be inspected without rerunning the model.
+  V4 prompts are layered under `app/prompts V4/`: roles, common workflow,
+  phases, contracts, and summary prompting. Machine-facing V4 exchanges are
+  JSON-first. V4 role document calls return structured JSON section objects;
+  the runtime renders Markdown with canonical headings and known subsections
+  only for readable PRD, GTM, and Architecture documents. Blackboard operations
+  are requested in a separate structured JSON call.
+  The no-LLM V4 harness checks invalid item operations, placeholder-only
+  sections, explicit routing targets including `EXTERNAL`, self-targeted item
+  rejection, pre-existing item updates, and run-local raw traces under
+  `runs/<run_id>/agent_outputs/`. Summary LLM responses are structured JSON and
+  the runtime renders validated YAML under `runs/<run_id>/summaries/`.
+  Item resolution and candidate rewrite are no-create phases. Verification may
+  create material follow-up items; the orchestrator routes them through a
+  bounded post-verification `item_resolution` loop before finalization.
+  Finalization is freeze-only: blackboard `create` must stay empty and only
+  pre-existing routed item updates are allowed.
 
 ## Deployment Assumption
 

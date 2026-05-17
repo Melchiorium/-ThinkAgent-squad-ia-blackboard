@@ -1,3 +1,4 @@
+import json
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -13,13 +14,16 @@ if __package__ and __package__.startswith("app"):
     from .agents.tech_agent import run_tech_agent
     from .agents.growth_agent import run_growth_agent
     from .blackboard_items import create_item, list_items, list_open_items, update_item_status
-    from .llm import call_llm
+    from .llm import call_llm_json
     from .run_documents import write_document
     from .run_store import append_activity_log_entry, create_run_workspace, write_text_file
     from .run_summaries import generate_summary
     from .readiness import aggregate_global_readiness
     from .v4_parsing import (
+        build_v4_document_schema,
         parse_v4_agent_response,
+        parse_v4_blackboard_operations,
+        parse_v4_structured_document,
         validate_v4_document,
         validate_v4_item_operations,
     )
@@ -35,13 +39,16 @@ else:
     from agents.tech_agent import run_tech_agent
     from agents.growth_agent import run_growth_agent
     from blackboard_items import create_item, list_items, list_open_items, update_item_status
-    from llm import call_llm
+    from llm import call_llm_json
     from run_documents import write_document
     from run_store import append_activity_log_entry, create_run_workspace, write_text_file
     from run_summaries import generate_summary
     from readiness import aggregate_global_readiness
     from v4_parsing import (
+        build_v4_document_schema,
         parse_v4_agent_response,
+        parse_v4_blackboard_operations,
+        parse_v4_structured_document,
         validate_v4_document,
         validate_v4_item_operations,
     )
@@ -1318,163 +1325,21 @@ def run_v4_flow(
     product_current_path = prd_v1_path
     product_current_summary = prd_v1_summary
 
-    correction_log: list[dict] = []
-    for loop_number in range(1, 3):
-        open_items = list_open_items(workspace)
-        if not open_items:
-            break
-        grouped = _group_items_by_owner(open_items)
-        loop_changed = False
-
-        if grouped["growth"]:
-            growth_revision = _run_v4_agent(
-                role="growth",
-                mode_label="item_resolution",
-                project_brief=project_brief,
-                project_brief_source=project_brief_source,
-                workspace=workspace,
-                state=state,
-                open_items=grouped["growth"],
-                summaries={
-                    "product": product_current_summary,
-                    "growth": growth_current_summary,
-                    "tech": tech_current_summary,
-                },
-                documents={
-                    "product": product_current_path.read_text(encoding="utf-8"),
-                    "growth": growth_current_path.read_text(encoding="utf-8"),
-                    "tech": tech_current_path.read_text(encoding="utf-8"),
-                },
-                extra_context=[
-                    _format_summary_context("Product summary", product_current_summary),
-                    _format_summary_context("Growth summary", growth_current_summary),
-                    _format_summary_context("Tech summary", tech_current_summary),
-                    _format_open_items_context(workspace, grouped["growth"]),
-                ],
-                agent_runner=agent_runner,
-            )
-            _apply_v4_item_operations(workspace, growth_revision, default_author="GROWTH")
-            _refresh_v4_item_state(state, workspace)
-            _record_v4_stage(workspace, f"growth_item_resolution_{loop_number}", product_current_path, growth_revision)
-            state.setdefault("resolution_notes", []).append(
-                {
-                    "loop": loop_number,
-                    "role": "growth",
-                    "items": [item["id"] for item in grouped["growth"]],
-                    "note": growth_revision["document_text"],
-                }
-            )
-            correction_log.append(
-                {
-                    "loop": loop_number,
-                    "agent": "growth",
-                    "items": [item["id"] for item in grouped["growth"]],
-                }
-            )
-            loop_changed = True
-
-        if grouped["tech"]:
-            tech_revision = _run_v4_agent(
-                role="tech",
-                mode_label="item_resolution",
-                project_brief=project_brief,
-                project_brief_source=project_brief_source,
-                workspace=workspace,
-                state=state,
-                open_items=grouped["tech"],
-                summaries={
-                    "product": product_current_summary,
-                    "growth": growth_current_summary,
-                    "tech": tech_current_summary,
-                },
-                documents={
-                    "product": product_current_path.read_text(encoding="utf-8"),
-                    "growth": growth_current_path.read_text(encoding="utf-8"),
-                    "tech": tech_current_path.read_text(encoding="utf-8"),
-                },
-                extra_context=[
-                    _format_summary_context("Product summary", product_current_summary),
-                    _format_summary_context("Growth summary", growth_current_summary),
-                    _format_summary_context("Tech summary", tech_current_summary),
-                    _format_open_items_context(workspace, grouped["tech"]),
-                ],
-                agent_runner=agent_runner,
-            )
-            _apply_v4_item_operations(workspace, tech_revision, default_author="TECH")
-            _refresh_v4_item_state(state, workspace)
-            _record_v4_stage(workspace, f"tech_item_resolution_{loop_number}", product_current_path, tech_revision)
-            state.setdefault("resolution_notes", []).append(
-                {
-                    "loop": loop_number,
-                    "role": "tech",
-                    "items": [item["id"] for item in grouped["tech"]],
-                    "note": tech_revision["document_text"],
-                }
-            )
-            correction_log.append(
-                {
-                    "loop": loop_number,
-                    "agent": "tech",
-                    "items": [item["id"] for item in grouped["tech"]],
-                }
-            )
-            loop_changed = True
-
-        if grouped["product"] or loop_changed:
-            product_correction = _run_v4_agent(
-                role="product",
-                mode_label="item_resolution",
-                project_brief=project_brief,
-                project_brief_source=project_brief_source,
-                workspace=workspace,
-                state=state,
-                open_items=grouped["product"] or list_open_items(workspace),
-                summaries={
-                    "product": product_current_summary,
-                    "growth": growth_current_summary,
-                    "tech": tech_current_summary,
-                },
-                documents={
-                    "product": product_current_path.read_text(encoding="utf-8"),
-                    "growth": growth_current_path.read_text(encoding="utf-8"),
-                    "tech": tech_current_path.read_text(encoding="utf-8"),
-                },
-                extra_context=[
-                    _format_summary_context("Product summary", product_current_summary),
-                    _format_summary_context("Growth summary", growth_current_summary),
-                    _format_summary_context("Tech summary", tech_current_summary),
-                    _format_open_items_context(workspace, list_open_items(workspace)),
-                ],
-                agent_runner=agent_runner,
-            )
-            _apply_v4_item_operations(workspace, product_correction, default_author="PRODUCT")
-            _refresh_v4_item_state(state, workspace)
-            _record_v4_stage(workspace, f"product_item_resolution_{loop_number}", product_current_path, product_correction)
-            state.setdefault("resolution_notes", []).append(
-                {
-                    "loop": loop_number,
-                    "role": "product",
-                    "items": [item["id"] for item in (grouped["product"] or list_open_items(workspace))],
-                    "note": product_correction["document_text"],
-                }
-            )
-            correction_log.append(
-                {
-                    "loop": loop_number,
-                    "agent": "product",
-                    "items": [item["id"] for item in (grouped["product"] or list_open_items(workspace))],
-                }
-            )
-
-        _append_v4_log(
-            workspace,
-            "orchestrator",
-            f"correction_loop_{loop_number}",
-            "app/orchestrator.py",
-            f"changed={loop_changed}; open_items={len(list_open_items(workspace))}",
-        )
-        if not loop_changed and not grouped["product"]:
-            break
+    correction_log = _run_v4_item_resolution_loop(
+        workspace=workspace,
+        state=state,
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        product_path=product_current_path,
+        growth_path=growth_current_path,
+        tech_path=tech_current_path,
+        product_summary=product_current_summary,
+        growth_summary=growth_current_summary,
+        tech_summary=tech_current_summary,
+        agent_runner=agent_runner,
+        stage_prefix="correction",
+        max_loops=2,
+    )
 
     open_items = _refresh_v4_item_state(state, workspace)
     resolved_items = list(state["resolved_items"])
@@ -1629,7 +1494,7 @@ def run_v4_flow(
             ],
             agent_runner=agent_runner,
         )
-        _apply_v4_item_operations(workspace, verification_output, default_author="VERIFICATION")
+        _apply_v4_item_operations(workspace, verification_output, default_author=role.upper())
         open_items = _refresh_v4_item_state(state, workspace)
         resolved_items = list(state["resolved_items"])
         verification_notes.append(
@@ -1648,6 +1513,24 @@ def run_v4_flow(
             f"items_to_create={len(verification_output.get('items_to_create', []))}; items_to_update={len(verification_output.get('items_to_update', []))}",
         )
     state["verification_notes"] = verification_notes
+    post_verification_resolution_log = _run_v4_item_resolution_loop(
+        workspace=workspace,
+        state=state,
+        project_brief=project_brief,
+        project_brief_source=project_brief_source,
+        product_path=prd_candidate_path,
+        growth_path=gtm_candidate_path,
+        tech_path=architecture_candidate_path,
+        product_summary=candidate_product_summary,
+        growth_summary=candidate_growth_summary,
+        tech_summary=candidate_tech_summary,
+        agent_runner=agent_runner,
+        stage_prefix="post_verification_resolution",
+        max_loops=2,
+    )
+    state["post_verification_resolution_log"] = post_verification_resolution_log
+    open_items = _refresh_v4_item_state(state, workspace)
+    resolved_items = list(state["resolved_items"])
 
     final_product = _run_v4_agent(
         role="product",
@@ -1671,7 +1554,7 @@ def run_v4_flow(
             _format_summary_context("Product candidate summary", candidate_product_summary),
             _format_summary_context("Growth candidate summary", candidate_growth_summary),
             _format_summary_context("Tech candidate summary", candidate_tech_summary),
-            _format_items_context("Verification Items", open_items),
+            _format_items_context("Resolved Blackboard Items", resolved_items),
             _format_items_context("Remaining Open Blackboard Items", open_items),
             _format_open_items_context(workspace, open_items),
         ],
@@ -1681,13 +1564,14 @@ def run_v4_flow(
         workspace, "product", "PRD_FINAL.md", final_product["document_text"]
     )
     state["documents"]["product_final"] = prd_final_path
-    _apply_v4_item_operations(workspace, final_product, default_author="PRODUCT")
+    _apply_v4_finalization_item_operations(workspace, final_product, default_author="PRODUCT")
     open_items = _refresh_v4_item_state(state, workspace)
     resolved_items = list(state["resolved_items"])
     _record_v4_stage(workspace, "product_finalization", prd_final_path, final_product)
     product_final_summary = summary_runner(workspace, prd_final_path)
     state["summaries"]["product_final"] = product_final_summary
 
+    growth_final_open_items = _open_items_for_role(workspace, "GROWTH")
     final_growth = _run_v4_agent(
         role="growth",
         mode_label="finalization",
@@ -1695,7 +1579,7 @@ def run_v4_flow(
         project_brief_source=project_brief_source,
         workspace=workspace,
         state=state,
-        open_items=open_items,
+        open_items=growth_final_open_items,
         summaries={
             "product": product_final_summary,
             "growth": candidate_growth_summary,
@@ -1710,8 +1594,8 @@ def run_v4_flow(
             _format_summary_context("Product final summary", product_final_summary),
             _format_summary_context("Growth candidate summary", candidate_growth_summary),
             _format_summary_context("Tech candidate summary", candidate_tech_summary),
-            _format_items_context("Verification Items", open_items),
-            _format_items_context("Remaining Open Blackboard Items", open_items),
+            _format_items_context("Resolved Blackboard Items", resolved_items),
+            _format_items_context("Remaining Growth Open Blackboard Items", growth_final_open_items),
         ],
         agent_runner=agent_runner,
     )
@@ -1724,6 +1608,7 @@ def run_v4_flow(
     growth_final_summary = summary_runner(workspace, gtm_final_path)
     state["summaries"]["growth_final"] = growth_final_summary
 
+    tech_final_open_items = _open_items_for_role(workspace, "TECH")
     final_tech = _run_v4_agent(
         role="tech",
         mode_label="finalization",
@@ -1731,7 +1616,7 @@ def run_v4_flow(
         project_brief_source=project_brief_source,
         workspace=workspace,
         state=state,
-        open_items=open_items,
+        open_items=tech_final_open_items,
         summaries={
             "product": product_final_summary,
             "growth": growth_final_summary,
@@ -1746,8 +1631,8 @@ def run_v4_flow(
             _format_summary_context("Product final summary", product_final_summary),
             _format_summary_context("Growth final summary", growth_final_summary),
             _format_summary_context("Tech candidate summary", candidate_tech_summary),
-            _format_items_context("Verification Items", open_items),
-            _format_items_context("Remaining Open Blackboard Items", open_items),
+            _format_items_context("Resolved Blackboard Items", resolved_items),
+            _format_items_context("Remaining Tech Open Blackboard Items", tech_final_open_items),
         ],
         agent_runner=agent_runner,
     )
@@ -1836,7 +1721,7 @@ def _run_v4_agent(
         parsed["mode_label"] = mode_label
         parsed.setdefault("raw_response", parsed.get("document_text", ""))
     else:
-        system_prompt = _load_v4_prompt(role)
+        system_prompt = _build_v4_system_prompt(role)
         user_prompt = _build_v4_user_prompt(
             role=role,
             mode_label=mode_label,
@@ -1848,18 +1733,88 @@ def _run_v4_agent(
             documents=documents,
             extra_context=extra_context,
         )
-        response_text = call_llm(system_prompt, user_prompt)
-        trace_path = _write_v4_raw_response_trace(workspace, trace_stage_label, response_text)
+        document_json = call_llm_json(
+            system_prompt,
+            user_prompt,
+            _build_v4_document_schema(role),
+            schema_name=f"v4_{role}_document",
+        )
+        document_json_trace_path = _write_v4_json_trace(
+            workspace,
+            f"{trace_stage_label}_document",
+            document_json,
+        )
         try:
-            parsed = _parse_v4_agent_output(response_text, role=role)
+            parsed = _parse_v4_structured_agent_output(document_json, role=role)
         except ValueError as error:
             raise ValueError(
-                f"V4 {role} {mode_label} parsing failed. Raw trace: {trace_path}. {error}"
+                f"V4 {role} {mode_label} structured document parsing failed. "
+                f"Raw trace: {document_json_trace_path}. {error}"
             ) from error
+        trace_path = _write_v4_raw_response_trace(
+            workspace,
+            trace_stage_label,
+            parsed["document_text"],
+        )
         parsed["role"] = role
         parsed["mode_label"] = mode_label
+        parsed["structured_document_trace_path"] = str(document_json_trace_path)
         parsed["raw_response_trace_path"] = str(trace_path)
         parsed["raw_response_trace_stage"] = trace_stage_label
+        validate_v4_document(
+            role=role,
+            mode_label=mode_label,
+            parsed_response=parsed,
+            raw_response_trace_path=trace_path,
+        )
+        operations_prompt = _build_v4_blackboard_prompt(
+            role=role,
+            mode_label=mode_label,
+            project_brief=project_brief,
+            project_brief_source=project_brief_source,
+            workspace=workspace,
+            open_items=open_items,
+            summaries=summaries,
+            documents=documents,
+            produced_document=parsed["document_text"],
+            extra_context=extra_context,
+        )
+        operations_json = call_llm_json(
+            system_prompt,
+            operations_prompt,
+            _build_v4_blackboard_schema(
+                role=role,
+                mode_label=mode_label,
+                updateable_items=open_items,
+            ),
+            schema_name="v4_blackboard_operations",
+        )
+        operations_trace_path = _write_v4_json_trace(
+            workspace,
+            f"{trace_stage_label}_blackboard",
+            operations_json,
+        )
+        try:
+            parsed_operations = parse_v4_blackboard_operations(operations_json, line_number=1)
+        except ValueError as error:
+            raise ValueError(
+                f"V4 {role} {mode_label} blackboard operation parsing failed. "
+                f"Raw trace: {operations_trace_path}. {error}"
+            ) from error
+        parsed["items_to_create"] = parsed_operations["items_to_create"]
+        parsed["items_to_update"] = parsed_operations["items_to_update"]
+        parsed["blackboard_operations_trace_path"] = str(operations_trace_path)
+        parsed["blackboard_operation_format"] = "separate_json"
+        existing_items = list_items(workspace)
+        validate_v4_item_operations(
+            role=role,
+            mode_label=mode_label,
+            parsed_response=parsed,
+            raw_response_trace_path=operations_trace_path,
+            allow_creates=_v4_allows_create_operations(mode_label),
+            existing_item_ids={item["id"] for item in existing_items},
+            existing_items_by_id={item["id"]: item for item in existing_items},
+        )
 
     raw_response = str(parsed.get("raw_response") or parsed.get("document_text") or "")
     if "raw_response_trace_path" in parsed:
@@ -1885,57 +1840,263 @@ def _refresh_v4_item_state(state: dict, workspace) -> list[dict]:
     return open_items
 
 
+def _run_v4_item_resolution_loop(
+    *,
+    workspace,
+    state: dict,
+    project_brief: str,
+    project_brief_source: str,
+    product_path: Path,
+    growth_path: Path,
+    tech_path: Path,
+    product_summary: dict,
+    growth_summary: dict,
+    tech_summary: dict,
+    agent_runner: Callable[..., dict] | None,
+    stage_prefix: str,
+    max_loops: int,
+) -> list[dict]:
+    resolution_log: list[dict] = []
+    for loop_number in range(1, max_loops + 1):
+        open_items = list_open_items(workspace)
+        if not open_items:
+            break
+        grouped = _group_items_by_owner(open_items)
+        loop_changed = False
+
+        if grouped["growth"]:
+            growth_resolution = _run_v4_agent(
+                role="growth",
+                mode_label="item_resolution",
+                project_brief=project_brief,
+                project_brief_source=project_brief_source,
+                workspace=workspace,
+                state=state,
+                open_items=grouped["growth"],
+                summaries={
+                    "product": product_summary,
+                    "growth": growth_summary,
+                    "tech": tech_summary,
+                },
+                documents={
+                    "product": product_path.read_text(encoding="utf-8"),
+                    "growth": growth_path.read_text(encoding="utf-8"),
+                    "tech": tech_path.read_text(encoding="utf-8"),
+                },
+                extra_context=[
+                    _format_summary_context("Product summary", product_summary),
+                    _format_summary_context("Growth summary", growth_summary),
+                    _format_summary_context("Tech summary", tech_summary),
+                    _format_open_items_context(workspace, grouped["growth"]),
+                ],
+                agent_runner=agent_runner,
+            )
+            _apply_v4_item_operations(workspace, growth_resolution, default_author="GROWTH")
+            _refresh_v4_item_state(state, workspace)
+            _record_v4_stage(
+                workspace,
+                _v4_resolution_stage_name(stage_prefix, "growth", loop_number),
+                product_path,
+                growth_resolution,
+            )
+            state.setdefault("resolution_notes", []).append(
+                {
+                    "phase": stage_prefix,
+                    "loop": loop_number,
+                    "role": "growth",
+                    "items": [item["id"] for item in grouped["growth"]],
+                    "note": growth_resolution["document_text"],
+                }
+            )
+            resolution_log.append(
+                {
+                    "phase": stage_prefix,
+                    "loop": loop_number,
+                    "agent": "growth",
+                    "items": [item["id"] for item in grouped["growth"]],
+                }
+            )
+            loop_changed = True
+
+        if grouped["tech"]:
+            tech_resolution = _run_v4_agent(
+                role="tech",
+                mode_label="item_resolution",
+                project_brief=project_brief,
+                project_brief_source=project_brief_source,
+                workspace=workspace,
+                state=state,
+                open_items=grouped["tech"],
+                summaries={
+                    "product": product_summary,
+                    "growth": growth_summary,
+                    "tech": tech_summary,
+                },
+                documents={
+                    "product": product_path.read_text(encoding="utf-8"),
+                    "growth": growth_path.read_text(encoding="utf-8"),
+                    "tech": tech_path.read_text(encoding="utf-8"),
+                },
+                extra_context=[
+                    _format_summary_context("Product summary", product_summary),
+                    _format_summary_context("Growth summary", growth_summary),
+                    _format_summary_context("Tech summary", tech_summary),
+                    _format_open_items_context(workspace, grouped["tech"]),
+                ],
+                agent_runner=agent_runner,
+            )
+            _apply_v4_item_operations(workspace, tech_resolution, default_author="TECH")
+            _refresh_v4_item_state(state, workspace)
+            _record_v4_stage(
+                workspace,
+                _v4_resolution_stage_name(stage_prefix, "tech", loop_number),
+                product_path,
+                tech_resolution,
+            )
+            state.setdefault("resolution_notes", []).append(
+                {
+                    "phase": stage_prefix,
+                    "loop": loop_number,
+                    "role": "tech",
+                    "items": [item["id"] for item in grouped["tech"]],
+                    "note": tech_resolution["document_text"],
+                }
+            )
+            resolution_log.append(
+                {
+                    "phase": stage_prefix,
+                    "loop": loop_number,
+                    "agent": "tech",
+                    "items": [item["id"] for item in grouped["tech"]],
+                }
+            )
+            loop_changed = True
+
+        if grouped["product"] or loop_changed:
+            product_items = grouped["product"] or list_open_items(workspace)
+            product_resolution = _run_v4_agent(
+                role="product",
+                mode_label="item_resolution",
+                project_brief=project_brief,
+                project_brief_source=project_brief_source,
+                workspace=workspace,
+                state=state,
+                open_items=product_items,
+                summaries={
+                    "product": product_summary,
+                    "growth": growth_summary,
+                    "tech": tech_summary,
+                },
+                documents={
+                    "product": product_path.read_text(encoding="utf-8"),
+                    "growth": growth_path.read_text(encoding="utf-8"),
+                    "tech": tech_path.read_text(encoding="utf-8"),
+                },
+                extra_context=[
+                    _format_summary_context("Product summary", product_summary),
+                    _format_summary_context("Growth summary", growth_summary),
+                    _format_summary_context("Tech summary", tech_summary),
+                    _format_open_items_context(workspace, product_items),
+                ],
+                agent_runner=agent_runner,
+            )
+            _apply_v4_item_operations(workspace, product_resolution, default_author="PRODUCT")
+            _refresh_v4_item_state(state, workspace)
+            _record_v4_stage(
+                workspace,
+                _v4_resolution_stage_name(stage_prefix, "product", loop_number),
+                product_path,
+                product_resolution,
+            )
+            state.setdefault("resolution_notes", []).append(
+                {
+                    "phase": stage_prefix,
+                    "loop": loop_number,
+                    "role": "product",
+                    "items": [item["id"] for item in product_items],
+                    "note": product_resolution["document_text"],
+                }
+            )
+            resolution_log.append(
+                {
+                    "phase": stage_prefix,
+                    "loop": loop_number,
+                    "agent": "product",
+                    "items": [item["id"] for item in product_items],
+                }
+            )
+
+        _append_v4_log(
+            workspace,
+            "orchestrator",
+            _v4_resolution_loop_event(stage_prefix, loop_number),
+            "app/orchestrator.py",
+            f"changed={loop_changed}; open_items={len(list_open_items(workspace))}",
+        )
+        if not loop_changed and not grouped["product"]:
+            break
+    return resolution_log
+
+
+def _v4_resolution_stage_name(stage_prefix: str, role: str, loop_number: int) -> str:
+    if stage_prefix == "correction":
+        return f"{role}_item_resolution_{loop_number}"
+    return f"{stage_prefix}_{role}_item_resolution_{loop_number}"
+
+
+def _v4_resolution_loop_event(stage_prefix: str, loop_number: int) -> str:
+    if stage_prefix == "correction":
+        return f"correction_loop_{loop_number}"
+    return f"{stage_prefix}_loop_{loop_number}"
+
+
 def _apply_v4_finalization_item_operations(workspace, agent_output: dict, default_author: str) -> None:
-    existing_item_ids = {item["id"] for item in list_items(workspace)}
-    _normalize_v4_finalization_create_types(agent_output)
-    _drop_v4_finalization_updates(agent_output)
+    existing_items = list_items(workspace)
+    existing_item_ids = {item["id"] for item in existing_items}
+    existing_items_by_id = {item["id"]: item for item in existing_items}
     validate_v4_item_operations(
         role=default_author.lower(),
         mode_label=str(agent_output.get("mode_label", "finalization")),
         parsed_response=agent_output,
-        raw_response_trace_path=agent_output.get("raw_response_trace_path", ""),
-        allowed_create_types={"RISK", "WARNING"},
-        allow_updates=False,
+        raw_response_trace_path=agent_output.get("blackboard_operations_trace_path")
+        or agent_output.get("raw_response_trace_path", ""),
+        allow_creates=False,
+        allow_updates=True,
         existing_item_ids=existing_item_ids,
+        existing_items_by_id=existing_items_by_id,
     )
-    for item_spec in agent_output.get("items_to_create", []):
-        create_item(
-            workspace,
-            type=item_spec["type"],
-            author=item_spec.get("author", "") or default_author,
-            targets=item_spec["targets"],
-            priority=item_spec["priority"],
-            tags=item_spec["tags"],
-            title=item_spec["title"],
-            content=item_spec["content"],
-        )
+    _validate_v4_finalization_updates_target_role(
+        agent_output,
+        default_author=default_author,
+        existing_items_by_id=existing_items_by_id,
+    )
+    for update_spec in agent_output.get("items_to_update", []):
+        update_item_status(workspace, update_spec["id"], update_spec["status"])
 
 
-def _normalize_v4_finalization_create_types(agent_output: dict) -> None:
-    for item_spec in agent_output.get("items_to_create", []):
-        item_type = str(item_spec.get("type", "")).strip().upper()
-        if item_type in {"RISK", "WARNING"}:
-            continue
-        if item_type:
-            item_spec["content"] = (
-                f"Originally emitted as {item_type} during finalization. "
-                f"{str(item_spec.get('content', '')).strip()}"
-            ).strip()
-        item_spec["type"] = "WARNING"
-        tags = [
-            str(tag).strip()
-            for tag in item_spec.get("tags", [])
-            if str(tag).strip()
-        ]
-        if "finalization-followup" not in tags:
-            tags.append("finalization-followup")
-        item_spec["tags"] = tags
-
-
-def _drop_v4_finalization_updates(agent_output: dict) -> None:
-    if agent_output.get("items_to_update"):
-        agent_output["ignored_finalization_updates"] = list(agent_output["items_to_update"])
-        agent_output["items_to_update"] = []
+def _validate_v4_finalization_updates_target_role(
+    agent_output: dict,
+    *,
+    default_author: str,
+    existing_items_by_id: dict[str, dict],
+) -> None:
+    role_target = str(default_author).strip().upper()
+    if role_target not in {"GROWTH", "TECH"}:
+        return
+    for update_spec in agent_output.get("items_to_update", []):
+        item_id = str(update_spec.get("id", "")).strip().upper()
+        item = existing_items_by_id.get(item_id, {})
+        targets = {
+            str(target).strip().upper()
+            for target in item.get("targets", [])
+            if str(target).strip()
+        }
+        if role_target not in targets:
+            raise ValueError(
+                "V4 finalization update rejected: "
+                f"{role_target} may only update items targeted to {role_target}. "
+                f"Invalid item id: {item_id}."
+            )
 
 
 def _build_v4_user_prompt(
@@ -1950,44 +2111,9 @@ def _build_v4_user_prompt(
     documents: dict[str, str],
     extra_context: list[str],
 ) -> str:
-    contextual_blocks: list[str] = []
-    if mode_label == "initial_draft":
-        contextual_blocks.append(
-            "Contextual step instruction:\n"
-            "- This is the first Product draft for this run.\n"
-            "- No blackboard item exists yet unless it is shown in Open items context.\n"
-            "- In Blackboard Items To Update, write `- None`.\n"
-            "- In Blackboard Items To Create, create only real unresolved questions, risks, decisions, proposals, constraints, warnings, or feedback.\n"
-            "- Do not output template rows, field names, or placeholder values as items."
-        )
-    if mode_label == "finalization" and role in {"growth", "tech"}:
-        contextual_blocks.append(
-            "Contextual finalization instruction:\n"
-            "- Product has locked the final PRD for this run.\n"
-            "- Do not reopen decisions with QUESTION, DECISION, PROPOSAL, FEEDBACK, or CONSTRAINT items.\n"
-            "- If a final follow-up is still critical, create only a RISK or WARNING item.\n"
-            "- In Blackboard Items To Update, write `- None`."
-        )
-    contextual_blocks.append(
-        "Blackboard operation reminder:\n"
-        "- In create items, ROUTING_TARGETS must contain only PRODUCT, GROWTH, TECH, or ALL.\n"
-        "- Put topic labels such as pricing, privacy, onboarding, data-model, or compliance in TAGS, not in ROUTING_TARGETS.\n"
-        "- Do not output TYPE, AUTHOR, TARGET1, TARGET2, PRIORITY, TAGS, TITLE, or CONTENT as literal item values.\n"
-        "- In Blackboard Items To Create, the first field must be a valid item type, never an ITEM-### id.\n"
-        "- In Blackboard Items To Create, title and content are separate fields; use `|` between them, not `:`.\n"
-        "- Existing ITEM-### ids are read-only references unless they are used in Blackboard Items To Update.\n"
-        "- In Blackboard Items To Update, output only item id and status, with no targets, priority, tags, title, or content.\n"
-        "- Use one bullet marker only for each blackboard operation; do not write nested bullets like `- - ITEM-001 | ANSWERED`.\n"
-        "- Do not copy Open items context rows into Blackboard Items To Create.\n"
-        "- Every required top-level section heading must start with `##`.\n"
-        "- Do not repeat any required document section after the Blackboard Items sections.\n"
-        "- Keep Blackboard Items To Create and Blackboard Items To Update consecutive; do not insert document sections between them.\n"
-        "- Do not write any content after Blackboard Items To Update.\n"
-        "- Update only item IDs that appear in Open items context or Resolved items context for this step.\n"
-        "- If there is no valid operation, write `- None`."
-    )
     sections = [
         f"Mode: {mode_label}",
+        "Phase instruction:\n" + _load_v4_phase_prompt(mode_label),
         f"Run id:\n{workspace.run_id}",
         f"Project brief source:\n{project_brief_source}",
         f"Project brief:\n{project_brief}",
@@ -1998,10 +2124,59 @@ def _build_v4_user_prompt(
     for document_label, document_text in documents.items():
         sections.append(_format_document_context(f"{document_label.upper()} document", document_text))
     sections.extend(extra_context)
-    sections.extend(contextual_blocks)
+    sections.append("Document output contract:\n" + _load_v4_document_contract(role))
     sections.append(
-        "Return the role document first, then the Blackboard Items To Create and Blackboard Items To Update sections."
+        "Return only one JSON object matching the document schema. Each value is "
+        "Markdown body content for that section only. Do not include blackboard "
+        "operations or rendered `##` section headings in this response."
     )
+    return "\n\n".join(section for section in sections if section.strip())
+
+
+def _build_v4_blackboard_prompt(
+    *,
+    role: str,
+    mode_label: str,
+    project_brief: str,
+    project_brief_source: str,
+    workspace,
+    open_items: list[dict],
+    summaries: dict[str, dict],
+    documents: dict[str, str],
+    produced_document: str,
+    extra_context: list[str],
+) -> str:
+    sections = [
+        f"Mode: {mode_label}",
+        "Phase instruction:\n" + _load_v4_phase_prompt(mode_label),
+        f"Run id:\n{workspace.run_id}",
+        f"Project brief source:\n{project_brief_source}",
+        f"Project brief:\n{project_brief}",
+        _format_open_items_context(workspace, open_items),
+    ]
+    for summary_label, summary in summaries.items():
+        sections.append(_format_summary_context(f"{summary_label.capitalize()} summary", summary))
+    for document_label, document_text in documents.items():
+        sections.append(_format_document_context(f"{document_label.upper()} document", document_text))
+    sections.extend(extra_context)
+    sections.append(_format_document_context("Current produced document", produced_document))
+    sections.append("Blackboard output contract:\n" + _load_v4_blackboard_contract())
+    sections.append(
+        "Role-specific blackboard constraint:\n"
+        f"- Current role: {str(role).strip().upper()}.\n"
+        "- Allowed create targets for this role: "
+        + ", ".join(_v4_allowed_create_targets_for_role(role))
+        + ".\n"
+        "- If a point only concerns the current role, resolve it in the document "
+        "instead of creating a blackboard item."
+    )
+    if not _v4_allows_create_operations(mode_label):
+        sections.append(
+            "Phase-specific blackboard constraint:\n"
+            f"- `{mode_label}` is no-create. `create` must be empty: `[]`.\n"
+            "- Update only pre-existing routed items that this document directly addresses."
+        )
+    sections.append("Return only one JSON object matching the schema. Do not include Markdown.")
     return "\n\n".join(section for section in sections if section.strip())
 
 
@@ -2013,24 +2188,41 @@ def _parse_v4_agent_output(text: str, *, role: str | None = None) -> dict:
         "sections": parsed["sections"],
         "items_to_create": parsed["items_to_create"],
         "items_to_update": parsed["items_to_update"],
+        "blackboard_operation_format": parsed.get("blackboard_operation_format", "separate_json"),
+    }
+
+
+def _parse_v4_structured_agent_output(payload: dict, *, role: str) -> dict:
+    parsed = parse_v4_structured_document(payload, role=role)
+    return {
+        "raw_response": parsed["document_text"],
+        "document_text": parsed["document_text"],
+        "sections": parsed["sections"],
+        "items_to_create": parsed["items_to_create"],
+        "items_to_update": parsed["items_to_update"],
+        "blackboard_operation_format": parsed.get("blackboard_operation_format", "separate_json"),
+        "structured_document_format": parsed.get("structured_document_format", "json_sections"),
     }
 
 
 def _apply_v4_item_operations(workspace, agent_output: dict, default_author: str) -> None:
-    existing_item_ids = {item["id"] for item in list_items(workspace)}
+    existing_items = list_items(workspace)
+    existing_item_ids = {item["id"] for item in existing_items}
+    existing_items_by_id = {item["id"]: item for item in existing_items}
     validate_v4_item_operations(
         role=default_author.lower(),
         mode_label=str(agent_output.get("mode_label", "unknown")),
         parsed_response=agent_output,
-        raw_response_trace_path=agent_output.get("raw_response_trace_path", ""),
+        raw_response_trace_path=agent_output.get("blackboard_operations_trace_path")
+        or agent_output.get("raw_response_trace_path", ""),
         existing_item_ids=existing_item_ids,
+        existing_items_by_id=existing_items_by_id,
     )
     for item_spec in agent_output.get("items_to_create", []):
-        author = item_spec.get("author", "") or default_author
         create_item(
             workspace,
             type=item_spec["type"],
-            author=author,
+            author=default_author,
             targets=item_spec["targets"],
             priority=item_spec["priority"],
             tags=item_spec["tags"],
@@ -2047,6 +2239,12 @@ def _write_v4_raw_response_trace(workspace, stage_label: str, raw_response: str)
     return write_text_file(trace_path, raw_response.rstrip() + "\n")
 
 
+def _write_v4_json_trace(workspace, stage_label: str, payload: dict) -> Path:
+    trace_dir = workspace.root / "agent_outputs"
+    trace_path = trace_dir / f"{_normalize_v4_trace_stage(stage_label)}.json"
+    return write_text_file(trace_path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+
+
 def _v4_stage_label(role: str, mode_label: str) -> str:
     return f"{str(role).strip().lower()}_{str(mode_label).strip().lower()}"
 
@@ -2057,8 +2255,116 @@ def _normalize_v4_trace_stage(stage_label: str) -> str:
     return normalized or "v4_agent"
 
 
-def _load_v4_prompt(role: str) -> str:
-    prompt_path = Path(__file__).resolve().parent / "prompts V4" / f"{role}_prompt.md"
+def _build_v4_system_prompt(role: str) -> str:
+    return "\n\n".join(
+        [
+            _load_v4_prompt_file("roles", f"{role}.md"),
+            _load_v4_prompt_file("common", "workflow_context.md"),
+        ]
+    )
+
+
+def _load_v4_phase_prompt(mode_label: str) -> str:
+    return _load_v4_prompt_file("phases", f"{mode_label}.md")
+
+
+def _load_v4_document_contract(role: str) -> str:
+    return _load_v4_prompt_file("contracts", f"{role}_document.md")
+
+
+def _build_v4_document_schema(role: str) -> dict:
+    return build_v4_document_schema(role)
+
+
+def _load_v4_blackboard_contract() -> str:
+    return _load_v4_prompt_file("contracts", "blackboard_operations.md")
+
+
+def _build_v4_blackboard_schema(
+    *,
+    role: str,
+    mode_label: str,
+    updateable_items: list[dict] | None = None,
+) -> dict:
+    schema = _load_v4_blackboard_schema()
+    schema["properties"]["create"]["items"]["properties"]["targets"] = (
+        _v4_create_targets_schema_for_role(role)
+    )
+    updateable_ids = _v4_updateable_item_ids(updateable_items or [])
+    if updateable_ids:
+        schema["properties"]["update"]["items"]["properties"]["id"] = {
+            "enum": updateable_ids
+        }
+    else:
+        schema["properties"]["update"]["maxItems"] = 0
+        schema["properties"]["update"]["description"] = (
+            "No updateable item ids are available for this call."
+        )
+    if not _v4_allows_create_operations(mode_label):
+        schema["properties"]["create"]["maxItems"] = 0
+        schema["properties"]["create"]["description"] = "This phase is no-create; create must be empty."
+    return schema
+
+
+def _v4_updateable_item_ids(items: list[dict]) -> list[str]:
+    ids = []
+    for item in items:
+        item_id = str(item.get("id", "")).strip().upper()
+        status = str(item.get("status", "")).strip().upper()
+        targets = [
+            str(target).strip().upper()
+            for target in item.get("targets", [])
+            if str(target).strip()
+        ]
+        if item_id and status == "OPEN" and targets != ["EXTERNAL"]:
+            ids.append(item_id)
+    return sorted(set(ids))
+
+
+def _v4_create_targets_schema_for_role(role: str) -> dict:
+    allowed_targets = _v4_allowed_create_targets_for_role(role)
+    internal_targets = [target for target in allowed_targets if target != "EXTERNAL"]
+    return {
+        "anyOf": [
+            {
+                "type": "array",
+                "minItems": 1,
+                "items": {"enum": internal_targets},
+            },
+            {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 1,
+                "items": {"enum": ["EXTERNAL"]},
+            },
+        ]
+    }
+
+
+def _v4_allowed_create_targets_for_role(role: str) -> list[str]:
+    current_target = str(role).strip().upper()
+    base_targets = ["PRODUCT", "GROWTH", "TECH", "ALL", "EXTERNAL"]
+    if current_target not in {"PRODUCT", "GROWTH", "TECH"}:
+        return base_targets
+    return [target for target in base_targets if target != current_target]
+
+
+def _v4_allows_create_operations(mode_label: str) -> bool:
+    return str(mode_label).strip().lower() not in {
+        "candidate_rewrite",
+        "finalization",
+        "item_resolution",
+    }
+
+
+def _load_v4_blackboard_schema() -> dict:
+    return json.loads(_load_v4_prompt_file("contracts", "blackboard_operations.schema.json"))
+
+
+def _load_v4_prompt_file(*parts: str) -> str:
+    prompt_path = Path(__file__).resolve().parent / "prompts V4"
+    for part in parts:
+        prompt_path = prompt_path / part
     return prompt_path.read_text(encoding="utf-8").strip()
 
 
