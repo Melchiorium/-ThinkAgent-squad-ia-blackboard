@@ -8,3 +8,8 @@ item status. This is a no-create phase for blackboard operations: use
 `"create": []`.
 
 Do not create a new item that merely restates an existing item.
+
+If an item depends on external market, legal, compliance, pricing, retention,
+audit, or policy information that is not present in the brief or runtime
+context, do not decide it. Keep the dependency explicit in the document and
+leave the item open.

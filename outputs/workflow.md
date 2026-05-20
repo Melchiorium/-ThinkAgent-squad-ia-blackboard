@@ -43,8 +43,9 @@ Important:
   phases, contracts, and summary prompting. Machine-facing V4 exchanges are
   JSON-first. V4 role document calls return structured JSON section objects;
   the runtime renders Markdown with canonical headings and known subsections
-  only for readable PRD, GTM, and Architecture documents. Blackboard operations
-  are requested in a separate structured JSON call.
+  only for readable PRD, GTM, and Architecture documents. Empty JSON arrays are
+  rendered as explicit absence statements, never as `None`. Blackboard
+  operations are requested in a separate structured JSON call.
   The no-LLM V4 harness checks invalid item operations, placeholder-only
   sections, explicit routing targets including `EXTERNAL`, self-targeted item
   rejection, pre-existing item updates, and run-local raw traces under
@@ -53,8 +54,23 @@ Important:
   Item resolution and candidate rewrite are no-create phases. Verification may
   create material follow-up items; the orchestrator routes them through a
   bounded post-verification `item_resolution` loop before finalization.
+  Item-resolution documents can advance the current role document state and
+  regenerate summaries before downstream finalization reads them. EXTERNAL
+  items remain outside the run: V4 rejects invented external facts and duplicate
+  open blackboard items with materially similar routing, tags, title, and
+  content.
+  V4 context injection is now phase-aware: summaries, full documents, and open
+  item lists are assembled once per prompt, previous full documents are omitted
+  from blackboard calls by default, and no-op blackboard calls are skipped when
+  no operation can be valid. Prompt metrics are written to
+  `runs/<run_id>/prompt_metrics.jsonl`; summary calls are cached by document
+  hash inside a run.
   Finalization is freeze-only: blackboard `create` must stay empty and only
-  pre-existing routed item updates are allowed.
+  pre-existing routed item updates are allowed. Final readiness is guarded:
+  READY sections cannot keep blocking gaps, blocking gaps require required
+  improvements, and Product finalization must include a concrete locking note.
+  The compiled V4 blackboard also renders `Residual Document Gaps` so closed
+  blackboard items cannot hide final open questions or readiness conflicts.
 
 ## Deployment Assumption
 
@@ -352,6 +368,8 @@ Notes:
 - if structured technical decisions are missing, fallback is taken from the first requested changes
 - `mermaid_diagram` is written to `architecture-diagram.mmd`
 - if Mermaid CLI (`mmdc`) is installed, `architecture-diagram.png` is generated from that source
+- V4 exposes Markdown, Mermaid source, and PNG render readiness separately; a
+  missing Puppeteer Chrome cache is reported as an actionable warning
 - no `architecture.pdf` is generated in new batches
 
 ## Step 5: Product Revision / Arbitration

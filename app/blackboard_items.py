@@ -62,6 +62,12 @@ def create_item(
         "created_at": timestamp,
         "updated_at": timestamp,
     }
+    duplicate = _find_duplicate_open_item(run, item)
+    if duplicate:
+        raise ValueError(
+            "Duplicate open blackboard item rejected: "
+            f"new item overlaps existing {duplicate['id']}."
+        )
     _write_item(run, item)
     return item
 
@@ -359,6 +365,136 @@ def _normalize_title(value: Any) -> str:
 
 def _normalize_content(value: Any) -> str:
     return str(value).rstrip()
+
+
+def _find_duplicate_open_item(run: RunWorkspace, candidate: dict[str, Any]) -> dict[str, Any] | None:
+    candidate_targets = set(candidate.get("targets", []))
+
+    for path in _item_paths(run):
+        existing = _read_item(path)
+        if existing.get("status") != "OPEN":
+            continue
+        if set(existing.get("targets", [])) != candidate_targets:
+            continue
+        if _items_are_duplicates(candidate, existing):
+            return existing
+    return None
+
+
+def _items_are_duplicates(candidate: dict[str, Any], existing: dict[str, Any]) -> bool:
+    candidate_tags = set(candidate.get("tags", []))
+    existing_tags = set(existing.get("tags", []))
+    shared_tags = candidate_tags & existing_tags
+    same_tags = candidate_tags == existing_tags
+
+    title_similarity = _token_similarity(
+        _similarity_tokens(str(candidate.get("title", ""))),
+        _similarity_tokens(str(existing.get("title", ""))),
+    )
+    content_similarity = _token_similarity(
+        _similarity_tokens(_similarity_text(candidate)),
+        _similarity_tokens(_similarity_text(existing)),
+    )
+
+    if same_tags and (title_similarity["containment"] >= 0.6 or content_similarity["containment"] >= 0.65):
+        return True
+    if shared_tags and (title_similarity["containment"] >= 0.7 or title_similarity["jaccard"] >= 0.45):
+        return True
+    if shared_tags and content_similarity["jaccard"] >= 0.45:
+        return True
+
+    if set(candidate.get("targets", [])) == {"EXTERNAL"}:
+        candidate_topics = _duplicate_topic_tokens(candidate)
+        existing_topics = _duplicate_topic_tokens(existing)
+        shared_topics = candidate_topics & existing_topics
+        if len(shared_topics) >= 2 and title_similarity["containment"] >= 0.55:
+            return True
+        if len(shared_topics) >= 3 and content_similarity["containment"] >= 0.5:
+            return True
+
+    return False
+
+
+def _similarity_text(item: dict[str, Any]) -> str:
+    return " ".join(
+        [
+            str(item.get("title", "")),
+            str(item.get("content", "")),
+        ]
+    )
+
+
+def _token_similarity(left_tokens: set[str], right_tokens: set[str]) -> dict[str, float]:
+    if not left_tokens or not right_tokens:
+        return {"containment": 0.0, "jaccard": 0.0}
+    overlap = len(left_tokens & right_tokens)
+    return {
+        "containment": overlap / max(1, min(len(left_tokens), len(right_tokens))),
+        "jaccard": overlap / max(1, len(left_tokens | right_tokens)),
+    }
+
+
+def _duplicate_topic_tokens(item: dict[str, Any]) -> set[str]:
+    text = " ".join(
+        [
+            " ".join(str(tag) for tag in item.get("tags", [])),
+            str(item.get("title", "")),
+            str(item.get("content", "")),
+        ]
+    )
+    return _similarity_tokens(text) & _DUPLICATE_TOPIC_TERMS
+
+
+def _similarity_tokens(value: str) -> set[str]:
+    normalized = re.sub(r"[^a-z0-9]+", " ", value.lower())
+    return {
+        token
+        for token in normalized.split()
+        if len(token) > 2 and token not in _SIMILARITY_STOP_WORDS
+    }
+
+
+_SIMILARITY_STOP_WORDS = {
+    "and",
+    "are",
+    "but",
+    "for",
+    "from",
+    "into",
+    "must",
+    "need",
+    "needs",
+    "not",
+    "the",
+    "this",
+    "that",
+    "with",
+}
+
+
+_DUPLICATE_TOPIC_TERMS = {
+    "audit",
+    "buyer",
+    "caregiver",
+    "caregivers",
+    "compliance",
+    "country",
+    "data",
+    "deletion",
+    "geography",
+    "health",
+    "legal",
+    "launch",
+    "market",
+    "packaging",
+    "payer",
+    "pilot",
+    "pricing",
+    "regime",
+    "retention",
+    "sharing",
+    "trust",
+}
 
 
 def _utc_now() -> str:

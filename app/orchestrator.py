@@ -1,6 +1,8 @@
 import json
+import os
 import re
 from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
 
 if __package__ and __package__.startswith("app"):
@@ -1102,8 +1104,9 @@ def run_v4_flow(
     agent_runner: Callable[..., dict] | None = None,
 ) -> dict:
     workspace_factory = workspace_factory or create_run_workspace
-    summary_runner = summary_runner or generate_summary
     workspace = workspace_factory(project_name)
+    if summary_runner is None:
+        summary_runner = _v4_summary_runner_with_metrics
     state = {
         "workspace": workspace,
         "project_name": project_name,
@@ -1336,10 +1339,17 @@ def run_v4_flow(
         product_summary=product_current_summary,
         growth_summary=growth_current_summary,
         tech_summary=tech_current_summary,
+        summary_runner=summary_runner,
         agent_runner=agent_runner,
         stage_prefix="correction",
         max_loops=2,
     )
+    product_current_path = correction_log["paths"]["product"]
+    growth_current_path = correction_log["paths"]["growth"]
+    tech_current_path = correction_log["paths"]["tech"]
+    product_current_summary = correction_log["summaries"]["product"]
+    growth_current_summary = correction_log["summaries"]["growth"]
+    tech_current_summary = correction_log["summaries"]["tech"]
 
     open_items = _refresh_v4_item_state(state, workspace)
     resolved_items = list(state["resolved_items"])
@@ -1524,11 +1534,18 @@ def run_v4_flow(
         product_summary=candidate_product_summary,
         growth_summary=candidate_growth_summary,
         tech_summary=candidate_tech_summary,
+        summary_runner=summary_runner,
         agent_runner=agent_runner,
         stage_prefix="post_verification_resolution",
         max_loops=2,
     )
-    state["post_verification_resolution_log"] = post_verification_resolution_log
+    state["post_verification_resolution_log"] = post_verification_resolution_log["log"]
+    prd_candidate_path = post_verification_resolution_log["paths"]["product"]
+    gtm_candidate_path = post_verification_resolution_log["paths"]["growth"]
+    architecture_candidate_path = post_verification_resolution_log["paths"]["tech"]
+    candidate_product_summary = post_verification_resolution_log["summaries"]["product"]
+    candidate_growth_summary = post_verification_resolution_log["summaries"]["growth"]
+    candidate_tech_summary = post_verification_resolution_log["summaries"]["tech"]
     open_items = _refresh_v4_item_state(state, workspace)
     resolved_items = list(state["resolved_items"])
 
@@ -1679,7 +1696,7 @@ def run_v4_flow(
         "app/orchestrator.py",
         f"open_items={len(open_items)}",
     )
-    state["correction_log"] = correction_log
+    state["correction_log"] = correction_log["log"]
     state["open_items"] = open_items
     state["resolved_items"] = resolved_items
     return state
@@ -1733,10 +1750,16 @@ def _run_v4_agent(
             documents=documents,
             extra_context=extra_context,
         )
-        document_json = call_llm_json(
-            system_prompt,
-            user_prompt,
-            _build_v4_document_schema(role),
+        document_schema = _build_v4_document_schema(role)
+        document_json = _call_v4_llm_json(
+            workspace=workspace,
+            role=role,
+            mode_label=mode_label,
+            call_type="document",
+            trace_stage_label=trace_stage_label,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema=document_schema,
             schema_name=f"v4_{role}_document",
         )
         document_json_trace_path = _write_v4_json_trace(
@@ -1767,28 +1790,62 @@ def _run_v4_agent(
             parsed_response=parsed,
             raw_response_trace_path=trace_path,
         )
-        operations_prompt = _build_v4_blackboard_prompt(
+        operations_schema = _build_v4_blackboard_schema(
             role=role,
             mode_label=mode_label,
-            project_brief=project_brief,
-            project_brief_source=project_brief_source,
-            workspace=workspace,
-            open_items=open_items,
-            summaries=summaries,
-            documents=documents,
-            produced_document=parsed["document_text"],
-            extra_context=extra_context,
+            updateable_items=open_items,
         )
-        operations_json = call_llm_json(
-            system_prompt,
-            operations_prompt,
-            _build_v4_blackboard_schema(
+        if _v4_should_skip_blackboard_operations(mode_label=mode_label, open_items=open_items):
+            operations_prompt = ""
+            operations_json = {"create": [], "update": []}
+            parsed["blackboard_operations_skipped"] = True
+            _record_v4_prompt_metric(
+                workspace,
+                {
+                    "role": role,
+                    "mode_label": mode_label,
+                    "stage": trace_stage_label,
+                    "call_type": "blackboard",
+                    "schema_name": "v4_blackboard_operations",
+                    "status": "skipped",
+                    "skip_reason": "no_creates_and_no_updateable_items",
+                    "system_chars": len(system_prompt),
+                    "user_chars": 0,
+                    "schema_chars": len(json.dumps(operations_schema, ensure_ascii=False, sort_keys=True)),
+                    "output_chars": len(json.dumps(operations_json, ensure_ascii=False, sort_keys=True)),
+                },
+            )
+            _append_v4_log(
+                workspace,
+                "orchestrator",
+                "blackboard_operations_skipped",
+                "app/orchestrator.py",
+                f"stage={trace_stage_label}; reason=no_creates_and_no_updateable_items",
+            )
+        else:
+            operations_prompt = _build_v4_blackboard_prompt(
                 role=role,
                 mode_label=mode_label,
-                updateable_items=open_items,
-            ),
-            schema_name="v4_blackboard_operations",
-        )
+                project_brief=project_brief,
+                project_brief_source=project_brief_source,
+                workspace=workspace,
+                open_items=open_items,
+                summaries=summaries,
+                documents=documents,
+                produced_document=parsed["document_text"],
+                extra_context=extra_context,
+            )
+            operations_json = _call_v4_llm_json(
+                workspace=workspace,
+                role=role,
+                mode_label=mode_label,
+                call_type="blackboard",
+                trace_stage_label=trace_stage_label,
+                system_prompt=system_prompt,
+                user_prompt=operations_prompt,
+                schema=operations_schema,
+                schema_name="v4_blackboard_operations",
+            )
         operations_trace_path = _write_v4_json_trace(
             workspace,
             f"{trace_stage_label}_blackboard",
@@ -1829,6 +1886,16 @@ def _run_v4_agent(
         parsed_response=parsed,
         raw_response_trace_path=trace_path,
     )
+    _validate_v4_external_decision_guardrails(
+        role=role,
+        mode_label=mode_label,
+        project_brief=project_brief,
+        open_items=open_items,
+        summaries=summaries,
+        documents=documents,
+        parsed_response=parsed,
+        raw_response_trace_path=trace_path,
+    )
     return parsed
 
 
@@ -1838,6 +1905,82 @@ def _refresh_v4_item_state(state: dict, workspace) -> list[dict]:
     state["resolved_items"] = resolved_items
     state["open_items"] = open_items
     return open_items
+
+
+def _v4_summary_runner_with_metrics(workspace, source_document_path):
+    return generate_summary(
+        workspace,
+        source_document_path,
+        metric_recorder=_record_v4_prompt_metric,
+    )
+
+
+def _call_v4_llm_json(
+    *,
+    workspace,
+    role: str,
+    mode_label: str,
+    call_type: str,
+    trace_stage_label: str,
+    system_prompt: str,
+    user_prompt: str,
+    schema: dict,
+    schema_name: str,
+) -> dict:
+    metric = {
+        "role": role,
+        "mode_label": mode_label,
+        "stage": trace_stage_label,
+        "call_type": call_type,
+        "schema_name": schema_name,
+        "status": "started",
+        "system_chars": len(system_prompt),
+        "user_chars": len(user_prompt),
+        "schema_chars": len(json.dumps(schema, ensure_ascii=False, sort_keys=True)),
+        "output_chars": 0,
+    }
+    try:
+        payload = call_llm_json(
+            system_prompt,
+            user_prompt,
+            schema,
+            schema_name=schema_name,
+        )
+    except Exception:
+        metric["status"] = "error"
+        _record_v4_prompt_metric(workspace, metric)
+        raise
+    metric["status"] = "ok"
+    metric["output_chars"] = len(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    _record_v4_prompt_metric(workspace, metric)
+    return payload
+
+
+def _record_v4_prompt_metric(workspace, metric: dict) -> None:
+    metrics_path = workspace.root / "prompt_metrics.jsonl"
+    enriched = {
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "run_id": workspace.run_id,
+        "model": os.getenv("OPENAI_MODEL", ""),
+        "reasoning_effort": os.getenv("OPENAI_REASONING_EFFORT", ""),
+        **metric,
+    }
+    write_text_file(
+        metrics_path,
+        (
+            metrics_path.read_text(encoding="utf-8")
+            if metrics_path.exists()
+            else ""
+        )
+        + json.dumps(enriched, ensure_ascii=False, sort_keys=True)
+        + "\n",
+    )
+
+
+def _v4_should_skip_blackboard_operations(*, mode_label: str, open_items: list[dict]) -> bool:
+    if _v4_allows_create_operations(mode_label):
+        return False
+    return not _v4_updateable_item_ids(open_items)
 
 
 def _run_v4_item_resolution_loop(
@@ -1852,11 +1995,22 @@ def _run_v4_item_resolution_loop(
     product_summary: dict,
     growth_summary: dict,
     tech_summary: dict,
+    summary_runner: Callable[..., dict],
     agent_runner: Callable[..., dict] | None,
     stage_prefix: str,
     max_loops: int,
-) -> list[dict]:
+) -> dict:
     resolution_log: list[dict] = []
+    current_paths = {
+        "product": product_path,
+        "growth": growth_path,
+        "tech": tech_path,
+    }
+    current_summaries = {
+        "product": product_summary,
+        "growth": growth_summary,
+        "tech": tech_summary,
+    }
     for loop_number in range(1, max_loops + 1):
         open_items = list_open_items(workspace)
         if not open_items:
@@ -1865,6 +2019,7 @@ def _run_v4_item_resolution_loop(
         loop_changed = False
 
         if grouped["growth"]:
+            before_document_text = current_paths["growth"].read_text(encoding="utf-8")
             growth_resolution = _run_v4_agent(
                 role="growth",
                 mode_label="item_resolution",
@@ -1874,29 +2029,42 @@ def _run_v4_item_resolution_loop(
                 state=state,
                 open_items=grouped["growth"],
                 summaries={
-                    "product": product_summary,
-                    "growth": growth_summary,
-                    "tech": tech_summary,
+                    "product": current_summaries["product"],
+                    "growth": current_summaries["growth"],
+                    "tech": current_summaries["tech"],
                 },
                 documents={
-                    "product": product_path.read_text(encoding="utf-8"),
-                    "growth": growth_path.read_text(encoding="utf-8"),
-                    "tech": tech_path.read_text(encoding="utf-8"),
+                    "product": current_paths["product"].read_text(encoding="utf-8"),
+                    "growth": before_document_text,
+                    "tech": current_paths["tech"].read_text(encoding="utf-8"),
                 },
                 extra_context=[
-                    _format_summary_context("Product summary", product_summary),
-                    _format_summary_context("Growth summary", growth_summary),
-                    _format_summary_context("Tech summary", tech_summary),
+                    _format_summary_context("Product summary", current_summaries["product"]),
+                    _format_summary_context("Growth summary", current_summaries["growth"]),
+                    _format_summary_context("Tech summary", current_summaries["tech"]),
                     _format_open_items_context(workspace, grouped["growth"]),
                 ],
                 agent_runner=agent_runner,
             )
-            _apply_v4_item_operations(workspace, growth_resolution, default_author="GROWTH")
+            operation_result = _apply_v4_item_operations(
+                workspace, growth_resolution, default_author="GROWTH"
+            )
             _refresh_v4_item_state(state, workspace)
+            current_paths["growth"], current_summaries["growth"] = (
+                _write_v4_resolution_document_and_summary(
+                    workspace=workspace,
+                    state=state,
+                    role="growth",
+                    stage_prefix=stage_prefix,
+                    loop_number=loop_number,
+                    agent_output=growth_resolution,
+                    summary_runner=summary_runner,
+                )
+            )
             _record_v4_stage(
                 workspace,
                 _v4_resolution_stage_name(stage_prefix, "growth", loop_number),
-                product_path,
+                current_paths["growth"],
                 growth_resolution,
             )
             state.setdefault("resolution_notes", []).append(
@@ -1905,6 +2073,7 @@ def _run_v4_item_resolution_loop(
                     "loop": loop_number,
                     "role": "growth",
                     "items": [item["id"] for item in grouped["growth"]],
+                    "document": current_paths["growth"].name,
                     "note": growth_resolution["document_text"],
                 }
             )
@@ -1914,11 +2083,15 @@ def _run_v4_item_resolution_loop(
                     "loop": loop_number,
                     "agent": "growth",
                     "items": [item["id"] for item in grouped["growth"]],
+                    "document": current_paths["growth"].name,
                 }
             )
-            loop_changed = True
+            loop_changed = loop_changed or _v4_resolution_changed(
+                before_document_text, growth_resolution, operation_result
+            )
 
         if grouped["tech"]:
+            before_document_text = current_paths["tech"].read_text(encoding="utf-8")
             tech_resolution = _run_v4_agent(
                 role="tech",
                 mode_label="item_resolution",
@@ -1928,29 +2101,42 @@ def _run_v4_item_resolution_loop(
                 state=state,
                 open_items=grouped["tech"],
                 summaries={
-                    "product": product_summary,
-                    "growth": growth_summary,
-                    "tech": tech_summary,
+                    "product": current_summaries["product"],
+                    "growth": current_summaries["growth"],
+                    "tech": current_summaries["tech"],
                 },
                 documents={
-                    "product": product_path.read_text(encoding="utf-8"),
-                    "growth": growth_path.read_text(encoding="utf-8"),
-                    "tech": tech_path.read_text(encoding="utf-8"),
+                    "product": current_paths["product"].read_text(encoding="utf-8"),
+                    "growth": current_paths["growth"].read_text(encoding="utf-8"),
+                    "tech": before_document_text,
                 },
                 extra_context=[
-                    _format_summary_context("Product summary", product_summary),
-                    _format_summary_context("Growth summary", growth_summary),
-                    _format_summary_context("Tech summary", tech_summary),
+                    _format_summary_context("Product summary", current_summaries["product"]),
+                    _format_summary_context("Growth summary", current_summaries["growth"]),
+                    _format_summary_context("Tech summary", current_summaries["tech"]),
                     _format_open_items_context(workspace, grouped["tech"]),
                 ],
                 agent_runner=agent_runner,
             )
-            _apply_v4_item_operations(workspace, tech_resolution, default_author="TECH")
+            operation_result = _apply_v4_item_operations(
+                workspace, tech_resolution, default_author="TECH"
+            )
             _refresh_v4_item_state(state, workspace)
+            current_paths["tech"], current_summaries["tech"] = (
+                _write_v4_resolution_document_and_summary(
+                    workspace=workspace,
+                    state=state,
+                    role="tech",
+                    stage_prefix=stage_prefix,
+                    loop_number=loop_number,
+                    agent_output=tech_resolution,
+                    summary_runner=summary_runner,
+                )
+            )
             _record_v4_stage(
                 workspace,
                 _v4_resolution_stage_name(stage_prefix, "tech", loop_number),
-                product_path,
+                current_paths["tech"],
                 tech_resolution,
             )
             state.setdefault("resolution_notes", []).append(
@@ -1959,6 +2145,7 @@ def _run_v4_item_resolution_loop(
                     "loop": loop_number,
                     "role": "tech",
                     "items": [item["id"] for item in grouped["tech"]],
+                    "document": current_paths["tech"].name,
                     "note": tech_resolution["document_text"],
                 }
             )
@@ -1968,12 +2155,16 @@ def _run_v4_item_resolution_loop(
                     "loop": loop_number,
                     "agent": "tech",
                     "items": [item["id"] for item in grouped["tech"]],
+                    "document": current_paths["tech"].name,
                 }
             )
-            loop_changed = True
+            loop_changed = loop_changed or _v4_resolution_changed(
+                before_document_text, tech_resolution, operation_result
+            )
 
         if grouped["product"] or loop_changed:
             product_items = grouped["product"] or list_open_items(workspace)
+            before_document_text = current_paths["product"].read_text(encoding="utf-8")
             product_resolution = _run_v4_agent(
                 role="product",
                 mode_label="item_resolution",
@@ -1983,29 +2174,42 @@ def _run_v4_item_resolution_loop(
                 state=state,
                 open_items=product_items,
                 summaries={
-                    "product": product_summary,
-                    "growth": growth_summary,
-                    "tech": tech_summary,
+                    "product": current_summaries["product"],
+                    "growth": current_summaries["growth"],
+                    "tech": current_summaries["tech"],
                 },
                 documents={
-                    "product": product_path.read_text(encoding="utf-8"),
-                    "growth": growth_path.read_text(encoding="utf-8"),
-                    "tech": tech_path.read_text(encoding="utf-8"),
+                    "product": before_document_text,
+                    "growth": current_paths["growth"].read_text(encoding="utf-8"),
+                    "tech": current_paths["tech"].read_text(encoding="utf-8"),
                 },
                 extra_context=[
-                    _format_summary_context("Product summary", product_summary),
-                    _format_summary_context("Growth summary", growth_summary),
-                    _format_summary_context("Tech summary", tech_summary),
+                    _format_summary_context("Product summary", current_summaries["product"]),
+                    _format_summary_context("Growth summary", current_summaries["growth"]),
+                    _format_summary_context("Tech summary", current_summaries["tech"]),
                     _format_open_items_context(workspace, product_items),
                 ],
                 agent_runner=agent_runner,
             )
-            _apply_v4_item_operations(workspace, product_resolution, default_author="PRODUCT")
+            operation_result = _apply_v4_item_operations(
+                workspace, product_resolution, default_author="PRODUCT"
+            )
             _refresh_v4_item_state(state, workspace)
+            current_paths["product"], current_summaries["product"] = (
+                _write_v4_resolution_document_and_summary(
+                    workspace=workspace,
+                    state=state,
+                    role="product",
+                    stage_prefix=stage_prefix,
+                    loop_number=loop_number,
+                    agent_output=product_resolution,
+                    summary_runner=summary_runner,
+                )
+            )
             _record_v4_stage(
                 workspace,
                 _v4_resolution_stage_name(stage_prefix, "product", loop_number),
-                product_path,
+                current_paths["product"],
                 product_resolution,
             )
             state.setdefault("resolution_notes", []).append(
@@ -2014,6 +2218,7 @@ def _run_v4_item_resolution_loop(
                     "loop": loop_number,
                     "role": "product",
                     "items": [item["id"] for item in product_items],
+                    "document": current_paths["product"].name,
                     "note": product_resolution["document_text"],
                 }
             )
@@ -2023,7 +2228,11 @@ def _run_v4_item_resolution_loop(
                     "loop": loop_number,
                     "agent": "product",
                     "items": [item["id"] for item in product_items],
+                    "document": current_paths["product"].name,
                 }
+            )
+            loop_changed = loop_changed or _v4_resolution_changed(
+                before_document_text, product_resolution, operation_result
             )
 
         _append_v4_log(
@@ -2033,9 +2242,59 @@ def _run_v4_item_resolution_loop(
             "app/orchestrator.py",
             f"changed={loop_changed}; open_items={len(list_open_items(workspace))}",
         )
-        if not loop_changed and not grouped["product"]:
+        if not loop_changed:
             break
-    return resolution_log
+    return {
+        "log": resolution_log,
+        "paths": current_paths,
+        "summaries": current_summaries,
+    }
+
+
+def _write_v4_resolution_document_and_summary(
+    *,
+    workspace,
+    state: dict,
+    role: str,
+    stage_prefix: str,
+    loop_number: int,
+    agent_output: dict,
+    summary_runner: Callable[..., dict],
+) -> tuple[Path, dict]:
+    document_name = _v4_resolution_document_name(stage_prefix, role, loop_number)
+    document_path = write_document(workspace, role, document_name, agent_output["document_text"])
+    document_key = _v4_resolution_document_key(stage_prefix, role, loop_number)
+    state.setdefault("documents", {})[document_key] = document_path
+    summary = summary_runner(workspace, document_path)
+    state.setdefault("summaries", {})[document_key] = summary
+    return document_path, summary
+
+
+def _v4_resolution_document_name(stage_prefix: str, role: str, loop_number: int) -> str:
+    prefix_by_role = {
+        "product": "PRD",
+        "growth": "GTM",
+        "tech": "Architecture",
+    }
+    suffix = "CORRECTION" if stage_prefix == "correction" else "POST_VERIFICATION_RESOLUTION"
+    prefix = prefix_by_role[str(role).strip().lower()]
+    return f"{prefix}_{suffix}_{loop_number}.md"
+
+
+def _v4_resolution_document_key(stage_prefix: str, role: str, loop_number: int) -> str:
+    normalized_stage = re.sub(r"[^a-z0-9]+", "_", stage_prefix.strip().lower()).strip("_")
+    return f"{role}_{normalized_stage}_{loop_number}"
+
+
+def _v4_resolution_changed(
+    previous_document_text: str,
+    agent_output: dict,
+    operation_result: dict | None,
+) -> bool:
+    operation_result = operation_result or {}
+    if operation_result.get("created") or operation_result.get("updated"):
+        return True
+    return previous_document_text.strip() != str(agent_output.get("document_text", "")).strip()
 
 
 def _v4_resolution_stage_name(stage_prefix: str, role: str, loop_number: int) -> str:
@@ -2111,6 +2370,17 @@ def _build_v4_user_prompt(
     documents: dict[str, str],
     extra_context: list[str],
 ) -> str:
+    selected_documents = _select_v4_documents_for_context(
+        role=role,
+        mode_label=mode_label,
+        documents=documents,
+        call_type="document",
+    )
+    selected_summaries = _select_v4_summaries_for_context(
+        summaries=summaries,
+        selected_documents=selected_documents,
+        call_type="document",
+    )
     sections = [
         f"Mode: {mode_label}",
         "Phase instruction:\n" + _load_v4_phase_prompt(mode_label),
@@ -2119,11 +2389,16 @@ def _build_v4_user_prompt(
         f"Project brief:\n{project_brief}",
         _format_open_items_context(workspace, open_items),
     ]
-    for summary_label, summary in summaries.items():
+    for summary_label, summary in selected_summaries.items():
         sections.append(_format_summary_context(f"{summary_label.capitalize()} summary", summary))
-    for document_label, document_text in documents.items():
+    for document_label, document_text in selected_documents.items():
         sections.append(_format_document_context(f"{document_label.upper()} document", document_text))
-    sections.extend(extra_context)
+    sections.extend(
+        _filter_v4_extra_context_sections(
+            extra_context,
+            include_remaining_items=False,
+        )
+    )
     sections.append("Document output contract:\n" + _load_v4_document_contract(role))
     sections.append(
         "Return only one JSON object matching the document schema. Each value is "
@@ -2146,6 +2421,17 @@ def _build_v4_blackboard_prompt(
     produced_document: str,
     extra_context: list[str],
 ) -> str:
+    selected_documents = _select_v4_documents_for_context(
+        role=role,
+        mode_label=mode_label,
+        documents=documents,
+        call_type="blackboard",
+    )
+    selected_summaries = _select_v4_summaries_for_context(
+        summaries=summaries,
+        selected_documents=selected_documents,
+        call_type="blackboard",
+    )
     sections = [
         f"Mode: {mode_label}",
         "Phase instruction:\n" + _load_v4_phase_prompt(mode_label),
@@ -2154,11 +2440,16 @@ def _build_v4_blackboard_prompt(
         f"Project brief:\n{project_brief}",
         _format_open_items_context(workspace, open_items),
     ]
-    for summary_label, summary in summaries.items():
+    for summary_label, summary in selected_summaries.items():
         sections.append(_format_summary_context(f"{summary_label.capitalize()} summary", summary))
-    for document_label, document_text in documents.items():
+    for document_label, document_text in selected_documents.items():
         sections.append(_format_document_context(f"{document_label.upper()} document", document_text))
-    sections.extend(extra_context)
+    sections.extend(
+        _filter_v4_extra_context_sections(
+            extra_context,
+            include_remaining_items=False,
+        )
+    )
     sections.append(_format_document_context("Current produced document", produced_document))
     sections.append("Blackboard output contract:\n" + _load_v4_blackboard_contract())
     sections.append(
@@ -2178,6 +2469,86 @@ def _build_v4_blackboard_prompt(
         )
     sections.append("Return only one JSON object matching the schema. Do not include Markdown.")
     return "\n\n".join(section for section in sections if section.strip())
+
+
+def _select_v4_documents_for_context(
+    *,
+    role: str,
+    mode_label: str,
+    documents: dict[str, str],
+    call_type: str,
+) -> dict[str, str]:
+    if not documents:
+        return {}
+    normalized_mode = str(mode_label).strip().lower()
+    if call_type == "blackboard":
+        return {}
+    if normalized_mode == "initial_draft":
+        return {}
+    if normalized_mode in {"review", "revision", "verification"}:
+        return dict(documents)
+    if normalized_mode == "finalization" and str(role).strip().lower() == "product":
+        return dict(documents)
+    if normalized_mode in {"item_resolution", "candidate_rewrite", "finalization"}:
+        return _select_current_role_document(role, documents)
+    return dict(documents)
+
+
+def _select_current_role_document(role: str, documents: dict[str, str]) -> dict[str, str]:
+    role_key = str(role).strip().lower()
+    if role_key in documents:
+        return {role_key: documents[role_key]}
+    matching = {
+        key: value
+        for key, value in documents.items()
+        if str(key).strip().lower().startswith(role_key)
+    }
+    return matching or dict(documents)
+
+
+def _select_v4_summaries_for_context(
+    *,
+    summaries: dict[str, dict],
+    selected_documents: dict[str, str],
+    call_type: str,
+) -> dict[str, dict]:
+    if not summaries:
+        return {}
+    if call_type == "blackboard":
+        return dict(summaries)
+    document_keys = {str(key).strip().lower() for key in selected_documents}
+    return {
+        key: summary
+        for key, summary in summaries.items()
+        if str(key).strip().lower() not in document_keys
+    }
+
+
+def _filter_v4_extra_context_sections(
+    sections: list[str],
+    *,
+    include_remaining_items: bool,
+) -> list[str]:
+    filtered: list[str] = []
+    seen: set[str] = set()
+    for section in sections:
+        text = str(section).strip()
+        if not text:
+            continue
+        first_line = text.splitlines()[0].strip()
+        if first_line.startswith("Summary context:"):
+            continue
+        if first_line.startswith("Context document:"):
+            continue
+        if first_line == "Open items context":
+            continue
+        if first_line.startswith("Items context: Remaining") and not include_remaining_items:
+            continue
+        if text in seen:
+            continue
+        seen.add(text)
+        filtered.append(text)
+    return filtered
 
 
 def _parse_v4_agent_output(text: str, *, role: str | None = None) -> dict:
@@ -2205,7 +2576,7 @@ def _parse_v4_structured_agent_output(payload: dict, *, role: str) -> dict:
     }
 
 
-def _apply_v4_item_operations(workspace, agent_output: dict, default_author: str) -> None:
+def _apply_v4_item_operations(workspace, agent_output: dict, default_author: str) -> dict:
     existing_items = list_items(workspace)
     existing_item_ids = {item["id"] for item in existing_items}
     existing_items_by_id = {item["id"]: item for item in existing_items}
@@ -2218,19 +2589,175 @@ def _apply_v4_item_operations(workspace, agent_output: dict, default_author: str
         existing_item_ids=existing_item_ids,
         existing_items_by_id=existing_items_by_id,
     )
+    created = 0
+    reused = 0
+    updated = 0
     for item_spec in agent_output.get("items_to_create", []):
-        create_item(
-            workspace,
-            type=item_spec["type"],
-            author=default_author,
-            targets=item_spec["targets"],
-            priority=item_spec["priority"],
-            tags=item_spec["tags"],
-            title=item_spec["title"],
-            content=item_spec["content"],
-        )
+        try:
+            create_item(
+                workspace,
+                type=item_spec["type"],
+                author=default_author,
+                targets=item_spec["targets"],
+                priority=item_spec["priority"],
+                tags=item_spec["tags"],
+                title=item_spec["title"],
+                content=item_spec["content"],
+            )
+            created += 1
+        except ValueError as error:
+            if "Duplicate open blackboard item rejected" not in str(error):
+                raise
+            reused += 1
+            _append_v4_log(
+                workspace,
+                "orchestrator",
+                "blackboard_duplicate_item_reused",
+                "app/orchestrator.py",
+                str(error),
+            )
     for update_spec in agent_output.get("items_to_update", []):
         update_item_status(workspace, update_spec["id"], update_spec["status"])
+        updated += 1
+    return {"created": created, "updated": updated, "reused": reused}
+
+
+def _validate_v4_external_decision_guardrails(
+    *,
+    role: str,
+    mode_label: str,
+    project_brief: str,
+    open_items: list[dict],
+    summaries: dict[str, dict],
+    documents: dict[str, str],
+    parsed_response: dict,
+    raw_response_trace_path: str | Path,
+) -> None:
+    if str(mode_label).strip().lower() != "item_resolution":
+        return
+    if not _v4_has_external_decision_pressure(open_items):
+        return
+
+    document_text = str(parsed_response.get("document_text", ""))
+    source_text = _v4_guardrail_source_text(
+        project_brief=project_brief,
+        open_items=open_items,
+        summaries=summaries,
+        documents=documents,
+    )
+    unsupported_terms = [
+        term
+        for term in _V4_PROTECTED_EXTERNAL_DECISION_TERMS
+        if _v4_text_contains_term(document_text, term)
+        and not _v4_text_contains_term(source_text, term)
+    ]
+    if unsupported_terms:
+        terms = ", ".join(sorted(unsupported_terms))
+        raise ValueError(
+            "V4 external decision guardrail rejected item_resolution output: "
+            f"{role} introduced unsupported external decision term(s): {terms}. "
+            "External market, compliance, legal, pricing, retention, audit, and "
+            "policy facts must come from the project brief or runtime context. "
+            f"Raw trace: {raw_response_trace_path}"
+        )
+
+
+def _v4_guardrail_source_text(
+    *,
+    project_brief: str,
+    open_items: list[dict],
+    summaries: dict[str, dict],
+    documents: dict[str, str],
+) -> str:
+    item_text = "\n".join(
+        "\n".join(
+            [
+                str(item.get("title", "")),
+                str(item.get("content", "")),
+                " ".join(str(tag) for tag in item.get("tags", [])),
+            ]
+        )
+        for item in open_items
+    )
+    return "\n".join(
+        [
+            str(project_brief),
+            item_text,
+            json.dumps(summaries, ensure_ascii=False, sort_keys=True),
+            "\n".join(str(value) for value in documents.values()),
+        ]
+    )
+
+
+def _v4_has_external_decision_pressure(open_items: list[dict]) -> bool:
+    for item in open_items:
+        targets = {str(target).strip().upper() for target in item.get("targets", [])}
+        if targets == {"EXTERNAL"}:
+            return True
+        searchable = " ".join(
+            [
+                str(item.get("title", "")),
+                str(item.get("content", "")),
+                " ".join(str(tag) for tag in item.get("tags", [])),
+            ]
+        ).lower()
+        if any(keyword in searchable for keyword in _V4_EXTERNAL_DECISION_KEYWORDS):
+            return True
+    return False
+
+
+def _v4_text_contains_term(text: str, term: str) -> bool:
+    if len(term) <= 3 or not term.replace(".", "").isalpha():
+        return term.lower() in text.lower()
+    return re.search(rf"\b{re.escape(term)}\b", text, flags=re.IGNORECASE) is not None
+
+
+_V4_EXTERNAL_DECISION_KEYWORDS = {
+    "audit",
+    "baseline",
+    "ccpa",
+    "compliance",
+    "consent",
+    "country",
+    "gdpr",
+    "geograph",
+    "hipaa",
+    "legal",
+    "market",
+    "policy",
+    "price",
+    "pricing",
+    "privacy",
+    "retention",
+}
+
+
+_V4_PROTECTED_EXTERNAL_DECISION_TERMS = (
+    "United States",
+    "U.S.",
+    "USA",
+    "United Kingdom",
+    "U.K.",
+    "UK",
+    "France",
+    "Canada",
+    "Australia",
+    "Germany",
+    "Spain",
+    "Italy",
+    "Netherlands",
+    "Belgium",
+    "Switzerland",
+    "Ireland",
+    "HIPAA",
+    "GDPR",
+    "CCPA",
+    "SOC 2",
+    "ISO 27001",
+    "$",
+    "€",
+    "£",
+)
 
 
 def _write_v4_raw_response_trace(workspace, stage_label: str, raw_response: str) -> Path:

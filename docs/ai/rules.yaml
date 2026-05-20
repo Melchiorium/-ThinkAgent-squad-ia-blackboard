@@ -31,15 +31,20 @@ v4_rules:
   - V4 structured document JSON traces, rendered Markdown traces, and structured blackboard JSON traces must be written under runs/<run_id>/agent_outputs/.
   - V4 parser-owned headings are matched by normalized heading text, but duplicate normalized top-level headings must fail clearly.
   - V4 required top-level section headings must start with `##`; H1 titles and unexpected `##` headings fail.
+  - V4 renders empty JSON arrays as explicit absence statements; runtime-generated Markdown must never introduce placeholder-only `None` content.
   - V4 human-facing sections must be self-contained; placeholder-only sections such as See above, As above, Same as above, TBD, N/A, or None fail validation.
   - V4 role documents may only contain their own declared top-level deliverable headings; copied cross-role headings fail before write.
   - V4 Product Arbitration must include `## Product Arbitration`.
   - V4 Tech document JSON must provide Mermaid source without code fences; the runtime renders `### Mermaid Diagram` and the ` ```mermaid` fence.
   - V4 readiness sections must choose exactly one status from READY, LIMITED, or INSUFFICIENT and include one literal `Status: ...` line.
+  - V4 readiness sections must not mark READY while keeping material blocking gaps; every material blocking gap must have at least one required improvement.
+  - V4 Product finalization must include a concrete Product Locking note; a generated absence statement is not a final locking decision.
   - V4 prompts are layered as role prompt, common workflow context, phase prompt, runtime context, and output contract.
   - V4 role prompts stay general; phase prompts and output contracts carry step-specific instructions and serialization rules.
   - V4 blackboard item targets must include PRODUCT, GROWTH, TECH, ALL, or EXTERNAL. Topic labels belong in tags.
   - EXTERNAL is used only when no Product/Growth/Tech agent can decide from current context, and EXTERNAL must be the only target when used.
+  - V4 agents must not invent external market, legal, compliance, pricing, retention, audit, or policy facts absent from the brief or runtime context.
+  - V4 prevents duplicate open blackboard items with the same routing targets and materially similar title/content, including EXTERNAL items that use overlapping tags or the same decision vocabulary; runtime duplicate creates reuse the existing item instead of adding another file.
   - Create operations targeted only to the current role fail; the agent should resolve those points directly in its document.
   - V4 blackboard create schemas remove the current role from explicit target enum values before the LLM call.
   - Update operations against EXTERNAL items fail; EXTERNAL items remain open unless external information is supplied.
@@ -48,12 +53,19 @@ v4_rules:
   - JSON create operations contain exactly type, targets, priority, tags, title, and content; author is assigned by the runtime.
   - JSON update operations contain exactly id and status.
   - Item resolution and candidate rewrite are no-create phases.
+  - Item-resolution documents can advance the current role document state; the runtime must regenerate summaries before downstream candidate rewrite or finalization reads them.
   - Verification may create material follow-up items; a bounded post-verification item-resolution loop must run before finalization.
   - Finalization is freeze-only: agents may update pre-existing routed items but must not create new blackboard items.
   - Growth and Tech finalization may update only items targeted to their own role.
   - V4 final public artifacts must come from explicit `*_FINAL.md` documents, not from latest-document sorting.
+  - V4 blackboard output must distinguish open blackboard items from residual document gaps so closed items do not hide final readiness conflicts or open questions.
   - V4 finalization order is Product first, then Growth, then Tech.
   - V4 summaries are requested as structured JSON and rendered by the runtime as YAML.
+  - V4 prompt context must be phase-aware: do not inject the same summary, full document, or open item list twice.
+  - V4 blackboard calls should receive the produced document, compact summaries, and updateable/open items; previous full documents are not included by default.
+  - V4 skips no-op blackboard calls when create is forbidden and no non-EXTERNAL item can be updated.
+  - V4 prompt metrics are written to `runs/<run_id>/prompt_metrics.jsonl` without storing full prompts.
+  - V4 summaries may be reused by source hash within the same run, but reused summaries remain derivatives and must keep exact source metadata for the new document path.
   - Do not turn V4 into a generic graph engine or distributed queue.
   - V4 prompts live under app/prompts V4/; V3 prompts remain untouched until a later lot explicitly migrates them.
   - A failed live V4 run must not be relaunched until its raw trace and code path have been reviewed and a corrective plan exists.
@@ -88,11 +100,13 @@ output_rules:
   - Do not overwrite generated runs manually unless the task explicitly requires it.
   - New normal runs should create a new version directory through app/main.py.
   - architecture-diagram.png is conditional on Mermaid CLI availability.
+  - V4 final artifacts must expose separate readiness for Architecture Markdown, Mermaid source, and Mermaid PNG render status.
   - Treat second-pass outputs as experimental history, not the normal output path.
 
 quality_rules:
   - If changing runtime code, run python3 -m compileall app when feasible.
   - If changing Mermaid rendering, verify mmdc availability or run a targeted render.
+  - If Mermaid PNG rendering fails because Chrome/Puppeteer is missing, surface an actionable warning instead of hiding the missing visual artifact.
   - If changing prompt contracts, inspect parser expectations before editing prompts.
   - If changing V4 parser or compiler behavior, run the no-LLM harness before relying on live LLM validation.
   - If a live V4 run fails, stop relaunching, inspect the raw trace and relevant code, then plan the correction before retrying.

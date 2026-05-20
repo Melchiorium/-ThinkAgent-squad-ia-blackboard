@@ -10,6 +10,11 @@ At the same time, professional caregivers and home assistance providers often la
 
 The platform aims to simplify elderly care coordination while reducing stress for families.
 
+Initial Development And Test Context:
+The project will first be developed and tested in Lyon, France. Two to three
+pilot partners have already been identified, including healthcare assistants,
+nurses, and families.
+
 Target Users:
 - Adults managing care for elderly parents
 - Family members living in different cities

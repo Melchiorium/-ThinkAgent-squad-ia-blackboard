@@ -172,6 +172,17 @@ Ce script installe aussi le navigateur Chromium attendu par Puppeteer, ce qui
 permet de générer `architecture-diagram.png`. Le navigateur est téléchargé
 dans `.cache/puppeteer` du dépôt pour rester disponible au runtime Render.
 
+Préflight local du rendu Mermaid PNG :
+
+```bash
+npm run mmdc -- -h
+PUPPETEER_CACHE_DIR=.cache/puppeteer npx puppeteer browsers install chrome-headless-shell
+```
+
+Si Chrome/Puppeteer manque, V4 garde `architecture-diagram.mmd` et signale
+l'échec PNG dans `blackboard.md` et `activity_log.txt` avec une commande de
+remédiation.
+
 Exemple :
 
 ```bash
@@ -202,7 +213,10 @@ structurées rendues ensuite en YAML. Les phases `item_resolution` et
 items de suivi matériels ; ils sont routés dans une boucle bornée
 `item_resolution` avant `finalization`. La finalisation est freeze-only : elle
 peut mettre à jour des items préexistants, mais ne doit jamais créer de nouveaux
-items blackboard.
+items blackboard. Les documents produits pendant `item_resolution` peuvent
+devenir l'état courant du rôle, avec summary régénéré, avant les documents
+finaux. Les items `EXTERNAL` restent des dépendances hors-run : V4 rejette les
+décisions externes inventées et les doublons d'items ouverts trop similaires.
 
 Validation V4 optionnelle avec LLM, seulement si l'environnement est prêt :
 

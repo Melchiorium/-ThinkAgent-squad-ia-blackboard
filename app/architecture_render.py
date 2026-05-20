@@ -37,7 +37,8 @@ def _render_mermaid_image(output_dir: Path, mermaid_source: str) -> dict:
     mmdc_path = _find_mmdc()
     if not mmdc_path:
         state["render_warning"] = (
-            "Mermaid source written, but PNG was not generated because `mmdc` is not installed."
+            "Mermaid source written, but PNG was not generated because `mmdc` is not installed. "
+            "Run `npm install`, then verify with `npm run mmdc -- -h`."
         )
         return state
 
@@ -87,6 +88,14 @@ def _format_render_failure(error: BaseException) -> str:
         stdout = (error.stdout or "").strip()
         details = stderr or stdout
         if details:
+            if "Could not find Chrome" in details or "ChromeLauncher" in details:
+                return (
+                    "Mermaid PNG generation failed because the Puppeteer Chrome "
+                    "cache is missing. Run "
+                    "`PUPPETEER_CACHE_DIR=.cache/puppeteer npx puppeteer browsers "
+                    "install chrome-headless-shell` from the repository root, then "
+                    "rerun the generation."
+                )
             return (
                 "Mermaid PNG generation failed: "
                 f"{error}. Renderer output: {details}"
@@ -96,13 +105,23 @@ def _format_render_failure(error: BaseException) -> str:
 
 def _assess_diagram_quality(mermaid_source: str, image_state: dict, blackboard: dict) -> dict:
     warning = image_state.get("render_warning", "")
+    markdown_ready = bool(blackboard.get("architecture_notes", "").strip())
+    mermaid_ready = bool(mermaid_source)
+    png_ready = bool(image_state.get("image_ready"))
+    if png_ready:
+        visual_status = "ready"
+    elif mermaid_ready:
+        visual_status = "png_failed"
+    else:
+        visual_status = "missing_source"
     return {
-        "architecture_visual_ready": bool(image_state.get("image_ready")),
+        "architecture_visual_ready": png_ready,
+        "architecture_visual_status": visual_status,
         "architecture_visual_warning": warning,
-        "architecture_markdown_ready": bool(blackboard.get("architecture_notes", "").strip()),
-        "architecture_mermaid_ready": bool(mermaid_source),
+        "architecture_markdown_ready": markdown_ready,
+        "architecture_mermaid_ready": mermaid_ready,
         "architecture_mermaid_source": image_state.get("source_path", ""),
-        "architecture_image_ready": bool(image_state.get("image_ready")),
+        "architecture_image_ready": png_ready,
         "architecture_image_path": image_state.get("image_path", ""),
     }
 

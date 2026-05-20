@@ -83,9 +83,10 @@ v4_target_architecture:
     structured JSON before the runtime renders YAML.
     Representative LLM validation on CareSync and LocalLoop must still be run
     after sourcing `.env` so the shell sees the traced `OPENAI_API_KEY` and
-    `OPENAI_MODEL` values. `OPENAI_BASE_URL` is only required when using a
-    non-default OpenAI-compatible endpoint. This checkout does not currently
-    have that validation evidence.
+    `OPENAI_MODEL` values. `OPENAI_REASONING_EFFORT` may be set for models
+    that support reasoning effort control. `OPENAI_BASE_URL` is only required
+    when using a non-default OpenAI-compatible endpoint. This checkout does
+    not currently have that validation evidence.
 
 external_dependencies:
   python:
@@ -104,6 +105,7 @@ llm_configuration:
       - OPENAI_API_KEY
       - OPENAI_BASE_URL
       - OPENAI_MODEL
+      - OPENAI_REASONING_EFFORT
   local_ollama_note: >
     Local Ollama or LAN-hosted models should use the same OpenAI-compatible
     variables, with OPENAI_BASE_URL pointing to the local endpoint and

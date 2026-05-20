@@ -10,6 +10,7 @@ from openai import OpenAI
 def call_llm(system_prompt: str, user_prompt: str) -> str:
     """Send a minimal chat request and return the assistant text."""
     api_key, base_url, model, provider_name = _resolve_llm_config()
+    request_options = _llm_request_options()
 
     if not api_key:
         raise RuntimeError("Missing required environment variable: OPENAI_API_KEY")
@@ -23,6 +24,7 @@ def call_llm(system_prompt: str, user_prompt: str) -> str:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            **request_options,
         )
     except openai.APIConnectionError as error:
         raise RuntimeError(
@@ -65,6 +67,7 @@ def call_llm_json(
 ) -> dict[str, Any]:
     """Return one JSON object that validates against the provided JSON schema."""
     api_key, base_url, model, provider_name = _resolve_llm_config()
+    request_options = _llm_request_options()
 
     if not api_key:
         raise RuntimeError("Missing required environment variable: OPENAI_API_KEY")
@@ -89,6 +92,7 @@ def call_llm_json(
                     "strict": True,
                 },
             },
+            **request_options,
         )
     except openai.APIStatusError as error:
         if not _is_response_format_unsupported(error):
@@ -110,6 +114,7 @@ def call_llm_json(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             schema_error=schema_error,
+            request_options=request_options,
         )
 
     content = _extract_text_response(response)
@@ -129,6 +134,20 @@ def _resolve_llm_config() -> tuple[str | None, str, str, str]:
     return api_key, base_url, model, "OpenAI-compatible"
 
 
+def _llm_request_options() -> dict[str, Any]:
+    reasoning_effort = os.getenv("OPENAI_REASONING_EFFORT", "").strip().lower()
+    if not reasoning_effort:
+        return {}
+    allowed_efforts = {"none", "minimal", "low", "medium", "high", "xhigh"}
+    if reasoning_effort not in allowed_efforts:
+        allowed_values = ", ".join(sorted(allowed_efforts))
+        raise RuntimeError(
+            "OPENAI_REASONING_EFFORT must be one of: "
+            f"{allowed_values}"
+        )
+    return {"reasoning_effort": reasoning_effort}
+
+
 def _call_json_object_fallback(
     *,
     client: OpenAI,
@@ -136,6 +155,7 @@ def _call_json_object_fallback(
     system_prompt: str,
     user_prompt: str,
     schema_error: openai.APIStatusError | None,
+    request_options: dict[str, Any],
 ):
     fallback_prompt = (
         f"{user_prompt}\n\n"
@@ -150,6 +170,7 @@ def _call_json_object_fallback(
                 {"role": "user", "content": fallback_prompt},
             ],
             response_format={"type": "json_object"},
+            **request_options,
         )
     except openai.APIStatusError as error:
         if not _is_response_format_unsupported(error):
@@ -165,6 +186,7 @@ def _call_json_object_fallback(
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": fallback_prompt},
                 ],
+                **request_options,
             )
         except openai.APIStatusError as text_error:
             raise _format_llm_status_error(

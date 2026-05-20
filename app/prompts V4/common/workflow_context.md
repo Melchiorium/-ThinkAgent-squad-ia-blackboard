@@ -22,3 +22,9 @@ Use the current phase instruction to decide what to do now. If your role can
 resolve a point from the current context, resolve it in the document. Create a
 blackboard item only when the point materially affects final deliverables and
 cannot be resolved by your role in this phase.
+
+Do not invent external facts. Market, country, legal, compliance, pricing,
+retention, audit, and policy decisions must come from the project brief or from
+explicit runtime context. If that information is absent, keep the point as an
+external decision requirement instead of converting an assumption into a
+decision.

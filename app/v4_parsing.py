@@ -130,11 +130,50 @@ _V4_ARRAY_SECTIONS = {
         "Why This Could Fail Even With Good Execution",
     },
 }
+
+
+def _normalize_absence_text(text: str) -> str:
+    stripped = re.sub(r"^[-*]\s+", "", str(text).strip())
+    return re.sub(r"[.?!]+$", "", stripped).strip().lower()
+
+
 _V4_EMPTY_ARRAY_SECTION_TEXT = {
+    "In Scope": "- No explicit in-scope item identified.",
+    "Out of Scope": "- No explicit out-of-scope item identified.",
+    "Critical Assumptions": "- No critical assumption identified.",
+    "How To Test Quickly": "- No fast validation test identified.",
+    "Acceptance Criteria": "- No acceptance criterion identified.",
+    "Risks And Failure Modes": "- No material risk or failure mode identified.",
     "Requested Changes": "- No requested changes remain.",
     "Risks": "- No material risk remains.",
     "Open Questions": "- No open questions remain.",
     "Why This Could Fail Even With Good Execution": "- No additional failure mode is identified.",
+}
+_V4_EMPTY_STRUCTURED_LIST_TEXT = {
+    "Blocking Gaps": "- No blocking gap identified.",
+    "Required Improvements": "- No required improvement identified.",
+    "Retained": "- No retained option identified.",
+    "Deferred": "- No deferred option identified.",
+    "Rejected": "- No rejected option identified.",
+    "Open Points": "- No open point identified.",
+    "Rationales": "- No rationale recorded.",
+    "Confirmed In Scope": "- No confirmed in-scope item identified.",
+    "Confirmed Deferred": "- No confirmed deferred item identified.",
+    "Confirmed Out Of Scope": "- No confirmed out-of-scope item identified.",
+    "Locking Note": "- No locking note recorded.",
+    "Must Be Productized Now": "- No item must be productized now.",
+    "Can Stay Manual Or Operational During Pilot": (
+        "- No item is marked as manual or operational during pilot."
+    ),
+    "Deferred Until After Proof": "- No item is deferred until after proof.",
+}
+_V4_ABSENCE_TEXTS = {
+    _normalize_absence_text(value)
+    for value in [
+        *_V4_PLACEHOLDER_TEXTS,
+        *_V4_EMPTY_ARRAY_SECTION_TEXT.values(),
+        *_V4_EMPTY_STRUCTURED_LIST_TEXT.values(),
+    ]
 }
 
 
@@ -302,9 +341,18 @@ def _render_v4_readiness_section(value: Any, *, heading: str) -> str:
     return "\n\n".join(
         [
             f"Status: {status}",
-            "Blocking Gaps:\n" + _render_markdown_list(value["blocking_gaps"], section_name=heading),
+            "Blocking Gaps:\n"
+            + _render_markdown_list(
+                value["blocking_gaps"],
+                section_name=heading,
+                empty_text=_V4_EMPTY_STRUCTURED_LIST_TEXT["Blocking Gaps"],
+            ),
             "Required Improvements:\n"
-            + _render_markdown_list(value["required_improvements"], section_name=heading),
+            + _render_markdown_list(
+                value["required_improvements"],
+                section_name=heading,
+                empty_text=_V4_EMPTY_STRUCTURED_LIST_TEXT["Required Improvements"],
+            ),
         ]
     ).strip()
 
@@ -348,7 +396,11 @@ def _render_v4_structured_list_section(
     for field_name, label in fields:
         blocks.append(
             f"### {label}\n"
-            + _render_markdown_list(value[field_name], section_name=heading)
+            + _render_markdown_list(
+                value[field_name],
+                section_name=heading,
+                empty_text=_V4_EMPTY_STRUCTURED_LIST_TEXT.get(label),
+            )
         )
     return "\n\n".join(blocks).strip()
 
@@ -368,7 +420,7 @@ def _render_markdown_list(
         text = str(item).strip()
         if not text:
             continue
-        if _normalize_placeholder_line(text) in _V4_PLACEHOLDER_TEXTS:
+        if _is_absence_statement(_normalize_placeholder_line(text)):
             raise ValueError(
                 f"V4 document section '{section_name}' contains placeholder list item '{text}'. "
                 "Use an empty array when there is no content."
@@ -571,6 +623,12 @@ def validate_v4_document(
                     raw_response_trace_path=raw_response_trace_path,
                 )
             )
+
+    if normalized_role == "product" and _normalize_heading(mode_label) == "finalization":
+        _validate_v4_product_finalization_locking_note(
+            sections=sections,
+            raw_response_trace_path=raw_response_trace_path,
+        )
 
     if normalized_role == "tech":
         architecture_notes = _get_section_by_normalized_heading(sections, "Architecture Notes")
@@ -965,6 +1023,67 @@ def _validate_v4_readiness_section(
                 raw_response_trace_path=raw_response_trace_path,
             )
         )
+    blocking_gaps = _extract_readiness_list_items(section_text, "Blocking Gaps")
+    required_improvements = _extract_readiness_list_items(section_text, "Required Improvements")
+    if normalized_status == "READY" and blocking_gaps:
+        raise ValueError(
+            _format_document_validation_error(
+                role=role,
+                mode_label=mode_label,
+                section_name=section_name,
+                detail="READY status cannot keep material blocking gaps",
+                raw_response_trace_path=raw_response_trace_path,
+            )
+        )
+    if blocking_gaps and not required_improvements:
+        raise ValueError(
+            _format_document_validation_error(
+                role=role,
+                mode_label=mode_label,
+                section_name=section_name,
+                detail="blocking gaps require at least one required improvement",
+                raw_response_trace_path=raw_response_trace_path,
+            )
+        )
+
+
+def _validate_v4_product_finalization_locking_note(
+    *,
+    sections: dict[str, str],
+    raw_response_trace_path: str,
+) -> None:
+    product_locking = _get_section_by_normalized_heading(sections, "Product Locking")
+    locking_note = _extract_subsection(product_locking, "Locking Note")
+    if not _material_document_lines(locking_note):
+        raise ValueError(
+            _format_document_validation_error(
+                role="product",
+                mode_label="finalization",
+                section_name="Product Locking > Locking Note",
+                detail="final Product locking note must contain a concrete locking decision",
+                raw_response_trace_path=raw_response_trace_path,
+            )
+        )
+
+
+def _extract_readiness_list_items(section_text: str, label: str) -> list[str]:
+    target_label = _normalize_heading(label)
+    current_label = ""
+    items: list[str] = []
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        label_match = re.match(r"^([A-Za-z ]+):\s*$", stripped)
+        if label_match:
+            current_label = _normalize_heading(label_match.group(1))
+            continue
+        if current_label != target_label:
+            continue
+        normalized = _normalize_placeholder_line(stripped)
+        if normalized and not _is_absence_statement(normalized):
+            items.append(re.sub(r"^[-*]\s+", "", stripped).strip())
+    return items
 
 
 def _extract_subsection(text: str, subsection_heading: str) -> str:
@@ -1015,6 +1134,14 @@ def _meaningful_lines(text: str) -> list[str]:
     return lines
 
 
+def _material_document_lines(text: str) -> list[str]:
+    return [
+        line
+        for line in _meaningful_lines(text)
+        if not _is_absence_statement(_normalize_placeholder_line(line))
+    ]
+
+
 def _get_section_by_normalized_heading(sections: dict[str, str], heading: str) -> str:
     normalized_heading = _normalize_heading(heading)
     for section_heading, section_text in sections.items():
@@ -1037,7 +1164,49 @@ def _normalize_role(role: str) -> str:
 
 def _normalize_placeholder_line(line: str) -> str:
     stripped = re.sub(r"^[-*]\s+", "", line.strip())
-    return re.sub(r"[.?!]+$", "", stripped).strip().lower()
+    return _normalize_placeholder_text(stripped)
+
+
+def _normalize_placeholder_text(text: str) -> str:
+    return _normalize_absence_text(text)
+
+
+def _is_absence_statement(normalized_text: str) -> bool:
+    if normalized_text in _V4_ABSENCE_TEXTS:
+        return True
+    if not normalized_text.startswith("no "):
+        return False
+    if any(
+        marker in normalized_text
+        for marker in (
+            "blocking",
+            "gap",
+            "improvement",
+            "question",
+            "risk",
+            "change",
+            "item",
+            "note",
+            "rationale",
+            "scope",
+            "deferred",
+            "out-of-scope",
+            "in-scope",
+        )
+    ):
+        return any(
+            suffix in normalized_text
+            for suffix in (
+                "identified",
+                "remain",
+                "remains",
+                "recorded",
+                "required",
+                "defined",
+                "marked",
+            )
+        )
+    return False
 
 
 def _looks_like_item_id(value: str) -> bool:

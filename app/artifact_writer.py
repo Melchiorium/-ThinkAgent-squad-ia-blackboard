@@ -7,14 +7,14 @@ if __package__ and __package__.startswith("app"):
     from .architecture_render import render_architecture_diagram
     from .blackboard_items import list_items
     from .run_documents import list_documents, read_named_document
-    from .run_store import write_text_file
+    from .run_store import append_activity_log_entry, write_text_file
     from .v4_parsing import extract_section
     from .readiness import group_tagged_items, render_tagged_item
 else:
     from architecture_render import render_architecture_diagram
     from blackboard_items import list_items
     from run_documents import list_documents, read_named_document
-    from run_store import write_text_file
+    from run_store import append_activity_log_entry, write_text_file
     from v4_parsing import extract_section
     from readiness import group_tagged_items, render_tagged_item
 
@@ -87,6 +87,7 @@ def write_v4_run_artifacts(
             "mermaid_diagram": "",
         },
     )
+    _record_v4_artifact_state(workspace, artifact_state)
 
     _write_final_text(final_output_dir / "gtm.md", growth_doc)
     _write_final_text(
@@ -161,6 +162,13 @@ def _format_v4_blackboard_markdown(
         _format_v4_document_index(document_names),
         _format_v4_summary_section(summary_blocks),
         _format_v4_item_section("Open Items", open_items),
+        _format_v4_residual_document_gaps_section(
+            {
+                "product": product_doc,
+                "growth": growth_doc,
+                "tech": tech_doc,
+            }
+        ),
         _format_v4_item_section("Resolved Items", answered_items),
         _format_v4_decisions_section(
             {
@@ -178,8 +186,16 @@ def _format_v4_blackboard_markdown(
             str(bool(artifact_state.get("architecture_visual_ready"))),
         ),
         _format_block(
+            "Architecture Visual Status",
+            artifact_state.get("architecture_visual_status", ""),
+        ),
+        _format_block(
             "Architecture Visual Warning",
             artifact_state.get("architecture_visual_warning", ""),
+        ),
+        _format_block(
+            "Architecture Mermaid Ready",
+            str(bool(artifact_state.get("architecture_mermaid_ready"))),
         ),
         _format_block(
             "Architecture Mermaid Source",
@@ -192,6 +208,27 @@ def _format_v4_blackboard_markdown(
         _format_block("Activity Log", _read_activity_log(workspace)),
     ]
     return "\n".join(lines)
+
+
+def _record_v4_artifact_state(workspace, artifact_state: dict) -> None:
+    details = (
+        f"markdown_ready={bool(artifact_state.get('architecture_markdown_ready'))}; "
+        f"mermaid_source_ready={bool(artifact_state.get('architecture_mermaid_ready'))}; "
+        f"png_ready={bool(artifact_state.get('architecture_image_ready'))}; "
+        f"visual_status={artifact_state.get('architecture_visual_status', '')}"
+    )
+    warning = str(artifact_state.get("architecture_visual_warning", "")).strip()
+    if warning:
+        details = f"{details}; warning={warning}"
+    append_activity_log_entry(
+        workspace,
+        {
+            "agent": "artifact_writer",
+            "event": "final_artifact_status",
+            "source": "app/artifact_writer.py",
+            "details": details,
+        },
+    )
 
 
 def _format_v4_document_index(document_names: dict[str, str]) -> str:
@@ -242,6 +279,164 @@ def _format_v4_item_section(title: str, items: list[dict]) -> str:
             ]
         )
     return "\n".join(lines)
+
+
+def _format_v4_residual_document_gaps_section(latest_documents: dict[str, str]) -> str:
+    gaps = _collect_v4_residual_document_gaps(latest_documents)
+    if not gaps:
+        return "## Residual Document Gaps\n\n- None"
+    lines = ["## Residual Document Gaps", ""]
+    lines.extend(f"- {gap}" for gap in gaps)
+    return "\n".join(lines)
+
+
+def _collect_v4_residual_document_gaps(latest_documents: dict[str, str]) -> list[str]:
+    readiness = {
+        "product": _extract_v4_readiness(latest_documents["product"], "Product Readiness"),
+        "growth": _extract_v4_readiness(latest_documents["growth"], "GTM Readiness"),
+        "tech": _extract_v4_readiness(latest_documents["tech"], "Technical Readiness"),
+    }
+    gaps: list[str] = []
+    product_status = readiness["product"]["status"]
+    for role in ("growth", "tech"):
+        peer_status = readiness[role]["status"]
+        if product_status == "READY" and peer_status and peer_status != "READY":
+            gaps.append(
+                f"Product readiness is READY while {_role_label(role)} readiness is {peer_status}."
+            )
+
+    for role, role_readiness in readiness.items():
+        status = role_readiness["status"]
+        if status and status != "READY":
+            gaps.append(f"{_role_label(role)} readiness is {status}.")
+        for gap in role_readiness["blocking_gaps"]:
+            gaps.append(f"{_role_label(role)} blocking gap: {gap}")
+        for improvement in role_readiness["required_improvements"]:
+            gaps.append(f"{_role_label(role)} required improvement: {improvement}")
+
+    product_arbitration = extract_section(latest_documents["product"], "Product Arbitration")
+    for open_point in _extract_v4_subsection_items(product_arbitration, "Open Points"):
+        gaps.append(f"Product open point: {open_point}")
+    for role, section_name in (("growth", "Open Questions"), ("tech", "Open Questions")):
+        for question in _extract_v4_section_items(latest_documents[role], section_name):
+            gaps.append(f"{_role_label(role)} open question: {question}")
+    return _dedupe_preserving_order(gaps)
+
+
+def _extract_v4_readiness(document_text: str, heading: str) -> dict[str, object]:
+    readiness_text = extract_section(document_text, heading)
+    return {
+        "status": _extract_v4_status(readiness_text),
+        "blocking_gaps": _extract_v4_labeled_list(readiness_text, "Blocking Gaps"),
+        "required_improvements": _extract_v4_labeled_list(
+            readiness_text,
+            "Required Improvements",
+        ),
+    }
+
+
+def _extract_v4_status(section_text: str) -> str:
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if stripped.lower().startswith("status:"):
+            return stripped.split(":", 1)[1].strip().upper()
+    return ""
+
+
+def _extract_v4_labeled_list(section_text: str, label: str) -> list[str]:
+    target = _normalize_v4_gap_text(label)
+    current = ""
+    items: list[str] = []
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.endswith(":"):
+            current = _normalize_v4_gap_text(stripped[:-1])
+            continue
+        if current != target:
+            continue
+        text = _clean_v4_list_item(stripped)
+        if text and not _is_v4_absence_text(text):
+            items.append(text)
+    return items
+
+
+def _extract_v4_section_items(document_text: str, heading: str) -> list[str]:
+    return _material_v4_lines(extract_section(document_text, heading))
+
+
+def _extract_v4_subsection_items(section_text: str, subsection_heading: str) -> list[str]:
+    target = _normalize_v4_gap_text(subsection_heading)
+    capture = False
+    lines: list[str] = []
+    for line in section_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("### "):
+            if capture:
+                break
+            capture = _normalize_v4_gap_text(stripped[4:]) == target
+            continue
+        if capture:
+            lines.append(line)
+    return _material_v4_lines("\n".join(lines))
+
+
+def _material_v4_lines(text: str) -> list[str]:
+    items: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("### "):
+            continue
+        cleaned = _clean_v4_list_item(stripped)
+        if cleaned and not _is_v4_absence_text(cleaned):
+            items.append(cleaned)
+    return items
+
+
+def _clean_v4_list_item(text: str) -> str:
+    return text.strip().lstrip("-*").strip()
+
+
+def _is_v4_absence_text(text: str) -> bool:
+    normalized = _normalize_v4_gap_text(text)
+    return (
+        normalized in {"none", "n/a"}
+        or normalized.startswith("no ")
+        and any(
+            marker in normalized
+            for marker in (
+                "identified",
+                "remain",
+                "recorded",
+                "required",
+                "open question",
+                "blocking gap",
+            )
+        )
+    )
+
+
+def _normalize_v4_gap_text(text: str) -> str:
+    normalized = str(text).strip().lower()
+    normalized = normalized.lstrip("-*").strip()
+    return normalized.rstrip(".?!").strip()
+
+
+def _dedupe_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        key = _normalize_v4_gap_text(value)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(value)
+    return result
+
+
+def _role_label(role: str) -> str:
+    return {"product": "Product", "growth": "Growth", "tech": "Tech"}.get(role, role)
 
 
 def _format_v4_decisions_section(latest_documents: dict[str, str]) -> str:

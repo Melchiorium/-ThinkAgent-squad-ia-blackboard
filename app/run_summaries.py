@@ -28,6 +28,7 @@ def generate_summary(
     run: RunWorkspace,
     source_document_path: str | Path,
     llm_call=call_llm_json,
+    metric_recorder=None,
 ) -> dict[str, Any]:
     source_path = _resolve_source_document_path(run, source_document_path)
     source_document = read_text_file(source_path)
@@ -41,12 +42,60 @@ def generate_summary(
         expected_source=str(source_relative_path),
         expected_source_hash=source_hash,
     )
-    summary = llm_call(
-        system_prompt,
-        user_prompt,
-        summary_schema,
-        schema_name="v4_summary",
+    cached_summary = _find_cached_summary_by_hash(
+        run,
+        source_hash=source_hash,
+        source_document=str(source_relative_path),
     )
+    if cached_summary is not None:
+        summary = {
+            **cached_summary,
+            "source_document": str(source_relative_path),
+            "source_hash": source_hash,
+        }
+        _record_summary_metric(
+            run,
+            metric_recorder,
+            source_relative_path=source_relative_path,
+            system_prompt=system_prompt,
+            user_prompt="",
+            summary_schema=summary_schema,
+            summary=summary,
+            status="skipped",
+            skip_reason="summary_cache_hit",
+        )
+    else:
+        try:
+            summary = llm_call(
+                system_prompt,
+                user_prompt,
+                summary_schema,
+                schema_name="v4_summary",
+            )
+        except Exception:
+            _record_summary_metric(
+                run,
+                metric_recorder,
+                source_relative_path=source_relative_path,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                summary_schema=summary_schema,
+                summary={},
+                status="error",
+                skip_reason="",
+            )
+            raise
+        _record_summary_metric(
+            run,
+            metric_recorder,
+            source_relative_path=source_relative_path,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            summary_schema=summary_schema,
+            summary=summary,
+            status="ok",
+            skip_reason="",
+        )
     raw_trace_path = _summary_raw_trace_path(run, source_relative_path)
     write_text_file(raw_trace_path, json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     try:
@@ -68,6 +117,60 @@ def generate_summary(
     summary_path = _summary_path(run, source_relative_path)
     write_text_file(summary_path, _render_summary_yaml(validated))
     return validated
+
+
+def _record_summary_metric(
+    run: RunWorkspace,
+    metric_recorder,
+    *,
+    source_relative_path: Path,
+    system_prompt: str,
+    user_prompt: str,
+    summary_schema: dict[str, Any],
+    summary: dict[str, Any],
+    status: str,
+    skip_reason: str,
+) -> None:
+    if metric_recorder is None:
+        return
+    metric = {
+        "role": source_relative_path.parent.name,
+        "mode_label": source_relative_path.stem,
+        "stage": f"{source_relative_path.parent.name}_{source_relative_path.stem}_summary",
+        "call_type": "summary",
+        "schema_name": "v4_summary",
+        "status": status,
+        "system_chars": len(system_prompt),
+        "user_chars": len(user_prompt),
+        "schema_chars": len(json.dumps(summary_schema, ensure_ascii=False, sort_keys=True)),
+        "output_chars": len(json.dumps(summary, ensure_ascii=False, sort_keys=True)) if summary else 0,
+    }
+    if skip_reason:
+        metric["skip_reason"] = skip_reason
+    metric_recorder(run, metric)
+
+
+def _find_cached_summary_by_hash(
+    run: RunWorkspace,
+    *,
+    source_hash: str,
+    source_document: str,
+) -> dict[str, Any] | None:
+    summary_outputs_dir = run.root / "summary_outputs"
+    if not summary_outputs_dir.exists():
+        return None
+    for path in sorted(summary_outputs_dir.glob("*.raw.json")):
+        try:
+            summary = json.loads(read_text_file(path))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(summary, dict):
+            continue
+        if str(summary.get("source_document", "")).strip() == source_document:
+            continue
+        if str(summary.get("source_hash", "")).strip() == source_hash:
+            return summary
+    return None
 
 
 def _load_summary_prompt() -> str:

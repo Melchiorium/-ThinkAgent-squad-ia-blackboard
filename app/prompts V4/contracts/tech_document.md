@@ -58,6 +58,9 @@ Readiness. Do not create a new caveat heading.
 
 For Technical Readiness, choose exactly one status: READY, LIMITED, or
 INSUFFICIENT.
+If `status` is READY, `blocking_gaps` must be empty. If `blocking_gaps` is not
+empty, `required_improvements` must contain the concrete action needed to remove
+the gap; otherwise move the point out of `blocking_gaps`.
 
 Required human-facing sections must contain concrete content or a concrete
 unresolved gap. Do not use placeholder cross-references such as See above,

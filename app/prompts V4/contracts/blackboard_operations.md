@@ -45,4 +45,6 @@ Rules:
 - Use EXTERNAL only when no Product, Growth, or Tech agent can decide from the
   available run context. EXTERNAL must be the only target when used.
 - Update only pre-existing item ids shown in the runtime context.
+- Do not create a new item that duplicates an existing open item. Reuse the
+  existing item by leaving it open or updating it when an update is allowed.
 - If there is no valid operation, return empty arrays.

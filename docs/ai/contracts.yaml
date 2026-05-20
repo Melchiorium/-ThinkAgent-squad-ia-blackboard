@@ -169,6 +169,12 @@ v4_output_compilation_contract:
     GTM_FINAL.md, and Architecture_FINAL.md explicitly. Final outputs must
     remain readable in both the private run workspace and the public outputs
     directory.
+    The V4 blackboard artifact must expose residual document gaps separately
+    from open blackboard items. When all blackboard items are closed but final
+    documents still contain non-ready readiness statuses, blocking gaps,
+    required improvements, open questions, or Product readiness conflicts with
+    Growth/Tech readiness, the blackboard renders a Residual Document Gaps
+    section instead of implying complete resolution.
 
 v4_run_workspace_contract:
   source: app/run_store.py
@@ -241,7 +247,14 @@ v4_blackboard_item_contract:
     PRODUCT, GROWTH, TECH, ALL, or EXTERNAL. Topic labels belong in tags and
     must not be the only targets. ALL routes to Product, Growth, and Tech.
     EXTERNAL is not routed to an agent and must be the only target when used.
-    Unknown targets must not silently default to Product.
+    Unknown targets must not silently default to Product. Open blackboard items
+    must not be duplicated; deterministic duplicate detection prevents new
+    equivalent open items with the same routing targets and materially similar
+    title/content. EXTERNAL items also compare overlapping tags and shared
+    decision vocabulary so launch-market, compliance, pricing, pilot-scope, and
+    trust questions are not re-created through minor wording changes. Runtime
+    blackboard application reuses the existing item instead of persisting the
+    duplicate.
   operation_disambiguation_rule: >
     V4 blackboard operations are requested in a separate structured JSON call
     after the role document is validated. Create operations contain type,
@@ -255,10 +268,15 @@ v4_blackboard_item_contract:
     so it cannot be combined with routed Product/Growth/Tech targets. Update
     ids are narrowed per call to currently open, non-EXTERNAL items shown as
     updateable context; when no updateable item exists, update must be empty.
+    If a phase is no-create and no updateable non-EXTERNAL item is available,
+    the runtime skips the blackboard LLM call and writes deterministic empty
+    operations with a prompt metric marked as skipped.
     Bare arrays, bare operation objects, Markdown item rows, alternate markers,
     and terminal JSON fences inside role documents are invalid.
     Item context shown to agents should keep ids visible without resembling
-    operation syntax.
+    operation syntax. EXTERNAL market, legal, compliance, pricing, retention,
+    audit, and policy decisions must come from the brief or explicit runtime
+    context; item-resolution output must not invent concrete external facts.
 
 v4_document_contract:
   source: app/run_documents.py
@@ -275,7 +293,28 @@ v4_document_contract:
     refined, but they remain separate from summaries and blackboard items.
     V4 agents produce document content as strict JSON section objects. The
     runtime renders those section bodies into Markdown with canonical `##`
-    headings before writing versioned documents.
+    headings before writing versioned documents. Item-resolution documents can
+    advance the current role document state before candidate rewrites or
+    finalization; when that happens, the affected summary is regenerated from
+    the new document. Context injection is phase-aware: agents receive full
+    documents only when needed for the current phase, otherwise summaries and
+    routed blackboard items carry compact context.
+
+v4_prompt_metrics_contract:
+  source: runs/<run_id>/prompt_metrics.jsonl
+  rule: >
+    V4 records one JSONL metric per document, blackboard, and summary call, or
+    per deterministic skip. Metrics include role, mode, stage, call_type,
+    schema_name, model, reasoning_effort, status, and system/user/schema/output
+    character counts. Metrics must never contain full prompt text.
+
+v4_summary_cache_contract:
+  source: app/run_summaries.py
+  rule: >
+    V4 summaries are cached within a run by source_hash. If a later document has
+    identical content, the runtime reuses the previous summary content, rewrites
+    source_document to the new path, keeps the same source_hash, renders YAML,
+    and records a skipped summary metric. Summaries remain derivatives only.
 
 v4_parser_contract:
   source: app/v4_parsing.py
@@ -285,11 +324,13 @@ v4_parser_contract:
     objects: readiness, Product Arbitration, Product Locking, Growth Build Vs
     Pilot Operations, and Tech Architecture Notes / Mermaid source. Known
     list-like sections are JSON arrays, with an empty array representing no
-    content; placeholder strings such as None are invalid list items. The
-    runtime renders Markdown from those keys, then the parser extracts declared
-    `##` sections, rejects duplicate normalized top-level headings, rejects
-    unexpected top-level headings, rejects H1 titles, rejects copied cross-role
-    deliverable headings, rejects placeholder-only required sections, and
+    content; placeholder strings such as None are invalid list items. Empty
+    arrays are rendered as explicit human-readable absence statements, never as
+    `None` or another placeholder. The runtime renders Markdown from those
+    keys, then the parser extracts declared `##` sections, rejects duplicate
+    normalized top-level headings, rejects unexpected top-level headings,
+    rejects H1 titles, rejects copied cross-role deliverable headings, rejects
+    placeholder-only required sections, and
     rejects any blackboard operation protocol inside the rendered document.
     Blackboard operations are parsed only from the separate structured JSON call
     and keep raw_line / line_number for failure traceability. JSON create
@@ -329,7 +370,10 @@ v4_readiness_contract:
     Product, Growth, and Tech readiness sections must choose exactly one
     concrete status: READY, LIMITED, or INSUFFICIENT. The literal placeholder
     `READY / LIMITED / INSUFFICIENT` is invalid. Validation errors must include
-    the role, mode, section, invalid status, and raw trace path.
+    the role, mode, section, invalid status, and raw trace path. READY sections
+    must not keep material blocking gaps. Any material blocking gap requires at
+    least one required improvement; if no improvement is required, the point is
+    not a blocking gap and must be moved elsewhere.
 
 v4_summary_contract:
   source: app/run_summaries.py
@@ -460,8 +504,10 @@ environment_contract:
       - OPENAI_API_KEY
       - OPENAI_BASE_URL
       - OPENAI_MODEL
+      - OPENAI_REASONING_EFFORT
     note: >
       Use these same variables for OpenAI and OpenAI-compatible local endpoints
       such as Ollama. OPENAI_API_KEY is required for the official OpenAI
-      endpoint; local endpoints may run without it. Gemini-specific variables
-      are out of scope.
+      endpoint; local endpoints may run without it. OPENAI_REASONING_EFFORT is
+      optional and is passed only when set. Gemini-specific variables are out
+      of scope.

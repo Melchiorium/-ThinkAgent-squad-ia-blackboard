@@ -89,12 +89,14 @@ diagram_rendering_flow:
     - find local node_modules/.bin/mmdc first, then global mmdc
     - render architecture-diagram.png when mmdc is available
     - record warnings in blackboard.artifacts and activity_log
+    - expose markdown, Mermaid source, and PNG readiness separately in V4 final artifacts
 
 validation_flows:
   no_llm_static_checks:
     commands:
       - python3 -m compileall app
       - npm run mmdc -- -h
+      - PUPPETEER_CACHE_DIR=.cache/puppeteer npx puppeteer browsers install chrome-headless-shell
     purpose: syntax and Mermaid CLI availability checks
   normal_llm_run:
     command: >
@@ -139,6 +141,7 @@ v4_explicit_orchestration_flow:
     - write PRD_V1.md
     - run a bounded item-resolution loop over remaining open items
     - keep the item-resolution loop no-create and focused on item updates, resolution notes, and blackboard state
+    - let item-resolution documents advance the current role document state and regenerate summaries
     - compose each V4 document prompt from role, common workflow, phase, runtime context, and document contract
     - request each V4 role document as structured JSON keyed by canonical section names
     - render Markdown documents from structured JSON section bodies and known nested objects
@@ -156,6 +159,7 @@ v4_explicit_orchestration_flow:
     - apply parsed verification item operations immediately after each verification output
     - recompute open and resolved items after each verification batch
     - run a bounded post-verification item-resolution loop over remaining non-EXTERNAL open items
+    - use post-verification resolution documents and regenerated summaries as finalization inputs
     - recompute open and resolved items after the post-verification resolution loop
     - run Product finalization first and generate PRD_FINAL.md as the locked source of truth
     - run Growth finalization against PRD_FINAL.md and generate GTM_FINAL.md
@@ -193,7 +197,10 @@ v4_mode_contract:
     passes read the locked upstream documents. Finalization is freeze-only:
     agents may update pre-existing routed items but must not create new items.
     The orchestrator uses phase prompt files for step-specific instructions
-    instead of embedding collaboration rules inside role prompts.
+    instead of embedding collaboration rules inside role prompts. V4 context
+    assembly is phase-aware and avoids duplicate injection of summaries, full
+    documents, and open item lists. No-op blackboard calls are skipped when a
+    no-create phase has no updateable routed item.
 
 v4_final_output_compilation_flow:
   owner: app/artifact_writer.py and app/generation_service.py
@@ -223,6 +230,7 @@ v4_run_workspace_flow:
     - create runs/<run_id>/summaries/
     - create runs/<run_id>/activity_log/
     - create runs/<run_id>/final_outputs/
+    - append prompt call metrics to runs/<run_id>/prompt_metrics.jsonl
   limitations:
     - separate from the validated V3 baseline
     - no orchestrator migration back into V3

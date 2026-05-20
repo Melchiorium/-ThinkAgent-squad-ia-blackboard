@@ -78,6 +78,11 @@ heading.
 For Product Readiness, choose exactly one status: READY, LIMITED, or
 INSUFFICIENT. The runtime renders readiness labels and Product Arbitration /
 Product Locking subsections from the structured object fields.
+If `status` is READY, `blocking_gaps` must be empty. If `blocking_gaps` is not
+empty, `required_improvements` must contain the concrete action needed to remove
+the gap; otherwise move the point out of `blocking_gaps`.
+In finalization, `Product Locking.locking_note` must contain a concrete locking
+decision and must not be empty.
 
 Required human-facing sections must contain concrete content or a concrete
 unresolved gap. Do not use placeholder cross-references such as See above,

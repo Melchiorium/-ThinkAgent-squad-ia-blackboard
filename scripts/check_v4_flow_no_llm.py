@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from hashlib import sha256
+import json
 import tempfile
 from pathlib import Path
 import sys
@@ -12,6 +13,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from app import orchestrator
+from app import artifact_writer
 from app.artifact_writer import write_v4_run_artifacts
 from app.blackboard_items import create_item
 from app.run_documents import write_document
@@ -94,6 +96,29 @@ def _validate_strict_document_parser() -> None:
         parsed_response=structured,
         raw_response_trace_path="runs/fake/agent_outputs/product_revision.raw.md",
     )
+    empty_list_payload = _document_payload("product")
+    empty_list_payload["Out of Scope"] = []
+    empty_list_payload["Product Readiness"] = {
+        "status": "READY",
+        "blocking_gaps": [],
+        "required_improvements": [],
+    }
+    empty_list_payload["Product Locking"] = {
+        "confirmed_in_scope": ["Strict V4 final documents."],
+        "confirmed_deferred": [],
+        "confirmed_out_of_scope": [],
+        "locking_note": ["Product locks the final PRD before downstream finalization."],
+    }
+    empty_list_structured = parse_v4_structured_document(empty_list_payload, role="product")
+    assert "- None" not in empty_list_structured["document_text"]
+    assert "No explicit out-of-scope item identified." in empty_list_structured["document_text"]
+    assert "No blocking gap identified." in empty_list_structured["document_text"]
+    orchestrator.validate_v4_document(
+        role="product",
+        mode_label="verification",
+        parsed_response=empty_list_structured,
+        raw_response_trace_path="runs/fake/agent_outputs/product_verification.raw.md",
+    )
 
     plural_payload = dict(product_payload)
     plural_payload["Core MVP Workflows"] = plural_payload.pop("Core MVP Workflow")
@@ -153,6 +178,60 @@ def _validate_strict_document_parser() -> None:
     _expect_value_error(
         lambda: parse_v4_structured_document(missing_readiness_field_payload, role="growth"),
         "Missing V4 document field in section 'GTM Readiness': blocking_gaps",
+    )
+
+    blocking_without_improvement = _document_payload("growth")
+    blocking_without_improvement["GTM Readiness"] = {
+        "status": "LIMITED",
+        "blocking_gaps": ["Specific security measures are not defined."],
+        "required_improvements": [],
+    }
+    blocking_without_improvement_parsed = parse_v4_structured_document(
+        blocking_without_improvement,
+        role="growth",
+    )
+    _expect_value_error(
+        lambda: orchestrator.validate_v4_document(
+            role="growth",
+            mode_label="finalization",
+            parsed_response=blocking_without_improvement_parsed,
+            raw_response_trace_path="runs/fake/agent_outputs/growth_finalization.raw.md",
+        ),
+        "blocking gaps require at least one required improvement",
+    )
+
+    ready_with_blocking_gap = _document_payload("tech")
+    ready_with_blocking_gap["Technical Readiness"] = {
+        "status": "READY",
+        "blocking_gaps": ["Architecture diagram is not implementable."],
+        "required_improvements": ["Replace the narrative diagram with system components."],
+    }
+    ready_with_blocking_gap_parsed = parse_v4_structured_document(
+        ready_with_blocking_gap,
+        role="tech",
+    )
+    _expect_value_error(
+        lambda: orchestrator.validate_v4_document(
+            role="tech",
+            mode_label="verification",
+            parsed_response=ready_with_blocking_gap_parsed,
+            raw_response_trace_path="runs/fake/agent_outputs/tech_verification.raw.md",
+        ),
+        "READY status cannot keep material blocking gaps",
+    )
+
+    empty_locking_note = _document_payload("product")
+    empty_locking_note["Product Locking"] = dict(empty_locking_note["Product Locking"])
+    empty_locking_note["Product Locking"]["locking_note"] = []
+    empty_locking_note_parsed = parse_v4_structured_document(empty_locking_note, role="product")
+    _expect_value_error(
+        lambda: orchestrator.validate_v4_document(
+            role="product",
+            mode_label="finalization",
+            parsed_response=empty_locking_note_parsed,
+            raw_response_trace_path="runs/fake/agent_outputs/product_finalization.raw.md",
+        ),
+        "final Product locking note must contain a concrete locking decision",
     )
 
 
@@ -233,6 +312,106 @@ def _validate_structured_blackboard_operations() -> None:
             content="The data store choice is unresolved.",
         )
         existing_items = {item["id"]: item for item in [external_item, tech_item]}
+
+        _expect_value_error(
+            lambda: create_item(
+                workspace,
+                type="QUESTION",
+                author="PRODUCT",
+                targets=["EXTERNAL"],
+                priority="HIGH",
+                tags=["pricing"],
+                title="Lock external price",
+                content="The current brief still does not contain a price.",
+            ),
+            "Duplicate open blackboard item",
+        )
+        reuse_result = orchestrator._apply_v4_item_operations(
+            workspace,
+            {
+                "role": "growth",
+                "mode_label": "verification",
+                "items_to_create": [
+                    {
+                        "type": "QUESTION",
+                        "targets": ["EXTERNAL"],
+                        "priority": "HIGH",
+                        "tags": ["pricing"],
+                        "title": "Lock external price",
+                        "content": "The current brief still does not contain a price.",
+                        "raw_line": "{}",
+                    }
+                ],
+                "items_to_update": [],
+                "blackboard_operations_trace_path": (
+                    "runs/fake/agent_outputs/growth_verification_blackboard.json"
+                ),
+            },
+            default_author="GROWTH",
+        )
+        assert reuse_result["reused"] == 1
+
+        launch_item = create_item(
+            workspace,
+            type="QUESTION",
+            author="PRODUCT",
+            targets=["EXTERNAL"],
+            priority="HIGH",
+            tags=["launch-market", "compliance", "data-handling"],
+            title="Define first launch geography and minimum health-data compliance requirements",
+            content=(
+                "The brief flags sensitive medical information and country-specific "
+                "legal/compliance issues, but does not specify the first launch market."
+            ),
+        )
+        _expect_value_error(
+            lambda: create_item(
+                workspace,
+                type="QUESTION",
+                author="GROWTH",
+                targets=["EXTERNAL"],
+                priority="HIGH",
+                tags=["launch-market", "compliance", "health-data"],
+                title="Define the first launch geography and compliance regime",
+                content=(
+                    "The GTM plan depends on a concrete launch market because "
+                    "storage and sharing of health-related information varies by country."
+                ),
+            ),
+            "Duplicate open blackboard item",
+        )
+        external_reuse_result = orchestrator._apply_v4_item_operations(
+            workspace,
+            {
+                "role": "product",
+                "mode_label": "verification",
+                "items_to_create": [
+                    {
+                        "type": "QUESTION",
+                        "targets": ["EXTERNAL"],
+                        "priority": "HIGH",
+                        "tags": ["launch-market", "compliance", "data-handling"],
+                        "title": (
+                            "Confirm first launch geography and minimum health-data "
+                            "compliance requirements"
+                        ),
+                        "content": (
+                            "The revised PRD still depends on a concrete launch market "
+                            "or compliance regime before sensitive care data handling "
+                            "can be treated as launch-ready."
+                        ),
+                        "raw_line": "{}",
+                    }
+                ],
+                "items_to_update": [],
+                "blackboard_operations_trace_path": (
+                    "runs/fake/agent_outputs/product_verification_blackboard.json"
+                ),
+            },
+            default_author="PRODUCT",
+        )
+        assert external_reuse_result["reused"] == 1
+        assert launch_item["id"]
 
         _expect_value_error(
             lambda: orchestrator.validate_v4_item_operations(
@@ -338,6 +517,55 @@ def _validate_structured_blackboard_operations() -> None:
                 "field 'create'",
             )
 
+        external_market_item = create_item(
+            workspace,
+            type="QUESTION",
+            author="TECH",
+            targets=["PRODUCT"],
+            priority="HIGH",
+            tags=["market", "compliance"],
+            title="Confirm pilot market",
+            content="The brief does not define the first pilot market.",
+        )
+        _expect_value_error(
+            lambda: orchestrator._validate_v4_external_decision_guardrails(
+                role="product",
+                mode_label="item_resolution",
+                project_brief="Project name: External Guardrail\n\nNo country is specified.",
+                open_items=[external_market_item],
+                summaries={},
+                documents={"product": _build_document("product")},
+                parsed_response={
+                    "document_text": _build_document("product").replace(
+                        "one project brief",
+                        "one United States pilot",
+                    )
+                },
+                raw_response_trace_path=(
+                    "runs/fake/agent_outputs/product_item_resolution.raw.md"
+                ),
+            ),
+            "unsupported external decision term",
+        )
+        orchestrator._validate_v4_external_decision_guardrails(
+            role="product",
+            mode_label="item_resolution",
+            project_brief=(
+                "Project name: External Guardrail\n\n"
+                "The first pilot market is the United States."
+            ),
+            open_items=[external_market_item],
+            summaries={},
+            documents={"product": _build_document("product")},
+            parsed_response={
+                "document_text": _build_document("product").replace(
+                    "one project brief",
+                    "one United States pilot",
+                )
+            },
+            raw_response_trace_path="runs/fake/agent_outputs/product_item_resolution.raw.md",
+        )
+
 
 def _validate_structured_summaries() -> None:
     with tempfile.TemporaryDirectory(prefix="squad-ia-v4-summary-") as temp_dir:
@@ -386,6 +614,23 @@ def _validate_structured_summaries() -> None:
             lambda: generate_summary(workspace, document_path, llm_call=bad_summary_llm),
             "Summary source_document does not match the source path",
         )
+
+        duplicate_path = write_document(workspace, "product", "PRD_DUPLICATE.md", source_text)
+        cache_metrics: list[dict] = []
+
+        def should_not_call_summary_llm(system_prompt: str, user_prompt: str, schema: dict, *, schema_name: str):
+            raise AssertionError("Identical source document should reuse cached summary")
+
+        cached_summary = generate_summary(
+            workspace,
+            duplicate_path,
+            llm_call=should_not_call_summary_llm,
+            metric_recorder=lambda run, metric: cache_metrics.append(metric),
+        )
+        assert cached_summary["source_document"].endswith("PRD_DUPLICATE.md")
+        assert cached_summary["source_hash"] == expected_hash
+        assert cache_metrics and cache_metrics[0]["status"] == "skipped"
+        assert cache_metrics[0]["skip_reason"] == "summary_cache_hit"
 
 
 def _validate_prompt_split_and_v4_flow() -> None:
@@ -524,6 +769,30 @@ def _validate_prompt_split_and_v4_flow() -> None:
                 extra_context=[],
                 agent_runner=None,
             )
+            duplicate_summary = {
+                "source_document": "documents/product/PRD_V0.md",
+                "source_hash": sha256(_build_document("product").encode("utf-8")).hexdigest(),
+                "scope": "Duplicate context test.",
+                "key_decisions": ["Keep the context packet compact."],
+                "unresolved_questions": [],
+                "critical_risks": [],
+            }
+            orchestrator._run_v4_agent(
+                role="growth",
+                mode_label="review",
+                project_brief="Project name: Prompt Harness\n\nBuild a strict V4 harness.",
+                project_brief_source="scripts/check_v4_flow_no_llm.py",
+                workspace=prompt_workspace,
+                state={},
+                open_items=[],
+                summaries={"product": duplicate_summary},
+                documents={"product": _build_document("product")},
+                extra_context=[
+                    orchestrator._format_summary_context("Product summary", duplicate_summary),
+                    orchestrator._format_document_context("PRD_V0.md", _build_document("product")),
+                ],
+                agent_runner=None,
+            )
         finally:
             orchestrator.call_llm_json = original_call_llm_json
 
@@ -542,6 +811,25 @@ def _validate_prompt_split_and_v4_flow() -> None:
             / "agent_outputs"
             / "product_initial_draft_blackboard.json"
         ).exists()
+        assert (
+            prompt_workspace.root
+            / "agent_outputs"
+            / "product_finalization_blackboard.json"
+        ).exists()
+        review_prompt = next(prompt for prompt in captured_document_prompts if "Mode: review" in prompt)
+        assert "Context document: PRODUCT document" in review_prompt
+        assert "Context document: PRD_V0.md" not in review_prompt
+        assert "Summary context: Product summary" not in review_prompt
+        prompt_metrics = [
+            json.loads(line)
+            for line in read_text_file(prompt_workspace.root / "prompt_metrics.jsonl").splitlines()
+        ]
+        assert any(metric["call_type"] == "document" and metric["status"] == "ok" for metric in prompt_metrics)
+        assert any(metric["call_type"] == "blackboard" and metric["status"] == "ok" for metric in prompt_metrics)
+        assert any(
+            metric["call_type"] == "blackboard" and metric["status"] == "skipped"
+            for metric in prompt_metrics
+        )
 
         valid_workspaces = []
         summary_calls: list[str] = []
@@ -579,6 +867,18 @@ def _validate_prompt_split_and_v4_flow() -> None:
             documents: dict[str, str],
             extra_context: list[str],
         ) -> dict:
+            if role == "product" and mode_label == "finalization":
+                assert summaries["product"]["source_document"].endswith(
+                    "PRD_POST_VERIFICATION_RESOLUTION_1.md"
+                )
+                parsed = parse_v4_agent_response(documents["product"], role="product")
+                parsed["raw_response"] = documents["product"]
+                parsed["role"] = role
+                parsed["mode_label"] = mode_label
+                parsed["items_to_create"] = []
+                parsed["items_to_update"] = []
+                parsed["blackboard_operation_format"] = "separate_json"
+                return parsed
             return _fake_v4_agent_output(role, mode_label, open_items=open_items)
 
         state = orchestrator.run_v4_flow(
@@ -594,16 +894,75 @@ def _validate_prompt_split_and_v4_flow() -> None:
         assert summary_calls.count("GTM_FINAL.md") == 1
         assert summary_calls.count("Architecture_FINAL.md") == 1
         assert state["post_verification_resolution_log"]
+        assert "PRD_POST_VERIFICATION_RESOLUTION_1.md" in summary_calls
         output_dir = temp_root / "public"
-        write_v4_run_artifacts(state, output_dir)
+        original_render = artifact_writer.render_architecture_diagram
+
+        def fake_render_architecture_diagram(output_dir, blackboard):
+            mmd_path = output_dir / "architecture-diagram.mmd"
+            mmd_path.write_text("flowchart LR\n  A --> B\n", encoding="utf-8")
+            return {
+                "architecture_markdown_ready": True,
+                "architecture_mermaid_ready": True,
+                "architecture_mermaid_source": str(mmd_path),
+                "architecture_visual_ready": False,
+                "architecture_visual_status": "png_failed",
+                "architecture_visual_warning": (
+                    "Mermaid PNG generation failed because the Puppeteer Chrome "
+                    "cache is missing. Run `PUPPETEER_CACHE_DIR=.cache/puppeteer "
+                    "npx puppeteer browsers install chrome-headless-shell`."
+                ),
+                "architecture_image_ready": False,
+                "architecture_image_path": "",
+            }
+
+        artifact_writer.render_architecture_diagram = fake_render_architecture_diagram
+        try:
+            write_v4_run_artifacts(state, output_dir)
+        finally:
+            artifact_writer.render_architecture_diagram = original_render
         assert (output_dir / "prd.md").exists()
         assert (output_dir / "gtm.md").exists()
         assert (output_dir / "architecture.md").exists()
-        assert "BLACKBOARD_OPERATIONS" not in read_text_file(output_dir / "prd.md")
+        prd_output = read_text_file(output_dir / "prd.md")
+        blackboard_output = read_text_file(output_dir / "blackboard.md")
+        activity_log_output = read_text_file(output_dir / "activity_log.txt")
+        assert "BLACKBOARD_OPERATIONS" not in prd_output
+        assert "Product post-verification resolution marker" in prd_output
+        assert "Architecture Visual Status" in blackboard_output
+        assert "png_failed" in blackboard_output
+        assert "Puppeteer Chrome cache is missing" in blackboard_output
+        residual_gaps_output = artifact_writer._format_v4_residual_document_gaps_section(
+            {
+                "product": _product_document(),
+                "growth": _growth_document().replace(
+                    "Status: READY",
+                    "Status: LIMITED",
+                ).replace(
+                    "- No blocking GTM gap remains for this harness.",
+                    "- Specific security measures are not defined.",
+                ),
+                "tech": _tech_document().replace(
+                    "- No technical open question remains for this harness.",
+                    "- What specific security controls will be implemented?",
+                ),
+            }
+        )
+        assert "Residual Document Gaps" in residual_gaps_output
+        assert "Product readiness is READY while Growth readiness is LIMITED." in residual_gaps_output
+        assert "Growth blocking gap: Specific security measures are not defined." in residual_gaps_output
+        assert "Tech open question: What specific security controls will be implemented?" in residual_gaps_output
+        assert "final_artifact_status" in activity_log_output
+        assert "png_ready=False" in activity_log_output
 
 
 def _fake_v4_agent_output(role: str, mode_label: str, *, open_items: list[dict] | None = None) -> dict:
     raw_response = _build_document(role)
+    if role == "product" and mode_label == "item_resolution" and open_items:
+        raw_response = raw_response.replace(
+            "## Product Locking",
+            "- Product post-verification resolution marker is now part of the current PRD.\n\n## Product Locking",
+        )
     parsed = parse_v4_agent_response(raw_response, role=role)
     parsed["raw_response"] = raw_response
     parsed["role"] = role
@@ -625,6 +984,26 @@ def _fake_v4_agent_output(role: str, mode_label: str, *, open_items: list[dict] 
             }
         ]
     if role == "growth" and mode_label == "item_resolution" and open_items:
+        parsed["items_to_update"] = [
+            {
+                "id": open_items[0]["id"],
+                "status": "ANSWERED",
+                "raw_line": "{}",
+            }
+        ]
+    if role == "tech" and mode_label == "verification":
+        parsed["items_to_create"] = [
+            {
+                "type": "QUESTION",
+                "targets": ["PRODUCT"],
+                "priority": "HIGH",
+                "tags": ["verification"],
+                "title": "Resolve verification Product gap",
+                "content": "Product must resolve this before finalization.",
+                "raw_line": "{}",
+            }
+        ]
+    if role == "product" and mode_label == "item_resolution" and open_items:
         parsed["items_to_update"] = [
             {
                 "id": open_items[0]["id"],
@@ -657,7 +1036,7 @@ def _document_payload(role: str) -> dict:
             "retained": ["Keep Product as final arbiter."],
             "deferred": ["Defer generic orchestration abstractions."],
             "rejected": ["Reject permissive parsing as the normal path."],
-            "open_points": ["No product open point remains for this harness."],
+            "open_points": [],
             "rationales": ["Separate structured outputs are easier to validate."],
         }
         sections["Product Locking"] = {
@@ -716,7 +1095,7 @@ def _document_payload(role: str) -> dict:
 def _readiness_payload() -> dict:
     return {
         "status": "READY",
-        "blocking_gaps": ["No blocking gap remains for this harness."],
+        "blocking_gaps": [],
         "required_improvements": ["Keep the static harness as the first validation gate."],
     }
 
